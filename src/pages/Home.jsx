@@ -7,6 +7,7 @@ import { usePR } from '../context/PRContext';
 import { useAthlete } from '../context/AthleteContext';
 import { useFeedback } from '../context/FeedbackContext';
 import { useFatigue } from '../hooks/useFatigue';
+import { useSession } from '../context/SessionContext';
 
 // Day of week helper
 const getDayOfWeek = () => {
@@ -28,6 +29,7 @@ export default function Home() {
   const { athlete } = useAthlete();
   const { unreadCount } = useFeedback();
   const fatigue = useFatigue();
+  const { loadSession } = useSession();
   const firstName = athlete?.name?.split(' ')[0] || '';
 
   const streak = useMemo(() => {
@@ -105,22 +107,38 @@ export default function Home() {
       <div className="flex-1 px-4 py-4 space-y-4" style={{ paddingBottom: 'calc(5rem + var(--safe-bottom,0px))' }}>
 
         {/* ── HERO CARD — Sesión de hoy ── */}
-        {(todaySession && todaySession.length > 0) ? (
+        {todaySession ? (
           <div className="bg-white border border-[#E8E8E4] rounded-3xl overflow-hidden shadow-sm stagger-1">
             <div className="bg-[#FFF3EC] px-5 pt-5 pb-4 border-b border-[#E8E8E4]">
               <p className="text-[10px] font-condensed font-bold text-[#E85D04] tracking-widest uppercase mb-1">
                 SESIÓN DE HOY
               </p>
               <h2 className="font-condensed font-black text-[32px] leading-tight text-[#1C1C1E]">
-                {todaySession[0].name}
+                {todaySession.name}
               </h2>
               <p className="text-sm text-[#6E6E73] mt-1">
-                ⏱ {todaySession[0].duration} min · 💪 {todaySession[0].exercises} ejercicios
+                ⏱ {todaySession.duration} min · 💪 {todaySession.exercises} ejercicios
               </p>
             </div>
             <div className="px-5 py-4">
               <button
-                onClick={() => navigate('/session')}
+                onClick={() => {
+                  loadSession({
+                    id: todaySession.sessionId || todaySession.id || 'session-today',
+                    name: todaySession.name || 'Sesión',
+                    dayBadge: getDayOfWeek(),
+                    type: todaySession.type || 'gym',
+                    blocks: todaySession.blocks || [{
+                      id: 'block-default',
+                      name: todaySession.name || 'Bloque Principal',
+                      type: 'fuerza',
+                      icon: '🏋️',
+                      duration: `${todaySession.duration || 45}m`,
+                      exercises: []
+                    }],
+                  });
+                  navigate('/session');
+                }}
                 className="w-full py-4 bg-[#FF6B00] text-white font-condensed font-black text-xl rounded-2xl shadow-[0_4px_20px_rgba(255,107,0,0.35)] active:scale-[0.98] transition-transform tracking-wide flex items-center justify-center gap-2"
               >
                 <Play size={20} fill="#1C1C1E" /> INICIAR SESIÓN

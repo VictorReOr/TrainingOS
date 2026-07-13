@@ -68,15 +68,21 @@ export function parseWorkouts(rows) {
     }
 
     // 4. Crear y añadir ejercicio
+    const sets = parseInt(row.series, 10) || 1;
+    const reps = (row.repeticiones || '1').toString();
     const exercise = {
       id: `ex_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
       name: row.ejercicio || 'Ejercicio Desconocido',
       muscleGroup: row.grupo_muscular || '',
+      orderNumber: row.grupo_muscular || '',
       type: row.tipo || 'fuerza',
-      targetSets: parseInt(row.series, 10) || 1,
-      targetReps: (row.repeticiones || '1').toString(),
+      series: sets,
+      reps: reps,
+      targetSets: sets,
+      targetReps: reps,
       targetExecutionTime: parseInt(row.tiempo_ejecucion, 10) || 0,
       targetRestTime: parseInt(row.tiempo_descanso, 10) || 0,
+      restSeconds: parseInt(row.tiempo_descanso, 10) || 0,
       log: []
     };
     

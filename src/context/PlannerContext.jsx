@@ -179,6 +179,7 @@ export function PlannerProvider({ children }) {
           exercises: assigned.exercises || assigned.ejercicios_count || (assigned.blocks ? assigned.blocks.reduce((acc, b) => acc + (b.exercises ? b.exercises.length : 0), 0) : 0),
           intensity: assigned.intensity || 'Media',
           intensityLevel: assigned.intensityLevel || 3,
+          blocks: assigned.blocks || [],
         };
       } else {
         result[dayName] = null;

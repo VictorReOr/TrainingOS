@@ -8,6 +8,7 @@ import SessionReadView from '../components/planner/SessionReadView';
 import { ChevronLeft, ChevronRight, Plus, X, Dumbbell, Moon, Flame, DownloadCloud } from 'lucide-react';
 import { fetchWorkouts } from '../services/sheets';
 import { parseWorkouts } from '../utils/workoutParser';
+import { useSession } from '../context/SessionContext';
 
 // ─── Constantes ──────────────────────────────────────────
 const DAYS_ES    = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
@@ -83,6 +84,7 @@ export default function Plan() {
   const navigate = useNavigate();
   const { currentWeekStart, navigateWeek, goToCurrentWeek, weekSessions, activeSeason, activeMesocycle, sessionTemplates, weekAssignments, assignSessionToDay } = usePlanner();
   const { activeSport } = useAthlete();
+  const { loadSession } = useSession();
 
   const isCurrWeek = isCurrentWeek(currentWeekStart);
   const weekLabel  = getDisplayWeekLabel(currentWeekStart, activeMesocycle);
@@ -117,8 +119,26 @@ export default function Plan() {
   const handleDayTap = (dayIndex, session) => {
     if (!session) return;
     const dayDate = getDayDate(currentWeekStart, dayIndex);
-    if (isToday(dayDate)) navigate('/session');
-    else setSelectedSession({ session, dayDate, dayLabel: DAYS_FULL[dayIndex] });
+    if (isToday(dayDate)) {
+      // Load session into SessionContext with full blocks data
+      loadSession({
+        id: session.id || session.sessionId || `session-${dayIndex}`,
+        name: session.name || 'Sesión',
+        dayBadge: DAYS_FULL[dayIndex],
+        type: session.type || 'gym',
+        blocks: session.blocks || [{
+          id: 'block-default',
+          name: session.name || 'Bloque Principal',
+          type: 'fuerza',
+          icon: '🏋️',
+          duration: `${session.duration || 45}m`,
+          exercises: []
+        }],
+      });
+      navigate('/session');
+    } else {
+      setSelectedSession({ session, dayDate, dayLabel: DAYS_FULL[dayIndex] });
+    }
   };
 
   const handleEmptyDayTap = (dayIndex) => {
