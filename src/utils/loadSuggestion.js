@@ -156,3 +156,69 @@ export function suggestLoad(exerciseId, targetReps, prs, sessionLogs) {
     avgRPE: avgRPE !== null ? Math.round(avgRPE * 10) / 10 : null,
   };
 }
+
+/**
+ * Sobrecarga Progresiva Automática
+ * Sugiere la carga para una serie específica basándose en el historial real del atleta.
+ * Regla: +5% si el RPE fue < 10. Si el RPE fue 10, se mantiene el peso.
+ * Redondeo al múltiplo de 1.25kg más cercano.
+ * 
+ * @param {string} exerciseName - Nombre del ejercicio para buscar en el historial
+ * @param {number} setIndex - Índice de la serie (0 para la primera serie)
+ * @param {Array} sessionLogs - Array de logs de sesión completados
+ * @returns {{ suggestedLoad: number, reason: string, previousLoad: number, previousRpe: number } | null}
+ */
+export function suggestProgressiveOverload(exerciseName, setIndex, sessionLogs) {
+  if (!sessionLogs || sessionLogs.length === 0) return null;
+
+  // 1. Buscar la última vez que hizo este ejercicio
+  let lastLog = null;
+  let lastSetLog = null;
+
+  // sessionLogs suelen venir ordenados del más reciente al más antiguo, o al revés.
+  // Asumiremos que están ordenados cronológicamente (más antiguo al principio),
+  // por lo que iteramos hacia atrás para encontrar la más reciente.
+  for (let i = sessionLogs.length - 1; i >= 0; i--) {
+    const session = sessionLogs[i];
+    // Buscar si el ejercicio está en esta sesión (comparando por nombre en minúsculas)
+    const exInLog = (session.ejercicios || []).find(e => 
+      e.name?.toLowerCase().trim() === exerciseName?.toLowerCase().trim()
+    );
+
+    if (exInLog && exInLog.seriesLog && exInLog.seriesLog[setIndex]) {
+      lastLog = session;
+      lastSetLog = exInLog.seriesLog[setIndex];
+      break;
+    }
+  }
+
+  if (!lastSetLog) return null; // No hay historial para esta serie
+
+  const prevLoad = parseFloat(lastSetLog.carga);
+  const prevRpe = parseFloat(lastSetLog.rpe);
+
+  if (isNaN(prevLoad) || prevLoad <= 0) return null; // Sin carga anterior válida
+
+  let suggestedLoad = prevLoad;
+  let reason = '';
+
+  if (isNaN(prevRpe) || prevRpe < 10) {
+    // Sobrecarga del 5%
+    suggestedLoad = prevLoad * 1.05;
+    reason = '+5%';
+  } else {
+    // RPE 10 (Fallo) - Mantenemos peso
+    suggestedLoad = prevLoad;
+    reason = 'Mantenido (RPE 10)';
+  }
+
+  // Redondear al múltiplo de 1.25 más cercano
+  suggestedLoad = Math.round(suggestedLoad / 1.25) * 1.25;
+
+  return {
+    suggestedLoad,
+    reason,
+    previousLoad: prevLoad,
+    previousRpe: prevRpe
+  };
+}

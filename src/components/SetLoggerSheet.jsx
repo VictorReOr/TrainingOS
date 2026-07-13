@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTimer } from '../context/TimerContext';
 import { useCircuit } from '../context/CircuitContext';
 import { usePR } from '../context/PRContext';
-import { suggestLoad } from '../utils/loadSuggestion';
+import { suggestLoad, suggestProgressiveOverload } from '../utils/loadSuggestion';
 import { MOCK_SESSION, BLOCK_COLORS } from '../data/mockSession';
 
 const RPE_COLORS = {
@@ -36,6 +36,22 @@ export default function SetLoggerSheet({ exercise, logs, onLogChange, onToggleSe
     () => suggestLoad(exercise.id, exercise.reps, prs, sessionLogs),
     [exercise.id, exercise.reps, prs, sessionLogs]
   );
+
+  const progressiveSuggestions = useMemo(() => {
+    return logs.map((_, i) => suggestProgressiveOverload(exercise.name, i, sessionLogs));
+  }, [exercise.name, logs.length, sessionLogs]);
+
+  const hasPrefilled = useRef(false);
+  useEffect(() => {
+    if (isVisible && !hasPrefilled.current && progressiveSuggestions.some(s => s !== null)) {
+      hasPrefilled.current = true;
+      progressiveSuggestions.forEach((sug, idx) => {
+        if (sug && !logs[idx].carga) {
+          onLogChange(idx, 'carga', sug.suggestedLoad);
+        }
+      });
+    }
+  }, [isVisible, progressiveSuggestions, logs, onLogChange]);
 
   const navigate = useNavigate();
   const { startRest, startCountdown, stopTimer, mode, status, timeMs, setMode, setTimeMs } = useTimer();
@@ -235,7 +251,18 @@ export default function SetLoggerSheet({ exercise, logs, onLogChange, onToggleSe
                       placeholder="0.0"
                       className="w-full bg-white border border-[#E8E8E4] rounded-xl px-3 py-2.5 text-base font-bold text-[#1C1C1E] placeholder:text-[#D4D4D8] focus:border-[#FF6B00] outline-none transition-colors"
                     />
-                    {dynamicSuggestion !== null ? (
+                    {progressiveSuggestions[index] !== null ? (
+                      <div className="flex flex-col gap-1 mt-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] text-[#FF6B00] font-black flex items-center gap-1 tracking-wide uppercase">
+                            📈 Sugerido: {progressiveSuggestions[index].suggestedLoad}kg
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-[#6E6E73] font-bold">
+                          Basado en: {progressiveSuggestions[index].previousLoad}kg (RPE {progressiveSuggestions[index].previousRpe}) · {progressiveSuggestions[index].reason}
+                        </span>
+                      </div>
+                    ) : dynamicSuggestion !== null ? (
                       <div className="flex flex-col gap-1 mt-1.5">
                         <div className="flex items-center gap-1.5">
                           <span className="text-xs text-[#FF6B00] font-semibold">
