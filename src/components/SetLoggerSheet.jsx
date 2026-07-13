@@ -41,17 +41,26 @@ export default function SetLoggerSheet({ exercise, logs, onLogChange, onToggleSe
     return logs.map((_, i) => suggestProgressiveOverload(exercise.name, i, sessionLogs));
   }, [exercise.name, logs.length, sessionLogs]);
 
-  const hasPrefilled = useRef(false);
   useEffect(() => {
-    if (isVisible && !hasPrefilled.current && progressiveSuggestions.some(s => s !== null)) {
+    if (isVisible && !hasPrefilled.current) {
       hasPrefilled.current = true;
+      let madeChanges = false;
+      const targetReps = exercise.reps || exercise.targetReps || '';
+      
       progressiveSuggestions.forEach((sug, idx) => {
         if (sug && !logs[idx].carga) {
           onLogChange(idx, 'carga', sug.suggestedLoad);
+          madeChanges = true;
+        }
+      });
+
+      logs.forEach((l, idx) => {
+        if (!l.reps && targetReps) {
+          onLogChange(idx, 'reps', targetReps);
         }
       });
     }
-  }, [isVisible, progressiveSuggestions, logs, onLogChange]);
+  }, [isVisible, progressiveSuggestions, logs, onLogChange, exercise.reps, exercise.targetReps]);
 
   const navigate = useNavigate();
   const { startRest, startCountdown, stopTimer, mode, status, timeMs, setMode, setTimeMs } = useTimer();
@@ -306,10 +315,10 @@ export default function SetLoggerSheet({ exercise, logs, onLogChange, onToggleSe
                   <div className="flex flex-col">
                     <label className="text-[10px] text-[#6E6E73] font-bold uppercase tracking-wider mb-1">Reps</label>
                     <input
-                      type="number" inputMode="numeric"
+                      type="text" inputMode="text"
                       value={log.reps}
                       onChange={e => onLogChange(index, 'reps', e.target.value)}
-                      placeholder="0"
+                      placeholder={exercise.reps || exercise.targetReps || "0"}
                       className="w-full bg-white border border-[#E8E8E4] rounded-xl px-3 py-2.5 text-base font-bold text-[#1C1C1E] placeholder:text-[#D4D4D8] focus:border-[#FF6B00] outline-none transition-colors"
                     />
                   </div>
