@@ -11,6 +11,11 @@ export function parseWorkouts(rows) {
   // Capitalize first letter for display
   const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
+  // Memory for merged or empty cells in Excel
+  let lastRId = 'Mi Rutina';
+  let lastDay = 'lunes';
+  let lastBlock = 'A';
+
   rows.forEach(row => {
     let rId = (row.rutina_id || '').toString().trim();
     let day = (row.dia || '').toString().toLowerCase().trim();
@@ -22,10 +27,16 @@ export function parseWorkouts(rows) {
       rId = 'Mi Rutina';
     }
 
-    if (!rId) rId = 'Mi Rutina';
-    if (!day) day = 'lunes';
+    if (!rId) rId = lastRId;
+    if (!day) day = lastDay;
 
-    const blockLabel = row.bloque || 'A';
+    let blockLabel = (row.bloque || '').toString().trim();
+    if (!blockLabel) blockLabel = lastBlock;
+
+    // Update memory
+    lastRId = rId;
+    lastDay = day;
+    lastBlock = blockLabel;
     
     // 1. Inicializar rutina si no existe
     if (!routinesMap[rId]) {
