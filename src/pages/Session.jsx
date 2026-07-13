@@ -20,9 +20,10 @@ const BLOCK_COLORS = {
 };
 
 const getInitialLogs = (exercise) => {
-  const seriesCount = parseInt(exercise.series, 10) || 1;
+  const seriesCount = parseInt(exercise.series || exercise.targetSets, 10) || 1;
+  const defaultReps = exercise.reps || exercise.targetReps || '';
   return Array.from({ length: seriesCount }, () => ({
-    carga: '', reps: '', rpe: null, done: false,
+    carga: '', reps: defaultReps, rpe: null, done: false,
   }));
 };
 
