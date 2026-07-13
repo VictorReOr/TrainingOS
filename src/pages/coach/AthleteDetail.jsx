@@ -8,6 +8,9 @@ import { useAthleteEvolution } from '../../hooks/useAthleteEvolution';
 import { usePlanner } from '../../context/PlannerContext';
 import FeedbackSection from '../../components/FeedbackSection';
 import { useFatigue } from '../../hooks/useFatigue';
+import { fetchWorkouts } from '../../services/sheets';
+import { parseWorkouts } from '../../utils/workoutParser';
+import { DownloadCloud } from 'lucide-react';
 
 const TABS = [
   { id: 'plan', label: 'Plan', icon: <CalendarDays size={18} /> },
@@ -25,6 +28,9 @@ export default function AthleteDetail() {
 
   const [activeTab, setActiveTab] = useState('plan');
   const [showAssignSheet, setShowAssignSheet] = useState(false);
+  const [showImportSheet, setShowImportSheet] = useState(false);
+  const [importedRoutines, setImportedRoutines] = useState([]);
+  const [loadingImport, setLoadingImport] = useState(false);
   const [assignTargetDay, setAssignTargetDay] = useState('');
 
   // Coach sets
@@ -47,6 +53,30 @@ export default function AthleteDetail() {
   const handleSelectSession = (session) => {
     assignSession(assignTargetDay, session);
     setShowAssignSheet(false);
+  };
+
+  const handleOpenImport = async () => {
+    setShowImportSheet(true);
+    setLoadingImport(true);
+    try {
+      const res = await fetchWorkouts();
+      const parsed = parseWorkouts(res.rows || []);
+      setImportedRoutines(parsed);
+    } catch (err) {
+      console.error('Error cargando rutinas:', err);
+    } finally {
+      setLoadingImport(false);
+    }
+  };
+
+  const handleApplyRoutine = (routine) => {
+    // La rutina tiene sessions con claves como 'lunes', 'martes', etc.
+    Object.keys(routine.sessions).forEach(day => {
+      const sess = routine.sessions[day];
+      // Simulamos que sess.id es único para que assignSession funcione bien
+      assignSession(day, { ...sess, id: sess.id + '_' + Date.now() });
+    });
+    setShowImportSheet(false);
   };
 
   const handleRemove = (day, e) => {
@@ -105,7 +135,15 @@ export default function AthleteDetail() {
         {/* PLAN TAB */}
         {activeTab === 'plan' && (
           <div className="space-y-3">
-            <h2 className="font-condensed font-black text-xl text-[#1C1C1E] tracking-wide uppercase mb-4">Plan Semanal</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-condensed font-black text-xl text-[#1C1C1E] tracking-wide uppercase">Plan Semanal</h2>
+              <button 
+                onClick={handleOpenImport}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFF3EC] text-[#FF6B00] rounded-lg font-condensed font-bold text-sm hover:bg-[#FF6B00] hover:text-white transition-colors border border-[#FF6B00]"
+              >
+                <DownloadCloud size={16} /> Importar Excel
+              </button>
+            </div>
             {planLoading ? <div className="text-center p-6 text-[#6E6E73]">Cargando...</div> : (
               DAYS.map(day => {
                 const assigned = assignments[day];
@@ -242,6 +280,54 @@ export default function AthleteDetail() {
                       <ChevronLeft size={16} className="rotate-180" />
                     </div>
                   </button>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* IMPORT FROM EXCEL BOTTOM SHEET */}
+      {showImportSheet && (
+        <div className="fixed inset-0 z-50 flex flex-col justify-end">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowImportSheet(false)} />
+          <div className="bg-[#F5F5F0] rounded-t-3xl w-full max-h-[85vh] flex flex-col relative animate-slide-up">
+            <div className="w-12 h-1 bg-[#D4D4D8] rounded-full mx-auto my-3 shrink-0" />
+            <div className="px-5 pb-4 shrink-0 border-b border-[#E8E8E4] bg-white rounded-t-3xl">
+              <h3 className="font-condensed font-black text-2xl text-[#1C1C1E]">Importar Semana</h3>
+              <p className="text-sm text-[#6E6E73] mt-1">Selecciona una rutina de tu hoja de Excel.</p>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-5 pb-8 space-y-4">
+              {loadingImport ? (
+                <div className="text-center p-6 text-[#6E6E73]">Sincronizando con Google Sheets...</div>
+              ) : importedRoutines.length === 0 ? (
+                <div className="bg-white border-2 border-dashed border-[#E8E8E4] rounded-3xl p-6 text-center text-[#6E6E73]">
+                  No se encontraron rutinas en la pestaña 'workouts'. Añade filas en tu Excel.
+                </div>
+              ) : (
+                importedRoutines.map(routine => (
+                  <div key={routine.id} className="bg-white border border-[#E8E8E4] rounded-2xl overflow-hidden shadow-sm">
+                    <div className="px-4 py-3 bg-[#FFF3EC] border-b border-[#E8E8E4] flex items-center justify-between">
+                      <h4 className="font-condensed font-black text-xl text-[#1C1C1E]">{routine.name}</h4>
+                      <button 
+                        onClick={() => handleApplyRoutine(routine)}
+                        className="bg-[#FF6B00] text-white px-3 py-1 rounded-lg font-condensed font-bold text-sm hover:bg-[#E85D04] transition-colors"
+                      >
+                        ASIGNAR
+                      </button>
+                    </div>
+                    <div className="p-3 bg-[#F5F5F0]">
+                      <p className="text-[10px] font-bold text-[#6E6E73] uppercase tracking-widest mb-2 px-1">Días incluidos:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.keys(routine.sessions).map(day => (
+                          <div key={day} className="bg-white border border-[#E8E8E4] px-2 py-1 rounded-md text-xs font-condensed font-bold text-[#1C1C1E] capitalize">
+                            {day} <span className="text-[#A1A1AA]">· {routine.sessions[day].duration}m</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 ))
               )}
             </div>

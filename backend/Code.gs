@@ -59,6 +59,7 @@ function initSheets() {
     'week_assignments':  ['id','atleta_id','fecha_iso','session_id','session_json','created_at'],
     'prs':               ['id','exercise_id','exercise_name','atleta_id','fecha','valor','unidad','created_at'],
     'timer_templates':   ['id','atleta_id','nombre','blocks_json','created_at'],
+    'workouts':          ['rutina_id','dia','bloque','grupo_muscular','tipo','ejercicio','series','repeticiones','tiempo_ejecucion','tiempo_descanso'],
   };
 
   Object.keys(SCHEMAS).forEach(function(name) {
@@ -286,6 +287,15 @@ function doGet(e) {
       var rows = _sheetData('prs').filter(function(r) {
         if (r.atleta_id !== atleta) return false;
         if (p.exercise_id && r.exercise_id !== p.exercise_id) return false;
+        return true;
+      });
+      return _ok({ rows: rows });
+    }
+
+    if (action === 'getWorkouts') {
+      var rows = _sheetData('workouts').filter(function(r) {
+        // Por ahora devolveremos todos, o filtrar por rutina_id si se pasa
+        if (p.rutina_id && r.rutina_id !== p.rutina_id) return false;
         return true;
       });
       return _ok({ rows: rows });

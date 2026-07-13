@@ -203,6 +203,15 @@ export async function getSeasons(atletaId) {
   });
 }
 
+// ==========================================
+// Workouts / Rutinas de Excel
+// ==========================================
+export async function fetchWorkouts(rutinaId = '') {
+  return _request('GET', 'getWorkouts', { rutina_id: rutinaId }, async () => ({
+    status: 'success', rows: [],
+  }));
+}
+
 /**
  * Recupera todas las plantillas de sesión del atleta.
  */
