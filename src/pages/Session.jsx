@@ -9,7 +9,15 @@ import { useTimer } from '../context/TimerContext';
 import { useSession } from '../context/SessionContext';
 import { usePR } from '../context/PRContext';
 import { saveLog } from '../services/sheets';
-import { MOCK_SESSION, BLOCK_COLORS } from '../data/mockSession';
+
+const BLOCK_COLORS = {
+  calentamiento: '#FFCC00',
+  fuerza:        '#FF3B30',
+  hipertrofia:   '#007AFF',
+  cardio:        '#34C759',
+  core:          '#AF52DE',
+  movilidad:     '#5856D6'
+};
 
 const getInitialLogs = (exercise) => {
   const seriesCount = parseInt(exercise.series, 10) || 1;
@@ -21,7 +29,7 @@ const getInitialLogs = (exercise) => {
 export default function Session() {
   const { activeSession, clearSession } = useSession();
   const { getPRForExercise, savePRRecord } = usePR();
-  const sessionData = activeSession || MOCK_SESSION;
+  const sessionData = activeSession;
 
   const [exerciseLogs, setExerciseLogs]     = useState({});
   const [selectedExercise, setSelectedExercise] = useState(null);
@@ -36,7 +44,21 @@ export default function Session() {
   // Se elimina la limpieza en unmount para evitar bug de React 18 StrictMode
   // useEffect(() => { return () => clearSession(); }, []);
 
-  const allExercises = useMemo(() => sessionData.blocks.flatMap(b => b.exercises), [sessionData]);
+  const allExercises = useMemo(() => sessionData ? sessionData.blocks.flatMap(b => b.exercises) : [], [sessionData]);
+
+  if (!sessionData) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-[#F5F5F0] text-center p-6">
+        <div className="w-16 h-16 bg-[#FFF3EC] rounded-full flex items-center justify-center text-[#FF6B00] mb-4">
+          <CheckCircle2 size={32} />
+        </div>
+        <h2 className="font-condensed font-black text-2xl text-[#1C1C1E] uppercase tracking-wide">Sin Sesión Activa</h2>
+        <p className="text-[#6E6E73] mt-2 mb-6">
+          Ve a tu Planificador y pulsa "Empezar" en la sesión que te toque hoy.
+        </p>
+      </div>
+    );
+  }
 
   const isExerciseDone = (exerciseId) => {
     const logs = exerciseLogs[exerciseId];
@@ -251,12 +273,14 @@ export default function Session() {
       {/* HEADER */}
       <div className="bg-white px-5 pt-6 pb-5 border-b border-[#E8E8E4]">
         {/* Badge día */}
-        <span className="inline-block border border-[#E8E8E4] text-[#6E6E73] px-3 py-1 font-condensed font-bold text-[10px] rounded-lg tracking-widest uppercase mb-3">
-          {MOCK_SESSION.dayBadge}
-        </span>
+        {sessionData.dayBadge && (
+          <span className="inline-block border border-[#E8E8E4] text-[#6E6E73] px-3 py-1 font-condensed font-bold text-[10px] rounded-lg tracking-widest uppercase mb-3">
+            {sessionData.dayBadge}
+          </span>
+        )}
         <h1 className="font-condensed font-black leading-[0.9] text-[#1C1C1E] mb-3 tracking-[-0.02em]"
           style={{ fontSize: 'clamp(2rem, 7vw, 3rem)' }}>
-          {MOCK_SESSION.name}
+          {sessionData.name || 'Sesión Libre'}
         </h1>
         <p className="text-[#6E6E73] text-sm font-medium">
           Toca cada ejercicio para registrar tus series
@@ -337,7 +361,7 @@ export default function Session() {
 
       {/* BLOQUES DE EJERCICIOS */}
       <div className="flex flex-col gap-4 px-4 py-4" style={{ paddingBottom: 'calc(6rem + var(--safe-bottom,0px))' }}>
-        {MOCK_SESSION.blocks.map((block, bi) => (
+        {sessionData.blocks.map((block, bi) => (
           <div
             key={block.id}
             className={`bg-white border border-[#E8E8E4] rounded-2xl overflow-hidden shadow-sm stagger-${Math.min(bi + 1, 7)}`}
