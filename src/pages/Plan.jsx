@@ -5,7 +5,9 @@ import { useAthlete } from '../context/AthleteContext';
 import { MESO_LABELS, MOCK_SESSION_DETAILS, SESSION_TYPES } from '../data/mockPlanner';
 import SportSelector from '../components/SportSelector';
 import SessionReadView from '../components/planner/SessionReadView';
-import { ChevronLeft, ChevronRight, Plus, X, Dumbbell, Moon, Flame } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, Dumbbell, Moon, Flame, DownloadCloud } from 'lucide-react';
+import { fetchWorkouts } from '../services/sheets';
+import { parseWorkouts } from '../utils/workoutParser';
 
 // ─── Constantes ──────────────────────────────────────────
 const DAYS_ES    = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
@@ -79,7 +81,7 @@ const getWeekMetrics = (sessions) => {
 // ═══════════════════════════════════════════════════════
 export default function Plan() {
   const navigate = useNavigate();
-  const { currentWeekStart, navigateWeek, goToCurrentWeek, weekSessions, activeSeason, activeMesocycle, sessionTemplates, weekAssignments } = usePlanner();
+  const { currentWeekStart, navigateWeek, goToCurrentWeek, weekSessions, activeSeason, activeMesocycle, sessionTemplates, weekAssignments, assignSessionToDay } = usePlanner();
   const { activeSport } = useAthlete();
 
   const isCurrWeek = isCurrentWeek(currentWeekStart);
@@ -88,7 +90,10 @@ export default function Plan() {
   const [selectedSession, setSelectedSession] = useState(null);
   const [addSheetDay, setAddSheetDay]         = useState(null);
   const [addSheetVisible, setAddSheetVisible] = useState(false);
-  const [localOverrides, setLocalOverrides]   = useState({});
+
+  const [showImportSheet, setShowImportSheet] = useState(false);
+  const [importedRoutines, setImportedRoutines] = useState([]);
+  const [loadingImport, setLoadingImport] = useState(false);
 
   const filteredSessions = useMemo(() => {
     const base = {};
@@ -97,14 +102,14 @@ export default function Plan() {
       const dateISO = d.toISOString().slice(0, 10);
       base[dayKey] = weekAssignments[dateISO] || weekSessions[dayKey] || null;
     });
-    const merged = { ...base, ...localOverrides };
-    if (activeSport === 'all') return merged;
+    
+    if (activeSport === 'all') return base;
     const out = {};
-    Object.entries(merged).forEach(([day, s]) => {
+    Object.entries(base).forEach(([day, s]) => {
       out[day] = s && (s.sport === activeSport || s.sport === 'all') ? s : null;
     });
     return out;
-  }, [weekAssignments, weekSessions, currentWeekStart, localOverrides, activeSport]);
+  }, [weekAssignments, weekSessions, currentWeekStart, activeSport]);
 
   const metrics = useMemo(() => getWeekMetrics(filteredSessions), [filteredSessions]);
 
@@ -128,9 +133,37 @@ export default function Plan() {
 
   const handleAssignSession = (template) => {
     if (!addSheetDay) return;
-    const dayKey = DAYS_ES[addSheetDay.dayIndex];
-    setLocalOverrides(prev => ({ ...prev, [dayKey]: template }));
+    const dateISO = addSheetDay.dayDate.toISOString().slice(0, 10);
+    assignSessionToDay(dateISO, template);
     closeAddSheet();
+  };
+
+  const handleOpenImport = async () => {
+    setShowImportSheet(true);
+    setLoadingImport(true);
+    try {
+      const res = await fetchWorkouts();
+      const parsed = parseWorkouts(res.rows || []);
+      setImportedRoutines(parsed);
+    } catch (err) {
+      console.error('Error cargando rutinas:', err);
+    } finally {
+      setLoadingImport(false);
+    }
+  };
+
+  const handleApplyRoutine = (routine) => {
+    Object.keys(routine.sessions).forEach(dayKey => {
+      // Find the index of the day (e.g. 'lunes' -> 0)
+      const dayIndex = DAYS_ES.indexOf(dayKey);
+      if (dayIndex !== -1) {
+        const dayDate = getDayDate(currentWeekStart, dayIndex);
+        const dateISO = dayDate.toISOString().slice(0, 10);
+        const sess = routine.sessions[dayKey];
+        assignSessionToDay(dateISO, { ...sess, id: sess.id + '_' + Date.now() });
+      }
+    });
+    setShowImportSheet(false);
   };
 
   return (
@@ -155,6 +188,12 @@ export default function Plan() {
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <button 
+              onClick={handleOpenImport}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFF3EC] text-[#FF6B00] rounded-xl font-condensed font-bold text-xs hover:bg-[#FF6B00] hover:text-white transition-colors border border-[#FF6B00] active:scale-95"
+            >
+              <DownloadCloud size={13} strokeWidth={2.5} /> Importar
+            </button>
             <button
               onClick={() => navigate('/plan/session/new')}
               className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-[#E8E8E4] text-[#6E6E73] text-xs font-bold hover:border-[#FF6B00] hover:text-[#FF6B00] active:scale-95 transition-all"
@@ -426,6 +465,59 @@ export default function Plan() {
             </div>
           </div>
         </>
+      )}
+
+      {/* ── IMPORT FROM EXCEL BOTTOM SHEET ───────────────── */}
+      {showImportSheet && (
+        <div className="fixed inset-0 z-[80] flex flex-col justify-end">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowImportSheet(false)} />
+          <div className="bg-[#F5F5F0] rounded-t-3xl w-full max-h-[85vh] flex flex-col relative animate-slide-up">
+            <div className="w-12 h-1 bg-[#D4D4D8] rounded-full mx-auto my-3 shrink-0" />
+            <div className="px-5 pb-4 shrink-0 border-b border-[#E8E8E4] bg-white rounded-t-3xl flex justify-between items-center">
+              <div>
+                <h3 className="font-condensed font-black text-2xl text-[#1C1C1E]">Importar Semana</h3>
+                <p className="text-sm text-[#6E6E73] mt-1">Selecciona una rutina de tu hoja de Excel.</p>
+              </div>
+              <button onClick={() => setShowImportSheet(false)} className="p-2 bg-[#F5F5F0] text-[#6E6E73] rounded-full hover:bg-[#E8E8E4] transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-5 pb-8 space-y-4">
+              {loadingImport ? (
+                <div className="text-center p-6 text-[#6E6E73] font-bold animate-pulse">Sincronizando con Google Sheets...</div>
+              ) : importedRoutines.length === 0 ? (
+                <div className="bg-white border-2 border-dashed border-[#E8E8E4] rounded-3xl p-6 text-center text-[#6E6E73]">
+                  No se encontraron rutinas en la pestaña 'workouts'. Añade filas en tu Excel.
+                </div>
+              ) : (
+                importedRoutines.map(routine => (
+                  <div key={routine.id} className="bg-white border border-[#E8E8E4] rounded-2xl overflow-hidden shadow-sm">
+                    <div className="px-4 py-3 bg-[#FFF3EC] border-b border-[#E8E8E4] flex items-center justify-between">
+                      <h4 className="font-condensed font-black text-xl text-[#1C1C1E] truncate pr-2">{routine.name}</h4>
+                      <button 
+                        onClick={() => handleApplyRoutine(routine)}
+                        className="bg-[#FF6B00] text-white px-3 py-1 rounded-lg font-condensed font-bold text-sm hover:bg-[#E85D04] transition-colors shrink-0"
+                      >
+                        CARGAR
+                      </button>
+                    </div>
+                    <div className="p-3 bg-[#F5F5F0]">
+                      <p className="text-[10px] font-bold text-[#6E6E73] uppercase tracking-widest mb-2 px-1">Días incluidos:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {Object.keys(routine.sessions).map(day => (
+                          <div key={day} className="bg-white border border-[#E8E8E4] px-2 py-1 rounded-md text-xs font-condensed font-bold text-[#1C1C1E] capitalize">
+                            {day} <span className="text-[#A1A1AA]">· {routine.sessions[day].duration}m</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
