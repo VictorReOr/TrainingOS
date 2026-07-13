@@ -1,0 +1,216 @@
+@import "tailwindcss";
+
+@theme {
+  /* Fondos ligeramente más cálidos */
+  --color-bg:      #FAFAFA;
+  --color-surface: #F5F5F0;
+  --color-card:    #FFFFFF;
+  --color-border:  #E8E8E4;
+
+  /* Accent */
+  --color-accent: #FF6B00;
+  --color-accent-dark: #E85D04;
+  --color-accent-soft: #FFF3EC;
+  --color-blue: #3d7dd4;
+  --color-green: #27ae60;
+
+  /* Texto ligeramente más suave */
+  --color-text:    #1C1C1E;
+  --color-muted:   #6E6E73;
+
+  /* Tipografía: Outfit reemplaza DM Sans */
+  --font-sans: "Outfit", sans-serif;
+  --font-condensed: "Barlow Condensed", sans-serif;
+}
+
+@custom-variant active (&:active);
+@custom-variant hover (&:hover);
+
+@layer base {
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * {    
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+    overflow-x: hidden;
+  }
+}
+
+/* ── Jerarquía Tipográfica ─────────────────────────────── */
+
+/* Títulos hero (Session, Timer, números grandes) */
+.text-hero {
+  font-family: var(--font-condensed);
+  font-weight: 900;
+  font-size: clamp(2.5rem, 8vw, 4rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+/* Títulos de sección */
+.text-title {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 1.5rem;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+
+/* Labels en mayúsculas (badges, categorías) */
+.text-label {
+  font-family: var(--font-condensed);
+  font-weight: 700;
+  font-size: 0.625rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Cuerpo principal */
+.text-body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
+/* Cuerpo bold */
+.text-body-bold {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+/* Texto pequeño / metadata */
+.text-meta {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--color-muted);
+}
+
+/* ── Espaciado — Más respiración ───────────────────────── */
+
+/* Más espacio entre secciones en páginas */
+.page-section {
+  margin-bottom: 1.75rem;
+}
+
+/* Tarjetas con más padding interno */
+.card-padding {
+  padding: 1.25rem;
+}
+
+/* Botones primarios más altos */
+.btn-primary {
+  padding-top: 1rem;
+  padding-bottom: 1rem;
+  border-radius: 0.875rem;
+}
+
+/* ── Animaciones ────────────────────────────────────────── */
+@theme {
+  --animate-fade-in-up: fade-in-up 0.5s ease-out forwards;
+  
+  @keyframes fade-in-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+}
+
+@keyframes slide-in-bottom {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-in { animation: slide-in-bottom 0.25s ease-out both; }
+
+/* Slide-up (bottom sheets) */
+@keyframes slide-up {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.animate-slide-up { animation: slide-up 0.3s ease-out both; }
+
+/* Fade-in */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-fade-in { animation: fade-in 0.2s ease-out both; }
+
+/* Splash Screen Animations */
+@keyframes splash-logo {
+  from { opacity: 0; transform: scale(0.85); }
+  to   { opacity: 1; transform: scale(1); }
+}
+.animate-splash-logo {
+  animation: splash-logo 600ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes splash-tagline {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+.animate-splash-tagline {
+  animation: splash-tagline 500ms ease-out 400ms both;
+}
+
+/* Banner PR slide */
+@keyframes slide-down-fade {
+  0%   { transform: translateY(-100%); opacity: 0; }
+  15%  { transform: translateY(0);     opacity: 1; }
+  85%  { transform: translateY(0);     opacity: 1; }
+  100% { transform: translateY(-100%); opacity: 0; }
+}
+.animate-slide-down-fade { animation: slide-down-fade 2.5s ease-in-out forwards; }
+
+/* Stagger del grid semanal / lista de ejercicios */
+@keyframes stagger-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.stagger-1 { animation: stagger-in 0.35s ease-out 0.05s both; }
+.stagger-2 { animation: stagger-in 0.35s ease-out 0.10s both; }
+.stagger-3 { animation: stagger-in 0.35s ease-out 0.15s both; }
+.stagger-4 { animation: stagger-in 0.35s ease-out 0.20s both; }
+.stagger-5 { animation: stagger-in 0.35s ease-out 0.25s both; }
+.stagger-6 { animation: stagger-in 0.35s ease-out 0.30s both; }
+.stagger-7 { animation: stagger-in 0.35s ease-out 0.35s both; }
+
+/* Pulso naranja para el FAB y puntos activos */
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,107,0,0.5); }
+  50%       { box-shadow: 0 0 0 10px rgba(255,107,0,0); }
+}
+.pulse-green { animation: pulse-green 2s ease-in-out infinite; }
+
+/* Flash de celebración barra de progreso */
+@keyframes flash-green {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; filter: brightness(1.5); }
+}
+.flash-green { animation: flash-green 0.4s ease-in-out 2; }
+
+/* ── Utilitarios globales ────────────────────────────────── */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Select styled para tema claro */
+select option {
+  background-color: #FFFFFF;
+  color: #1C1C1E;
+}

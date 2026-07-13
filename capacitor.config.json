@@ -1,0 +1,6 @@
+{
+  "appId": "com.trainingos.app",
+  "appName": "TrainingOS",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
