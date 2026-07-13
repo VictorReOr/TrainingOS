@@ -11,12 +11,14 @@ import { SessionProvider } from './context/SessionContext'
 import { PRProvider } from './context/PRContext'
 import { CoachProvider } from './context/CoachContext'
 import { FeedbackProvider } from './context/FeedbackContext'
+import { AuthProvider } from './context/AuthContext'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      <PRProvider>
-        <CoachProvider>
+      <AuthProvider>
+        <PRProvider>
+          <CoachProvider>
           <PlannerProvider>
             <SessionProvider>
               <AthleteProvider>
@@ -32,6 +34,7 @@ createRoot(document.getElementById('root')).render(
           </PlannerProvider>
         </CoachProvider>
       </PRProvider>
+      </AuthProvider>
     </BrowserRouter>
   </StrictMode>,
 )

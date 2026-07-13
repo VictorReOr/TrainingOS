@@ -51,6 +51,7 @@ function initSheets() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
   var SCHEMAS = {
+    'users':             ['uid','email','name','role','created_at'],
     'logs':              ['id','exercise_id','atleta_id','fecha','carga_real','rpe_real','completado'],
     'seasons':           ['id','atleta_id','nombre','deporte','fecha_inicio','fecha_fin','status','created_at'],
     'mesocycles':        ['id','season_id','atleta_id','nombre','tipo','fecha_inicio','semanas','objetivo','color','created_at'],
@@ -88,6 +89,26 @@ function doPost(e) {
     var payload = JSON.parse(e.postData.contents);
     var action  = payload.action;
     var now     = new Date().toISOString();
+
+    if (action === 'register') {
+      var email = (payload.email || '').toLowerCase().trim();
+      var uid = payload.uid;
+      
+      if (!email || !uid) return _err('Faltan datos obligatorios (email, uid)');
+      
+      // Comprobar si ya existe
+      var existing = _sheetData('users').filter(function(u) { return u.uid === uid || u.email === email; });
+      if (existing.length > 0) return _err('El usuario ya está registrado en la base de datos');
+
+      _appendRow('users', {
+        uid:           uid,
+        email:         email,
+        name:          payload.name || 'Atleta',
+        role:          payload.role || 'athlete', // athlete, coach, both
+        created_at:    now
+      });
+      return _ok({ user: { id: uid, email: email, name: payload.name || 'Atleta', role: payload.role || 'athlete' } });
+    }
 
     if (action === 'savelog') {
       var atletaId = payload.atletaId || 'unknown';

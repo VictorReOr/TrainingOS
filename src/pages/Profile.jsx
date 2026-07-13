@@ -5,7 +5,8 @@ import { usePlanner } from '../context/PlannerContext';
 import { useEvolutionData } from '../hooks/useEvolutionData';
 import { usePR } from '../context/PRContext';
 import { useFeedback } from '../context/FeedbackContext';
-import { ChevronLeft, Pencil, Star, Plus, ShieldCheck, RefreshCw, Bell, Users, DownloadCloud, MessageCircle } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { ChevronLeft, Pencil, Star, Plus, ShieldCheck, RefreshCw, Bell, Users, DownloadCloud, MessageCircle, LogOut } from 'lucide-react';
 import { getSeasons, getSessions } from '../services/sheets';
 
 export default function Profile() {
@@ -14,6 +15,7 @@ export default function Profile() {
   const { sessionLogs } = useEvolutionData();
   const { prs } = usePR();
   const { unreadCount, sessionsWithUnread } = useFeedback();
+  const { logout, currentUser } = useAuth();
 
   // Edit Name State
   const [isEditingName, setIsEditingName] = useState(false);
@@ -30,9 +32,9 @@ export default function Profile() {
   const [syncing, setSyncing] = useState(false);
 
   // Derived Identity
-  const initial = athlete.name ? athlete.name.charAt(0).toUpperCase() : 'A';
-  const roleLabels = { 'athlete': 'ATLETA', 'coach': 'ENTRENADOR', 'both': 'ENTRENADOR' };
-  const roleLabel = roleLabels[athlete.role] || 'ATLETA';
+  const initial = currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'A';
+  const roleLabels = { 'athlete': 'ATLETA', 'coach': 'ENTRENADOR', 'both': 'AMBOS' };
+  const roleLabel = roleLabels[currentUser?.role || athlete.role] || 'ATLETA';
 
   // Derived Stats
   const totalSessions = sessionLogs.length;
@@ -151,7 +153,7 @@ export default function Profile() {
                 onClick={() => setIsEditingName(true)}
                 className="font-condensed font-black text-3xl text-[#1C1C1E] cursor-text"
               >
-                {athlete.name || 'Atleta'}
+                {currentUser?.name || athlete.name || 'Atleta'}
               </h2>
             )}
             
@@ -283,7 +285,7 @@ export default function Profile() {
         </div>
 
         {/* ATLETAS (SOLO COACH) */}
-        {athlete.role !== 'athlete' && (
+        {(currentUser?.role === 'coach' || currentUser?.role === 'both') && (
           <div className="bg-[#1C1C1E] text-white rounded-3xl p-5 shadow-sm">
              <div className="flex items-center justify-between mb-4">
                <h3 className="font-condensed font-black text-xl uppercase tracking-wide">Mis Atletas</h3>
@@ -356,6 +358,14 @@ export default function Profile() {
 
           </div>
         </div>
+
+        {/* LOGOUT */}
+        <button 
+          onClick={logout}
+          className="w-full flex justify-center items-center gap-2 p-4 rounded-3xl bg-red-50 text-red-600 font-bold text-sm transition-colors active:scale-[0.98] border border-red-100 mt-4"
+        >
+          <LogOut size={18} /> Cerrar Sesión
+        </button>
 
       </div>
     </div>

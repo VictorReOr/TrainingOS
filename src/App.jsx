@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from './context/AuthContext';
 import { useAthlete } from './context/AthleteContext';
 import BottomNav from './components/BottomNav';
 import Home from './pages/Home';
@@ -24,6 +25,8 @@ import CoachDashboard from './pages/coach/CoachDashboard';
 import AthleteDetail from './pages/coach/AthleteDetail';
 import ImportSession from './pages/ImportSession';
 import SplashScreen from './components/SplashScreen';
+import Login from './pages/Login';
+import Register from './pages/Register';
 
 const CoachRoute = ({ children }) => {
   const { isCoach } = useRole();
@@ -31,6 +34,7 @@ const CoachRoute = ({ children }) => {
 };
 
 export default function App() {
+  const { currentUser } = useAuth();
   const { athlete } = useAthlete();
   const location = useLocation();
 
@@ -53,7 +57,13 @@ export default function App() {
       <div className="flex flex-col min-h-screen">
         <main className="flex-1 flex flex-col pb-16">
           <Routes>
-            {!athlete.onboardingCompleted ? (
+            {!currentUser ? (
+              <>
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="*" element={<Navigate to="/login" replace />} />
+              </>
+            ) : !athlete.onboardingCompleted ? (
               <>
                 <Route path="/onboarding" element={<Onboarding />} />
                 <Route path="*" element={<Navigate to="/onboarding" replace />} />
@@ -83,7 +93,7 @@ export default function App() {
             )}
           </Routes>
         </main>
-        {showBottomNav && athlete.onboardingCompleted && <BottomNav />}
+        {showBottomNav && currentUser && athlete.onboardingCompleted && <BottomNav />}
       </div>
     </>
   );

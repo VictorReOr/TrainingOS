@@ -5,8 +5,18 @@
  * latencia artificial de 300 ms, sin tocar la red.
  */
 
-const API_URL   = import.meta.env.VITE_SHEETS_API_URL;
-const ATLETA_ID = import.meta.env.VITE_ATLETA_ID || 'v-atleta-1';
+import { auth } from '../config/firebase';
+
+const API_URL = import.meta.env.VITE_SHEETS_API_URL;
+
+function getAtletaId() {
+  if (auth.currentUser) return auth.currentUser.uid;
+  try {
+    const raw = localStorage.getItem('trainingos_user_meta');
+    if (raw) return JSON.parse(raw).uid;
+  } catch (e) {}
+  return import.meta.env.VITE_ATLETA_ID || 'v-atleta-1';
+}
 
 // ─── Base request ─────────────────────────────────────────────────────────────
 async function _delay(ms) {
@@ -42,13 +52,15 @@ async function _request(method, action, data = {}, mockFn = null) {
 
   try {
     let res;
+    const currentId = getAtletaId();
+
     if (method === 'GET') {
-      const params = new URLSearchParams({ action, atleta_id: ATLETA_ID, ...data });
+      const params = new URLSearchParams({ action, atleta_id: currentId, ...data });
       res = await fetch(`${API_URL}?${params.toString()}`, { signal: controller.signal });
     } else {
       res = await fetch(API_URL, {
         method:  'POST',
-        body:    JSON.stringify({ action, atletaId: ATLETA_ID, ...data }),
+        body:    JSON.stringify({ action, atletaId: currentId, ...data }),
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         signal:  controller.signal,
       });
@@ -74,6 +86,15 @@ function _mockFromLocalStorage(key) {
   } catch {
     return [];
   }
+}
+
+// ─── Autenticación con Firebase ───────────────────────────────────────────────
+
+export async function registerUser(uid, email, name, role) {
+  return _request('POST', 'register', { uid, email, name, role }, async () => {
+    // Mock register
+    return { status: 'success', user: { id: uid, email, name, role } };
+  });
 }
 
 // ─── Escritura (POST) ─────────────────────────────────────────────────────────
@@ -164,8 +185,9 @@ export async function shareSession(payload) {
  * @param {string} [atletaId]
  * @param {{ fechaDesde: string, fechaHasta: string }} [dateRange]
  */
-export async function getLogs(atletaId = ATLETA_ID, dateRange = {}) {
-  return _request('GET', 'getLogs', { atleta_id: atletaId, ...dateRange }, async () => ({
+export async function getLogs(atletaId, dateRange = {}) {
+  const currentId = atletaId || getAtletaId();
+  return _request('GET', 'getLogs', { atleta_id: currentId, ...dateRange }, async () => ({
     status: 'success', rows: [],
   }));
 }
@@ -173,8 +195,9 @@ export async function getLogs(atletaId = ATLETA_ID, dateRange = {}) {
 /**
  * Recupera temporadas con mesociclos anidados.
  */
-export async function getSeasons(atletaId = ATLETA_ID) {
-  return _request('GET', 'getSeasons', { atleta_id: atletaId }, async () => {
+export async function getSeasons(atletaId) {
+  const currentId = atletaId || getAtletaId();
+  return _request('GET', 'getSeasons', { atleta_id: currentId }, async () => {
     const { MOCK_SEASONS } = await import('../data/mockPlanner.js');
     return { status: 'success', rows: MOCK_SEASONS };
   });
@@ -183,8 +206,9 @@ export async function getSeasons(atletaId = ATLETA_ID) {
 /**
  * Recupera todas las plantillas de sesión del atleta.
  */
-export async function getSessions(atletaId = ATLETA_ID) {
-  return _request('GET', 'getSessions', { atleta_id: atletaId }, async () => ({
+export async function getSessions(atletaId) {
+  const currentId = atletaId || getAtletaId();
+  return _request('GET', 'getSessions', { atleta_id: currentId }, async () => ({
     status: 'success',
     rows: _mockFromLocalStorage('trainingos_session_templates'),
   }));
@@ -195,8 +219,9 @@ export async function getSessions(atletaId = ATLETA_ID) {
  * @param {string} weekStart — fecha ISO del lunes (YYYY-MM-DD)
  * @param {string} weekEnd   — fecha ISO del domingo (YYYY-MM-DD)
  */
-export async function getWeekAssignments(atletaId = ATLETA_ID, weekStart = '', weekEnd = '') {
-  return _request('GET', 'getWeekAssignments', { atleta_id: atletaId, weekStart, weekEnd }, async () => {
+export async function getWeekAssignments(atletaId, weekStart = '', weekEnd = '') {
+  const currentId = atletaId || getAtletaId();
+  return _request('GET', 'getWeekAssignments', { atleta_id: currentId, weekStart, weekEnd }, async () => {
     const raw = _mockFromLocalStorage('trainingos_week_assignments');
     // raw es { [dateISO]: sessionData } — lo convierte a array de rows
     const rows = Object.entries(raw)
@@ -209,8 +234,9 @@ export async function getWeekAssignments(atletaId = ATLETA_ID, weekStart = '', w
 /**
  * Recupera récords personales, con filtro opcional por ejercicio.
  */
-export async function getPRs(atletaId = ATLETA_ID, exerciseId = '') {
-  return _request('GET', 'getPRs', { atleta_id: atletaId, exercise_id: exerciseId }, async () => ({
+export async function getPRs(atletaId, exerciseId = '') {
+  const currentId = atletaId || getAtletaId();
+  return _request('GET', 'getPRs', { atleta_id: currentId, exercise_id: exerciseId }, async () => ({
     status: 'success', rows: [],
   }));
 }
