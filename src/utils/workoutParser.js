@@ -8,6 +8,9 @@ export function parseWorkouts(rows) {
   const DAY_NAMES = ['lunes','martes','miércoles','miercoles','jueves','viernes','sábado','sabado','domingo'];
   const normDay = (d) => d.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
+  // Capitalize first letter for display
+  const capitalize = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
   rows.forEach(row => {
     let rId = (row.rutina_id || '').toString().trim();
     let day = (row.dia || '').toString().toLowerCase().trim();
@@ -39,10 +42,14 @@ export function parseWorkouts(rows) {
     if (!routine.sessions[day]) {
       routine.sessions[day] = {
         id: rId + '_' + day,
-        name: 'Sesión de ' + row.dia,
+        name: capitalize(day),
         type: 'gym',
         sport: 'gym',
+        icon: '🏋️',
+        intensity: 'Media',
+        intensityLevel: 3,
         duration: 0,
+        exercises: 0,
         blocks: []
       };
     }
@@ -67,7 +74,7 @@ export function parseWorkouts(rows) {
       muscleGroup: row.grupo_muscular || '',
       type: row.tipo || 'fuerza',
       targetSets: parseInt(row.series, 10) || 1,
-      targetReps: row.repeticiones || '1',
+      targetReps: (row.repeticiones || '1').toString(),
       targetExecutionTime: parseInt(row.tiempo_ejecucion, 10) || 0,
       targetRestTime: parseInt(row.tiempo_descanso, 10) || 0,
       log: []
@@ -76,16 +83,44 @@ export function parseWorkouts(rows) {
     block.exercises.push(exercise);
   });
 
-  // Calcular métricas de las sesiones (duración estimada)
+  // Calcular métricas de las sesiones (duración estimada + conteo ejercicios)
   Object.values(routinesMap).forEach(routine => {
     Object.values(routine.sessions).forEach(session => {
+      // Contar ejercicios totales
+      let exerciseCount = 0;
       let totalSeconds = 0;
       session.blocks.forEach(block => {
+        exerciseCount += block.exercises.length;
         block.exercises.forEach(ex => {
-          totalSeconds += ex.targetSets * (ex.targetExecutionTime + ex.targetRestTime);
+          // Si hay tiempos, calcular duración real
+          if (ex.targetExecutionTime || ex.targetRestTime) {
+            totalSeconds += ex.targetSets * (ex.targetExecutionTime + ex.targetRestTime);
+          } else {
+            // Estimar ~90s por serie (ejecución + descanso) si no hay datos
+            totalSeconds += ex.targetSets * 90;
+          }
         });
       });
-      session.duration = Math.round(totalSeconds / 60) || 45; // Default 45m si no hay datos
+      session.exercises = exerciseCount;
+      session.duration = Math.round(totalSeconds / 60) || 45;
+
+      // Determinar grupo muscular principal para el nombre
+      const groups = {};
+      session.blocks.forEach(b => {
+        b.exercises.forEach(ex => {
+          if (ex.muscleGroup) {
+            groups[ex.muscleGroup] = (groups[ex.muscleGroup] || 0) + 1;
+          }
+        });
+      });
+      const topGroups = Object.entries(groups)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 2)
+        .map(([g]) => g);
+      
+      if (topGroups.length > 0) {
+        session.name = topGroups.join(' + ');
+      }
     });
   });
 
