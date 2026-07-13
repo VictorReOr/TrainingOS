@@ -5,9 +5,23 @@
 export function parseWorkouts(rows) {
   const routinesMap = {};
 
+  const DAY_NAMES = ['lunes','martes','miércoles','miercoles','jueves','viernes','sábado','sabado','domingo'];
+  const normDay = (d) => d.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
   rows.forEach(row => {
-    const rId = row.rutina_id || 'Rutina_Sin_Nombre';
-    const day = (row.dia || 'lunes').toLowerCase().trim();
+    let rId = (row.rutina_id || '').toString().trim();
+    let day = (row.dia || '').toString().toLowerCase().trim();
+
+    // Auto-detect: if rutina_id looks like a day name and dia is empty,
+    // the user put the day in the rutina_id column
+    if (!day && rId && DAY_NAMES.includes(normDay(rId))) {
+      day = normDay(rId);
+      rId = 'Mi Rutina';
+    }
+
+    if (!rId) rId = 'Mi Rutina';
+    if (!day) day = 'lunes';
+
     const blockLabel = row.bloque || 'A';
     
     // 1. Inicializar rutina si no existe
