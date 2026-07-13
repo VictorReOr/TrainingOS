@@ -6,16 +6,18 @@ import { useEvolutionData } from '../hooks/useEvolutionData';
 import { usePR } from '../context/PRContext';
 import { useFeedback } from '../context/FeedbackContext';
 import { useAuth } from '../context/AuthContext';
-import { ChevronLeft, Pencil, Star, Plus, ShieldCheck, RefreshCw, Bell, Users, DownloadCloud, MessageCircle, LogOut } from 'lucide-react';
+import { useRole } from '../hooks/useRole';
+import { ChevronLeft, Pencil, Star, Plus, ShieldCheck, RefreshCw, Bell, Users, DownloadCloud, MessageCircle, LogOut, ArrowRightLeft } from 'lucide-react';
 import { getSeasons, getSessions } from '../services/sheets';
 
 export default function Profile() {
   const navigate = useNavigate();
-  const { athlete, toggleSport, addSport, setPrimarySport, updateProfile } = useAthlete();
+  const { athlete, toggleSport, addSport, setPrimarySport, updateProfile, viewMode, setViewMode } = useAthlete();
   const { sessionLogs } = useEvolutionData();
   const { prs } = usePR();
   const { unreadCount, sessionsWithUnread } = useFeedback();
   const { logout, currentUser } = useAuth();
+  const { isBoth } = useRole();
 
   // Edit Name State
   const [isEditingName, setIsEditingName] = useState(false);
@@ -164,7 +166,35 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* ESTADÍSTICAS RÁPIDAS */}
+        {/* MODO VISTA (Si es Ambos) */}
+        {isBoth && (
+          <div className="bg-white border border-[#E8E8E4] rounded-3xl p-5 shadow-sm flex items-center justify-between">
+            <div>
+              <h3 className="font-condensed font-black text-xl text-[#1C1C1E] tracking-wide uppercase">Vista Actual</h3>
+              <p className="text-sm text-[#6E6E73]">Cambia entre tu panel de atleta o coach</p>
+            </div>
+            <div className="flex bg-[#F5F5F0] p-1 rounded-xl">
+              <button
+                onClick={() => setViewMode('athlete')}
+                className={`px-4 py-2 rounded-lg font-condensed font-bold text-sm transition-all ${
+                  viewMode === 'athlete' ? 'bg-white text-[#FF6B00] shadow-sm' : 'text-[#6E6E73] hover:text-[#1C1C1E]'
+                }`}
+              >
+                Atleta
+              </button>
+              <button
+                onClick={() => setViewMode('coach')}
+                className={`px-4 py-2 rounded-lg font-condensed font-bold text-sm transition-all ${
+                  viewMode === 'coach' ? 'bg-[#1C1C1E] text-white shadow-sm' : 'text-[#6E6E73] hover:text-[#1C1C1E]'
+                }`}
+              >
+                Coach
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ESTADÍSTICAS RÁPIDAS (Solo si vemos Atleta o somos Ambos) */}
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-white border border-[#E8E8E4] rounded-2xl p-4 text-center shadow-sm">
             <div className="font-condensed font-black text-2xl text-[#1C1C1E]">{totalSessions}</div>
@@ -284,7 +314,7 @@ export default function Profile() {
           </div>
         </div>
 
-        {/* ATLETAS (SOLO COACH) */}
+        {/* ATLETAS (SOLO COACH O AMBOS) */}
         {(currentUser?.role === 'coach' || currentUser?.role === 'both') && (
           <div className="bg-[#1C1C1E] text-white rounded-3xl p-5 shadow-sm">
              <div className="flex items-center justify-between mb-4">

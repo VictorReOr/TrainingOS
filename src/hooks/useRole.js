@@ -1,11 +1,15 @@
 import { useAthlete } from '../context/AthleteContext';
 
 export function useRole() {
-  const { athlete } = useAthlete();
+  const { athlete, viewMode } = useAthlete();
+  const actualRole = athlete.role;
+  const activeRole = actualRole === 'both' ? viewMode : actualRole;
+
   return {
-    isCoach: athlete.role === 'coach' || athlete.role === 'both',
-    isAthlete: athlete.role === 'athlete' || athlete.role === 'both',
-    isBoth: athlete.role === 'both',
-    role: athlete.role
+    isCoach: activeRole === 'coach',
+    isAthlete: activeRole === 'athlete',
+    isBoth: actualRole === 'both',
+    role: activeRole,        // El rol que la UI debe mostrar
+    actualRole: actualRole   // El rol real del usuario
   };
 }

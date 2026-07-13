@@ -22,17 +22,26 @@ export function AthleteProvider({ children }) {
   const [athlete, setAthlete] = useState(() => {
     try {
       const raw = localStorage.getItem(LS_KEY);
-      if (!raw) return DEFAULT_ATHLETE;
-      const parsed = JSON.parse(raw);
-      // Fallback estricto para forzar onboarding a usuarios legacy
-      if (parsed.onboardingCompleted !== true) {
-        return { ...parsed, onboardingCompleted: false };
+      const userMetaRaw = localStorage.getItem('trainingos_user_meta');
+      const userMeta = userMetaRaw ? JSON.parse(userMetaRaw) : null;
+
+      let parsed = raw ? JSON.parse(raw) : { ...DEFAULT_ATHLETE };
+
+      // Si tenemos meta del usuario por haber hecho login/registro
+      if (userMeta) {
+        parsed.onboardingCompleted = true;
+        parsed.name = userMeta.name || parsed.name;
+        parsed.role = userMeta.role || parsed.role;
+      } else if (parsed.onboardingCompleted !== true) {
+        parsed.onboardingCompleted = false;
       }
       return parsed;
     } catch {
       return DEFAULT_ATHLETE;
     }
   });
+
+  const [viewMode, setViewMode] = useState(athlete.role === 'coach' ? 'coach' : 'athlete');
 
   // Persist on change
   useEffect(() => {
@@ -98,7 +107,9 @@ export function AthleteProvider({ children }) {
       updateProfile,
       addSport,
       toggleSport,
-      setPrimarySport
+      setPrimarySport,
+      viewMode,
+      setViewMode
     }}>
       {children}
     </AthleteContext.Provider>

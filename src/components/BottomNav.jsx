@@ -4,7 +4,7 @@ import { Home, CalendarDays, Play, TrendingUp, Timer, Users } from 'lucide-react
 import { useRole } from '../hooks/useRole';
 
 export default function BottomNav() {
-  const { role } = useRole();
+  const { isCoach } = useRole();
 
   let navItems = [
     { to: '/',          label: 'Inicio',   icon: Home },
@@ -14,7 +14,7 @@ export default function BottomNav() {
     { to: '/timer',     label: 'Timer',    icon: Timer },
   ];
 
-  if (role === 'coach') {
+  if (isCoach) {
     navItems = navItems.map(item => 
       item.to === '/evolution' 
         ? { to: '/coach', label: 'Atletas', icon: Users } 
