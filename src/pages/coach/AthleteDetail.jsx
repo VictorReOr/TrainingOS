@@ -40,7 +40,14 @@ export default function AthleteDetail() {
   const [selectedHistoryLog, setSelectedHistoryLog] = useState(null);
 
   // Pupil hooks (stateless and scoped to their ID)
-  const { assignments, assignSession, removeSession, loading: planLoading } = useAthletePlan(id);
+  const { 
+    currentWeekStart, 
+    navigateWeek, 
+    assignments, 
+    assignSession, 
+    removeSession, 
+    loading: planLoading 
+  } = useAthletePlan(id);
   const { sessionLogs, prs, loading: evLoading } = useAthleteEvolution(id);
   const fatigue = useFatigue(id);
 
@@ -74,10 +81,14 @@ export default function AthleteDetail() {
 
   const handleApplyRoutine = (routine) => {
     // La rutina tiene sessions con claves como 'lunes', 'martes', etc.
+    const DAYS_FULL = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
     Object.keys(routine.sessions).forEach(day => {
-      const sess = routine.sessions[day];
-      // Simulamos que sess.id es único para que assignSession funcione bien
-      assignSession(day, { ...sess, id: sess.id + '_' + Date.now() });
+      // Find matching proper day name (capitalize properly first)
+      const properDay = DAYS_FULL.find(d => d.toLowerCase() === day.toLowerCase() || d.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase() === day.toLowerCase());
+      if (properDay) {
+        const sess = routine.sessions[day];
+        assignSession(properDay, { ...sess, id: sess.id + '_' + Date.now() });
+      }
     });
     setShowImportSheet(false);
   };
@@ -139,7 +150,18 @@ export default function AthleteDetail() {
         {activeTab === 'plan' && (
           <div className="space-y-3">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="font-condensed font-black text-xl text-[#1C1C1E] tracking-wide uppercase">Plan Semanal</h2>
+              <div className="flex items-center gap-2">
+                <button onClick={() => navigateWeek(-1)} className="p-1 text-[#6E6E73] hover:text-[#1C1C1E]"><ChevronLeft size={20} /></button>
+                <div className="text-center">
+                  <h2 className="font-condensed font-black text-xl text-[#1C1C1E] tracking-wide uppercase leading-none">
+                    Semana Plan
+                  </h2>
+                  <p className="text-[10px] text-[#6E6E73] font-bold">
+                    {currentWeekStart.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} - {new Date(currentWeekStart.getTime() + 6*24*60*60*1000).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}
+                  </p>
+                </div>
+                <button onClick={() => navigateWeek(1)} className="p-1 text-[#6E6E73] hover:text-[#1C1C1E]"><ChevronLeft size={20} className="rotate-180" /></button>
+              </div>
               <button 
                 onClick={handleOpenImport}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FFF3EC] text-[#FF6B00] rounded-lg font-condensed font-bold text-sm hover:bg-[#FF6B00] hover:text-white transition-colors border border-[#FF6B00]"
