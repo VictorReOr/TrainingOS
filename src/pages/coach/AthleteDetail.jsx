@@ -170,8 +170,13 @@ export default function AthleteDetail() {
               </button>
             </div>
             {planLoading ? <div className="text-center p-6 text-[#6E6E73]">Cargando...</div> : (
-              DAYS.map(day => {
-                const assigned = assignments[day];
+              DAYS.map((day, idx) => {
+                const d = new Date(currentWeekStart);
+                d.setDate(d.getDate() + idx);
+                const pad = n => n.toString().padStart(2, '0');
+                const isoDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+                const assigned = assignments[isoDate];
+
                 return (
                   <div key={day} className="bg-white border border-[#E8E8E4] rounded-2xl overflow-hidden shadow-sm flex items-stretch">
                     <div className="w-8 shrink-0 flex items-center justify-center border-r border-[#E8E8E4] bg-[#F5F5F0]">
