@@ -31,6 +31,7 @@ export default function AthleteDetail() {
   const [showImportSheet, setShowImportSheet] = useState(false);
   const [importedRoutines, setImportedRoutines] = useState([]);
   const [loadingImport, setLoadingImport] = useState(false);
+  const [importError, setImportError] = useState(null);
   const [assignTargetDay, setAssignTargetDay] = useState('');
 
   // Coach sets
@@ -58,12 +59,14 @@ export default function AthleteDetail() {
   const handleOpenImport = async () => {
     setShowImportSheet(true);
     setLoadingImport(true);
+    setImportError(null);
     try {
       const res = await fetchWorkouts();
       const parsed = parseWorkouts(res.rows || []);
       setImportedRoutines(parsed);
     } catch (err) {
       console.error('Error cargando rutinas:', err);
+      setImportError(err.message);
     } finally {
       setLoadingImport(false);
     }
@@ -301,6 +304,11 @@ export default function AthleteDetail() {
             <div className="flex-1 overflow-y-auto p-5 pb-8 space-y-4">
               {loadingImport ? (
                 <div className="text-center p-6 text-[#6E6E73]">Sincronizando con Google Sheets...</div>
+              ) : importError ? (
+                <div className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center text-red-600">
+                  <p className="font-bold mb-1">Error al conectar con Google Sheets:</p>
+                  <p className="text-sm">{importError}</p>
+                </div>
               ) : importedRoutines.length === 0 ? (
                 <div className="bg-white border-2 border-dashed border-[#E8E8E4] rounded-3xl p-6 text-center text-[#6E6E73]">
                   No se encontraron rutinas en la pestaña 'workouts'. Añade filas en tu Excel.
