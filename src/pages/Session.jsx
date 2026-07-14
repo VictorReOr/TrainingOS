@@ -350,73 +350,6 @@ export default function Session() {
         <ProgressBar percentage={percentage} onReset={handleResetSession} />
       </div>
 
-      {/* BANNER COMPLETADO */}
-      {isFinished && (
-        <div className="mx-4 mt-4 bg-white border border-[#E8E8E4] rounded-3xl overflow-hidden shadow-sm animate-fade-in-up">
-          {/* Top hero */}
-          <div className="bg-[#FFF3EC] px-6 py-5 text-center border-b border-[#E8E8E4]">
-            <div className="inline-flex text-[#E85D04] mb-3">
-              <CheckCircle2 size={44} strokeWidth={2} />
-            </div>
-            <h2 className="font-condensed font-black text-[28px] leading-none text-[#1C1C1E] tracking-wide">
-              ¡ENTRENAMIENTO<br/>SUPERADO!
-            </h2>
-          </div>
-
-          {/* Métricas */}
-          <div className="grid grid-cols-2 gap-px bg-[#E8E8E4]">
-            {[
-              { icon: <Zap size={14}/>,      label: 'Volumen',    value: volTotal,        unit: 'kg',   green: true },
-              { icon: <BarChart3 size={14}/>, label: 'RPE Medio',  value: rpeMedio,        unit: '/ 10', green: false },
-              { icon: <CheckCircle2 size={14}/>, label: 'Ejercicios', value: `${completedCount}/${totalCount}`, unit: '',   green: false },
-              { icon: <Clock size={14}/>,    label: 'Tiempo',     value: tiempoFormateado, unit: '',   green: false },
-            ].map(({ icon, label, value, unit, green }) => (
-              <div key={label} className="bg-white px-4 py-5 flex flex-col items-center gap-1">
-                <span className="flex items-center gap-1 text-[10px] font-condensed font-bold text-[#6E6E73] tracking-widest uppercase">
-                  {icon} {label}
-                </span>
-                <span className={`font-condensed font-black text-3xl leading-none ${green ? 'text-[#FF6B00]' : 'text-[#1C1C1E]'}`}>
-                  {value}
-                  {unit && <span className="text-sm font-sans font-normal text-[#6E6E73] ml-1">{unit}</span>}
-                </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Acciones */}
-          <div className="p-4 grid grid-cols-2 gap-3">
-            <button
-              onClick={handleShare}
-              className="py-3.5 px-4 border-2 border-[#E8E8E4] rounded-2xl font-condensed font-bold text-[#1C1C1E] flex items-center justify-center gap-2 hover:border-[#1C1C1E] transition-colors"
-            >
-              <Share2 size={16} /> COMPARTIR
-            </button>
-            <button
-              onClick={handleSaveSession}
-              disabled={isSaving}
-              className="py-3.5 px-4 bg-[#FF6B00] rounded-2xl font-condensed font-black text-white flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(255,107,0,0.3)] disabled:opacity-50 active:scale-[0.98] transition-transform"
-            >
-              {isSaving
-                ? <span className="w-5 h-5 border-2 border-[#1C1C1E] border-t-transparent rounded-full animate-spin" />
-                : <><CloudUpload size={16} /> GUARDAR</>
-              }
-            </button>
-          </div>
-
-          {/* Feedback Section */}
-          <div className="px-4 pb-4">
-            <h3 className="font-condensed font-black text-lg text-[#1C1C1E] mb-3 flex items-center gap-2">
-              💬 ¿Cómo te fue?
-            </h3>
-            <FeedbackSection
-              sessionId={sessionData.id || sessionData.sessionId || 'unknown'}
-              atletaId={import.meta.env.VITE_ATLETA_ID || 'v-atleta-1'}
-              forceRole="athlete"
-            />
-          </div>
-        </div>
-      )}
-
       {/* BLOQUES DE EJERCICIOS */}
       <div className="flex flex-col gap-4 px-4 py-4" style={{ paddingBottom: 'calc(6rem + var(--safe-bottom,0px))' }}>
         {sessionData.blocks.map((block, bi) => (
@@ -455,6 +388,73 @@ export default function Session() {
             </div>
           </div>
         ))}
+
+        {/* BANNER COMPLETADO AL FINAL DE LA SESIÓN */}
+        {isFinished && (
+          <div className="bg-white border border-[#E8E8E4] rounded-3xl overflow-hidden shadow-sm animate-fade-in-up">
+            {/* Top hero */}
+            <div className="bg-[#FFF3EC] px-6 py-5 text-center border-b border-[#E8E8E4]">
+              <div className="inline-flex text-[#E85D04] mb-3">
+                <CheckCircle2 size={44} strokeWidth={2} />
+              </div>
+              <h2 className="font-condensed font-black text-[28px] leading-none text-[#1C1C1E] tracking-wide">
+                ¡ENTRENAMIENTO<br/>SUPERADO!
+              </h2>
+            </div>
+
+            {/* Métricas */}
+            <div className="grid grid-cols-2 gap-px bg-[#E8E8E4]">
+              {[
+                { icon: <Zap size={14}/>,      label: 'Volumen',    value: volTotal,        unit: 'kg',   green: true },
+                { icon: <BarChart3 size={14}/>, label: 'RPE Medio',  value: rpeMedio,        unit: '/ 10', green: false },
+                { icon: <CheckCircle2 size={14}/>, label: 'Ejercicios', value: `${completedCount}/${totalCount}`, unit: '',   green: false },
+                { icon: <Clock size={14}/>,    label: 'Tiempo',     value: tiempoFormateado, unit: '',   green: false },
+              ].map(({ icon, label, value, unit, green }) => (
+                <div key={label} className="bg-white px-4 py-5 flex flex-col items-center gap-1">
+                  <span className="flex items-center gap-1 text-[10px] font-condensed font-bold text-[#6E6E73] tracking-widest uppercase">
+                    {icon} {label}
+                  </span>
+                  <span className={`font-condensed font-black text-3xl leading-none ${green ? 'text-[#FF6B00]' : 'text-[#1C1C1E]'}`}>
+                    {value}
+                    {unit && <span className="text-sm font-sans font-normal text-[#6E6E73] ml-1">{unit}</span>}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {/* Acciones */}
+            <div className="p-4 grid grid-cols-2 gap-3">
+              <button
+                onClick={handleShare}
+                className="py-3.5 px-4 border-2 border-[#E8E8E4] rounded-2xl font-condensed font-bold text-[#1C1C1E] flex items-center justify-center gap-2 hover:border-[#1C1C1E] transition-colors"
+              >
+                <Share2 size={16} /> COMPARTIR
+              </button>
+              <button
+                onClick={handleSaveSession}
+                disabled={isSaving}
+                className="py-3.5 px-4 bg-[#FF6B00] rounded-2xl font-condensed font-black text-white flex items-center justify-center gap-2 shadow-[0_4px_16px_rgba(255,107,0,0.3)] disabled:opacity-50 active:scale-[0.98] transition-transform"
+              >
+                {isSaving
+                  ? <span className="w-5 h-5 border-2 border-[#1C1C1E] border-t-transparent rounded-full animate-spin" />
+                  : <><CloudUpload size={16} /> GUARDAR</>
+                }
+              </button>
+            </div>
+
+            {/* Feedback Section */}
+            <div className="px-4 pb-4">
+              <h3 className="font-condensed font-black text-lg text-[#1C1C1E] mb-3 flex items-center gap-2">
+                💬 ¿Cómo te fue?
+              </h3>
+              <FeedbackSection
+                sessionId={sessionData.id || sessionData.sessionId || 'unknown'}
+                atletaId={import.meta.env.VITE_ATLETA_ID || 'v-atleta-1'}
+                forceRole="athlete"
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* BOTTOM SHEET LOGGER */}
