@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAthlete } from '../context/AthleteContext';
 import { usePlanner } from '../context/PlannerContext';
@@ -7,7 +7,7 @@ import { usePR } from '../context/PRContext';
 import { useFeedback } from '../context/FeedbackContext';
 import { useAuth } from '../context/AuthContext';
 import { useRole } from '../hooks/useRole';
-import { ChevronLeft, Pencil, Star, Plus, ShieldCheck, RefreshCw, Bell, Users, DownloadCloud, MessageCircle, LogOut, ArrowRightLeft } from 'lucide-react';
+import { ChevronLeft, Pencil, Star, Plus, ShieldCheck, RefreshCw, Bell, Users, DownloadCloud, MessageCircle, LogOut } from 'lucide-react';
 import { getSeasons, getSessions } from '../services/sheets';
 
 export default function Profile() {
@@ -34,13 +34,12 @@ export default function Profile() {
   const [syncing, setSyncing] = useState(false);
 
   // Derived Identity
-  const initial = currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'A';
+  const initial = currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : athlete.name ? athlete.name.charAt(0).toUpperCase() : 'A';
   const roleLabels = { 'athlete': 'ATLETA', 'coach': 'ENTRENADOR', 'both': 'AMBOS' };
   const roleLabel = roleLabels[currentUser?.role || athlete.role] || 'ATLETA';
 
   // Derived Stats
   const totalSessions = sessionLogs.length;
-  // Streak logic (basic implementation)
   const calcStreak = () => {
     let s = 0;
     const sorted = [...sessionLogs].sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
@@ -62,7 +61,7 @@ export default function Profile() {
   };
   const currentStreak = calcStreak();
   const sortedPrs = [...prs].sort((a,b) => new Date(b.fecha) - new Date(a.fecha));
-  const latestPR = sortedPrs.length > 0 ? sortedPrs[0].exerciseName : 'Ninguno';
+  const latestPR = sortedPrs.length > 0 ? sortedPrs[0].exerciseName : 'NINGUNO';
 
   // Handlers
   const handleSaveName = () => {
@@ -88,22 +87,16 @@ export default function Profile() {
     const newVal = !demoMode;
     setDemoMode(newVal);
     localStorage.setItem('trainingos_demo_mode', newVal ? 'true' : 'false');
-    // Force reload evolution data is triggered automatically on navigation mostly, 
-    // but to be safe we can reload the window or let the context refresh.
-    window.location.reload(); // Hard reload to ensure all states pick up the new localstorage flag
+    window.location.reload();
   };
 
   const handleSync = async () => {
     setSyncing(true);
     localStorage.setItem('trainingos_athlete_id_sync', athleteIdSync);
     try {
-      // Usaremos un hack basic aquí llamando directo a getSeasons()
-      console.log("Sincronizando con ID:", athleteIdSync);
       const res1 = await getSeasons(athleteIdSync);
       const res2 = await getSessions(athleteIdSync);
       console.log("Sync completo:", { res1, res2 });
-      // To properly inject them requires dispatching them to PlannerContext
-      // This is a placeholder visual sync loop as requested.
     } catch (e) {
       console.error(e);
     } finally {
@@ -112,28 +105,28 @@ export default function Profile() {
   };
 
   return (
-    <div className="flex-1 bg-[#F5F5F0] flex flex-col min-h-screen text-[#1C1C1E] pb-24">
+    <div className="flex-1 bg-bg flex flex-col min-h-screen text-ink pb-24">
       
       {/* Header */}
-      <div className="px-5 pt-6 pb-4 bg-white border-b border-[#E8E8E4] sticky top-0 z-30 flex items-center justify-between">
+      <div className="px-5 pt-6 pb-4 bg-card border-b border-border sticky top-0 z-30 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-[#6E6E73] hover:text-[#1C1C1E]">
+          <button onClick={() => navigate(-1)} className="p-2 -ml-2 text-muted hover:text-ink">
             <ChevronLeft size={24} />
           </button>
-          <h1 className="font-condensed font-black text-2xl uppercase tracking-wide">Mi Perfil</h1>
+          <h1 className="font-condensed font-black text-2.5xl uppercase tracking-wide">Mi Perfil</h1>
         </div>
-        <button className="text-[#FF6B00] font-bold p-2 active:scale-95" onClick={() => navigate('/onboarding')}>
+        <button className="text-signal-orange font-bold p-2 active:scale-95 cursor-pointer" onClick={() => navigate('/onboarding')}>
           <Pencil size={20} />
         </button>
       </div>
 
       <div className="p-4 space-y-6">
         
-        {/* IDENTIDAD */}
-        <div className="bg-white border border-[#E8E8E4] rounded-3xl p-6 shadow-sm flex flex-col items-center relative overflow-hidden">
-          <div className="absolute top-0 w-full h-16 bg-[#FFF3EC] border-b border-[#FF6B00]/20" />
+        {/* IDENTIDAD REGISTRO */}
+        <div className="bg-card border border-border rounded-2xl p-6 flex flex-col items-center relative overflow-hidden">
+          <div className="absolute top-0 w-full h-16 bg-signal-orange/5 border-b border-border" />
           
-          <div className="w-24 h-24 rounded-full border-4 border-white bg-[#FF6B00] text-white flex items-center justify-center font-condensed font-black text-5xl shadow-md z-10 relative">
+          <div className="w-24 h-24 rounded-full stamp-circle border-corner-blue text-corner-blue font-display font-black text-5xl bg-card z-10 relative -rotate-3 flex items-center justify-center">
             {initial}
           </div>
           
@@ -144,7 +137,7 @@ export default function Profile() {
                   type="text"
                   value={editNameValue}
                   onChange={e => setEditNameValue(e.target.value)}
-                  className="text-center font-condensed font-black text-3xl border-b-2 border-[#FF6B00] outline-none w-48 bg-transparent"
+                  className="text-center font-condensed font-black text-3xl border-b-2 border-signal-orange outline-none w-48 bg-transparent"
                   autoFocus
                   onBlur={handleSaveName}
                   onKeyDown={e => e.key === 'Enter' && handleSaveName()}
@@ -153,39 +146,39 @@ export default function Profile() {
             ) : (
               <h2 
                 onClick={() => setIsEditingName(true)}
-                className="font-condensed font-black text-3xl text-[#1C1C1E] cursor-text"
+                className="font-condensed font-black text-3xl text-ink cursor-text uppercase tracking-wide"
               >
                 {currentUser?.name || athlete.name || 'Atleta'}
               </h2>
             )}
             
-            <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-[#F5F5F0] border border-[#E8E8E4] rounded-full">
-              <ShieldCheck size={14} className="text-[#E85D04]" />
-              <span className="text-[10px] font-bold text-[#6E6E73] tracking-widest uppercase">{roleLabel}</span>
+            <div className="mt-2 inline-flex items-center gap-1.5 px-3 py-1 bg-bg border border-border rounded-full">
+              <ShieldCheck size={14} className="text-corner-red" />
+              <span className="font-mono text-[9px] font-bold text-muted tracking-widest uppercase">{roleLabel}</span>
             </div>
           </div>
         </div>
 
         {/* MODO VISTA (Si es Ambos) */}
         {isBoth && (
-          <div className="bg-white border border-[#E8E8E4] rounded-3xl p-5 shadow-sm flex items-center justify-between">
+          <div className="bg-card border border-border rounded-2xl p-5 flex items-center justify-between">
             <div>
-              <h3 className="font-condensed font-black text-xl text-[#1C1C1E] tracking-wide uppercase">Vista Actual</h3>
-              <p className="text-sm text-[#6E6E73]">Cambia entre tu panel de atleta o coach</p>
+              <h3 className="font-condensed font-black text-lg text-ink tracking-wider uppercase">Vista Actual</h3>
+              <p className="font-mono text-[10px] text-muted uppercase tracking-wider mt-0.5">Cambia de rol</p>
             </div>
-            <div className="flex bg-[#F5F5F0] p-1 rounded-xl">
+            <div className="flex bg-bg/40 border border-border p-1 rounded-xl">
               <button
                 onClick={() => setViewMode('athlete')}
-                className={`px-4 py-2 rounded-lg font-condensed font-bold text-sm transition-all ${
-                  viewMode === 'athlete' ? 'bg-white text-[#FF6B00] shadow-sm' : 'text-[#6E6E73] hover:text-[#1C1C1E]'
+                className={`px-4 py-1.5 rounded-lg font-condensed font-bold text-xs uppercase transition-all cursor-pointer ${
+                  viewMode === 'athlete' ? 'bg-signal-orange text-ink font-black shadow-sm' : 'text-muted hover:text-ink'
                 }`}
               >
                 Atleta
               </button>
               <button
                 onClick={() => setViewMode('coach')}
-                className={`px-4 py-2 rounded-lg font-condensed font-bold text-sm transition-all ${
-                  viewMode === 'coach' ? 'bg-[#1C1C1E] text-white shadow-sm' : 'text-[#6E6E73] hover:text-[#1C1C1E]'
+                className={`px-4 py-1.5 rounded-lg font-condensed font-bold text-xs uppercase transition-all cursor-pointer ${
+                  viewMode === 'coach' ? 'bg-ink text-white shadow-sm' : 'text-muted hover:text-ink'
                 }`}
               >
                 Coach
@@ -194,31 +187,31 @@ export default function Profile() {
           </div>
         )}
 
-        {/* ESTADÍSTICAS RÁPIDAS (Solo si vemos Atleta o somos Ambos) */}
+        {/* ESTADÍSTICAS RÁPIDAS */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-white border border-[#E8E8E4] rounded-2xl p-4 text-center shadow-sm">
-            <div className="font-condensed font-black text-2xl text-[#1C1C1E]">{totalSessions}</div>
-            <div className="text-[9px] font-bold text-[#6E6E73] uppercase tracking-wider mt-1">Sesiones Completadas</div>
+          <div className="bg-card border border-border rounded-xl p-4 text-center">
+            <div className="font-display font-black text-3xl text-ink">{totalSessions}</div>
+            <div className="font-mono text-[8px] font-bold text-muted uppercase tracking-wider mt-1.5 leading-none">SESIONES</div>
           </div>
-          <div className="bg-white border border-[#E8E8E4] rounded-2xl p-4 text-center shadow-sm">
-            <div className="font-condensed font-black text-2xl text-[#FF6B00]">{currentStreak} 🔥</div>
-            <div className="text-[9px] font-bold text-[#6E6E73] uppercase tracking-wider mt-1">Racha Actual</div>
+          <div className="bg-card border border-border rounded-xl p-4 text-center">
+            <div className="font-display font-black text-3xl text-signal-orange">{currentStreak}</div>
+            <div className="font-mono text-[8px] font-bold text-muted uppercase tracking-wider mt-1.5 leading-none">RACHA DÍAS</div>
           </div>
-          <div className="bg-white border border-[#E8E8E4] rounded-2xl p-4 text-center shadow-sm flex flex-col justify-center">
-            <div className="font-condensed font-bold text-sm text-[#1C1C1E] truncate" title={latestPR}>{latestPR}</div>
-            <div className="text-[9px] font-bold text-[#6E6E73] uppercase tracking-wider mt-1">PR Reciente</div>
+          <div className="bg-card border border-border rounded-xl p-4 text-center flex flex-col justify-center items-center">
+            <div className="font-condensed font-bold text-sm text-ink truncate w-full uppercase" title={latestPR}>{latestPR}</div>
+            <div className="font-mono text-[8px] font-bold text-muted uppercase tracking-wider mt-1.5 leading-none">ÚLTIMO PR</div>
           </div>
         </div>
 
         {/* FEEDBACK PENDIENTE */}
         {unreadCount > 0 && (
-          <div className="bg-white border border-[#E8E8E4] rounded-3xl p-5 shadow-sm">
+          <div className="bg-card border border-border rounded-2xl p-5">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-condensed font-black text-xl tracking-wide uppercase text-[#1C1C1E] flex items-center gap-2">
-                <MessageCircle size={20} className="text-[#FF6B00]" />
+              <h3 className="font-condensed font-black text-lg tracking-wide uppercase text-ink flex items-center gap-2">
+                <MessageCircle size={18} className="text-signal-orange" />
                 Feedback Pendiente
               </h3>
-              <span className="w-6 h-6 rounded-full bg-red-500 text-white text-xs font-black flex items-center justify-center">
+              <span className="w-5 h-5 rounded-full bg-corner-red text-white text-[10px] font-black flex items-center justify-center font-mono">
                 {unreadCount}
               </span>
             </div>
@@ -227,16 +220,16 @@ export default function Profile() {
                 <button
                   key={item.sessionId}
                   onClick={() => navigate('/evolution')}
-                  className="w-full bg-[#F5F5F0] border border-[#E8E8E4] rounded-xl p-3 text-left flex items-center gap-3 active:scale-[0.98] transition-transform hover:border-[#FF6B00]"
+                  className="w-full bg-bg/25 border border-border rounded-xl p-3 text-left flex items-center gap-3 active:scale-[0.98] transition-transform hover:border-signal-orange cursor-pointer"
                 >
-                  <div className="w-8 h-8 rounded-full bg-[#FFF3EC] text-[#FF6B00] flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-signal-orange/10 text-signal-orange flex items-center justify-center shrink-0">
                     💬
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-sm text-[#1C1C1E] truncate">Sesión: {item.sessionId.substring(0, 20)}</p>
-                    <p className="text-xs text-[#6E6E73] truncate">{item.lastText || 'Nuevo comentario'}</p>
+                    <p className="font-bold text-sm text-ink truncate uppercase">Sesión: {item.sessionId.substring(0, 10)}</p>
+                    <p className="font-sans text-xs text-muted truncate mt-0.5">{item.lastText || 'Nuevo comentario'}</p>
                   </div>
-                  <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center shrink-0">
+                  <span className="w-5 h-5 rounded-full bg-corner-red text-white text-[10px] font-black flex items-center justify-center shrink-0 font-mono">
                     {item.count}
                   </span>
                 </button>
@@ -248,39 +241,39 @@ export default function Profile() {
         {/* CÓDIGO SESIÓN */}
         <button 
           onClick={() => navigate('/import')}
-          className="w-full bg-[#1C1C1E] rounded-3xl p-5 text-left flex items-center justify-between active:scale-[0.98] transition-transform shadow-sm"
+          className="w-full bg-ink text-white rounded-2xl p-5 text-left flex items-center justify-between active:scale-[0.98] transition-transform cursor-pointer"
         >
           <div>
-            <h3 className="font-condensed font-black text-white text-xl">Recibir sesión</h3>
-            <p className="text-sm text-[#A1A1AA] mt-0.5">Importa un entreno mediante código</p>
+            <h3 className="font-condensed font-black text-lg uppercase tracking-wide">Recibir sesión</h3>
+            <p className="font-mono text-[9px] text-text-muted uppercase tracking-wider mt-1">Importa un entreno mediante código</p>
           </div>
-          <div className="w-10 h-10 rounded-full bg-[#3F3F46] flex items-center justify-center text-white shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-white shrink-0">
             <DownloadCloud size={18} />
           </div>
         </button>
 
         {/* DEPORTES ACTIVOS */}
-        <div className="bg-white border border-[#E8E8E4] rounded-3xl p-5 shadow-sm">
-          <h3 className="font-condensed font-black text-xl mb-4 tracking-wide uppercase text-[#1C1C1E]">Deportes Activos</h3>
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <h3 className="font-condensed font-black text-lg mb-4 tracking-wider uppercase text-ink">Deportes Activos</h3>
           <div className="space-y-3">
             {athlete.sports.map(sport => {
               const isPrimary = sport.id === athlete.primarySport;
               return (
-                <div key={sport.id} className="flex justify-between items-center p-3 rounded-2xl border border-[#E8E8E4] bg-[#F5F5F0]">
+                <div key={sport.id} className="flex justify-between items-center p-3 rounded-xl border border-border bg-bg/15">
                   <div className="flex items-center gap-3">
-                    <div className="text-2xl">{sport.icon}</div>
-                    <span className="font-bold text-sm">{sport.label}</span>
+                    <div className="text-xl">{sport.icon}</div>
+                    <span className="font-bold text-sm uppercase font-condensed tracking-wide">{sport.label}</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3">
                     <button 
                       onClick={() => setPrimarySport(sport.id)}
-                      className={`p-1.5 rounded-full transition-colors ${isPrimary ? 'text-[#FF6B00]' : 'text-[#D4D4D8] hover:text-[#FF6B00]'}`}
+                      className={`p-1.5 rounded-full transition-colors cursor-pointer ${isPrimary ? 'text-signal-orange' : 'text-muted hover:text-signal-orange'}`}
                     >
-                      <Star fill={isPrimary ? '#FF6B00' : 'none'} size={18} />
+                      <Star fill={isPrimary ? 'var(--color-signal-orange)' : 'none'} size={18} />
                     </button>
                     <button
                       onClick={() => toggleSport(sport.id)}
-                      className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${sport.active ? 'bg-[#FF6B00]' : 'bg-[#E8E8E4]'}`}
+                      className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${sport.active ? 'bg-signal-orange' : 'bg-border'}`}
                     >
                       <div className={`w-4 h-4 bg-white rounded-full transition-transform ${sport.active ? 'translate-x-6' : 'translate-x-0'}`} />
                     </button>
@@ -290,52 +283,51 @@ export default function Profile() {
             })}
 
             {showCustomSport ? (
-              <div className="flex gap-2 items-center p-2 bg-[#FFF3EC] border border-[#FF6B00]/30 rounded-2xl animate-fade-in">
+              <div className="flex gap-2 items-center p-2 bg-signal-orange/10 border border-signal-orange/30 rounded-xl animate-fade-in">
                 <input
                   type="text"
                   value={customSportInput}
                   onChange={e => setCustomSportInput(e.target.value)}
                   placeholder="Ej. Tenis"
-                  className="flex-1 bg-white border border-[#E8E8E4] rounded-xl px-3 py-2 font-bold text-sm outline-none"
+                  className="flex-1 bg-card border border-border rounded-lg px-3 py-2 font-bold text-sm outline-none focus:border-signal-orange"
                   autoFocus
                 />
-                <button onClick={handleAddCustomSport} className="bg-[#FF6B00] text-white p-2 rounded-xl">
+                <button onClick={handleAddCustomSport} className="bg-signal-orange text-ink p-2 rounded-lg cursor-pointer">
                   <Plus size={20} />
                 </button>
               </div>
             ) : (
               <button 
                 onClick={() => setShowCustomSport(true)}
-                className="w-full flex justify-center items-center gap-2 p-3 rounded-2xl border-2 border-dashed border-[#E8E8E4] text-[#6E6E73] font-bold text-sm transition-colors hover:border-[#1C1C1E]"
+                className="w-full flex justify-center items-center gap-2 p-3 rounded-xl border-2 border-dashed border-border text-muted font-bold text-xs uppercase tracking-wider transition-colors hover:border-ink cursor-pointer"
               >
-                <Plus size={18} /> Añadir Deporte
+                <Plus size={14} /> Añadir Deporte
               </button>
             )}
           </div>
         </div>
 
-        {/* NIVEL DE EXPERIENCIA */}
-        <div className="bg-white border border-[#E8E8E4] rounded-3xl p-5 shadow-sm">
-          <h3 className="font-condensed font-black text-xl mb-4 tracking-wide uppercase text-[#1C1C1E]">Nivel de Experiencia</h3>
+        {/* NIVEL DE EXPERIENCIA (Ficha Chips) */}
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <h3 className="font-condensed font-black text-lg mb-4 tracking-wider uppercase text-ink">Nivel de Experiencia</h3>
           <div className="flex gap-2">
             {[
-              { id: 'novato', label: 'Novato', emoji: '🟢' },
-              { id: 'intermedio', label: 'Intermedio', emoji: '🟡' },
-              { id: 'avanzado', label: 'Avanzado', emoji: '🔴' }
+              { id: 'novato', label: 'Novato' },
+              { id: 'intermedio', label: 'Intermedio' },
+              { id: 'avanzado', label: 'Avanzado' }
             ].map(lvl => {
               const isActive = (athlete.level || 'intermedio') === lvl.id;
               return (
                 <button
                   key={lvl.id}
                   onClick={() => updateProfile({ level: lvl.id })}
-                  className={`flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl font-bold text-sm transition-all ${
+                  className={`flex-1 py-3.5 rounded-xl font-mono font-bold text-xs tracking-wider uppercase border transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-[#FF6B00] text-white shadow-sm'
-                      : 'bg-[#F5F5F0] border border-[#E8E8E4] text-[#6E6E73] hover:border-[#1C1C1E]'
+                      ? 'bg-signal-orange border-signal-orange text-ink font-black shadow-sm'
+                      : 'bg-bg/25 border-border text-muted hover:border-ink'
                   }`}
                 >
-                  <span>{lvl.emoji}</span>
-                  <span>{lvl.label}</span>
+                  {lvl.label}
                 </button>
               );
             })}
@@ -344,73 +336,73 @@ export default function Profile() {
 
         {/* ATLETAS (SOLO COACH O AMBOS) */}
         {(currentUser?.role === 'coach' || currentUser?.role === 'both') && (
-          <div className="bg-[#1C1C1E] text-white rounded-3xl p-5 shadow-sm">
+          <div className="bg-ink text-white rounded-2xl p-5 shadow-sm">
              <div className="flex items-center justify-between mb-4">
-               <h3 className="font-condensed font-black text-xl uppercase tracking-wide">Mis Atletas</h3>
-               <Users size={20} className="text-[#FF6B00]" />
+               <h3 className="font-condensed font-black text-lg uppercase tracking-wide">Mis Atletas</h3>
+               <Users size={18} className="text-signal-orange" />
              </div>
-             <p className="text-sm text-[#A1A1AA] mb-4">Aún no gestionas atletas o se implementará en el módulo 4.2.</p>
-             <button onClick={() => navigate('/coach')} className="w-full bg-[#3F3F46] hover:bg-[#52525B] text-white font-condensed font-bold py-3 rounded-xl transition-colors">
+             <p className="font-sans text-xs text-text-muted mb-4">Aún no gestionas atletas o se implementará en el módulo de Coach.</p>
+             <button onClick={() => navigate('/coach')} className="w-full bg-white/10 hover:bg-white/20 text-white font-condensed font-black py-3 rounded-xl transition-all cursor-pointer tracking-wider text-sm">
                GESTIONAR ATLETAS
              </button>
           </div>
         )}
 
         {/* CONFIGURACIÓN */}
-        <div className="bg-white border border-[#E8E8E4] rounded-3xl p-5 shadow-sm">
-          <h3 className="font-condensed font-black text-xl mb-4 tracking-wide uppercase text-[#1C1C1E]">Configuración</h3>
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <h3 className="font-condensed font-black text-lg mb-4 tracking-wider uppercase text-ink">Configuración</h3>
           
           <div className="space-y-4">
             
             <div className="flex justify-between items-center">
               <div className="flex items-center gap-3">
-                <Bell size={20} className="text-[#6E6E73]" />
+                <Bell size={18} className="text-muted" />
                 <div>
-                  <div className="font-bold text-sm">Notificaciones</div>
-                  <div className="text-xs text-[#6E6E73]">Alertas de entrenamiento</div>
+                  <div className="font-bold text-sm uppercase font-condensed tracking-wide">Notificaciones</div>
+                  <div className="font-mono text-[9px] text-muted uppercase tracking-wider mt-0.5">Alertas de entrenamiento</div>
                 </div>
               </div>
               <button
                 onClick={() => setNotifications(!notifications)}
-                className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${notifications ? 'bg-[#FF6B00]' : 'bg-[#E8E8E4]'}`}
+                className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${notifications ? 'bg-signal-orange' : 'bg-border'}`}
               >
                 <div className={`w-4 h-4 bg-white rounded-full transition-transform ${notifications ? 'translate-x-6' : 'translate-x-0'}`} />
               </button>
             </div>
 
-            <div className="flex justify-between items-center pt-2 border-t border-[#F5F5F0]">
+            <div className="flex justify-between items-center pt-3 border-t border-border">
               <div className="flex items-center gap-3">
-                <ShieldCheck size={20} className="text-[#6E6E73]" />
+                <ShieldCheck size={18} className="text-muted" />
                 <div>
-                  <div className="font-bold text-sm">Modo Demo (MOCK)</div>
-                  <div className="text-xs text-[#6E6E73]">Ver datos falsos en gráficas</div>
+                  <div className="font-bold text-sm uppercase font-condensed tracking-wide">Modo Demo (MOCK)</div>
+                  <div className="font-mono text-[9px] text-muted uppercase tracking-wider mt-0.5">Ver datos falsos en gráficas</div>
                 </div>
               </div>
               <button
                 onClick={handleToggleDemoMode}
-                className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${demoMode ? 'bg-[#FF6B00]' : 'bg-[#E8E8E4]'}`}
+                className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${demoMode ? 'bg-signal-orange' : 'bg-border'}`}
               >
                 <div className={`w-4 h-4 bg-white rounded-full transition-transform ${demoMode ? 'translate-x-6' : 'translate-x-0'}`} />
               </button>
             </div>
 
-            <div className="pt-4 border-t border-[#F5F5F0]">
-               <label className="text-xs font-bold text-[#6E6E73] tracking-widest uppercase mb-2 block">
-                Atleta ID (GSheets)
+            <div className="pt-4 border-t border-border">
+               <label className="font-mono text-[9px] text-muted tracking-widest uppercase mb-2 block">
+                Atleta ID (GSheets Sync)
                </label>
                <input 
                  type="text" 
                  value={athleteIdSync}
                  onChange={(e) => setAthleteIdSync(e.target.value)}
-                 className="w-full bg-[#F5F5F0] border border-[#E8E8E4] rounded-xl px-4 py-3 font-mono text-sm outline-none focus:border-[#FF6B00] mb-3"
+                 className="w-full bg-bg/25 border border-border rounded-xl px-4 py-3 font-mono text-sm outline-none focus:border-signal-orange mb-3 text-ink"
                />
                <button 
                  onClick={handleSync}
                  disabled={syncing}
-                 className="w-full flex items-center justify-center gap-2 bg-white border-2 border-[#1C1C1E] text-[#1C1C1E] font-condensed font-bold py-3 rounded-xl disabled:opacity-50 active:scale-[0.98] transition-transform"
+                 className="w-full flex items-center justify-center gap-2 bg-card border-2 border-ink text-ink font-condensed font-black py-3 rounded-xl disabled:opacity-50 active:scale-[0.98] transition-transform cursor-pointer tracking-wider text-sm uppercase hover:bg-ink hover:text-white"
                >
-                 <RefreshCw size={18} className={syncing ? 'animate-spin' : ''} />
-                 {syncing ? 'SINCRONIZANDO...' : 'SINCRONIZAR CON SHEETS'}
+                 <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
+                 {syncing ? 'Sincronizando...' : 'Sincronizar con Sheets'}
                </button>
             </div>
 
@@ -420,9 +412,9 @@ export default function Profile() {
         {/* LOGOUT */}
         <button 
           onClick={logout}
-          className="w-full flex justify-center items-center gap-2 p-4 rounded-3xl bg-red-50 text-red-600 font-bold text-sm transition-colors active:scale-[0.98] border border-red-100 mt-4"
+          className="w-full flex justify-center items-center gap-2 p-4 rounded-2xl bg-corner-red/10 text-corner-red font-condensed font-black text-sm uppercase tracking-wider transition-all active:scale-[0.98] border border-corner-red/20 mt-4 cursor-pointer hover:bg-corner-red/20"
         >
-          <LogOut size={18} /> Cerrar Sesión
+          <LogOut size={16} /> Cerrar Sesión
         </button>
 
       </div>

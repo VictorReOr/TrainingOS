@@ -1,26 +1,35 @@
 @import "tailwindcss";
 
 @theme {
-  /* Fondos ligeramente más cálidos */
-  --color-bg:      #FAFAFA;
-  --color-surface: #F5F5F0;
-  --color-card:    #FFFFFF;
-  --color-border:  #E8E8E4;
+  /* Colores de Fondo y Bordes (Efecto Papel Oficial) */
+  --color-bg: #EDE6D3;            /* paper-base: fondo de pantalla */
+  --color-card: #F6F1E4;          /* paper-card: fondo de tarjetas/tickets */
+  --color-border: #DDD6C1;        /* line-muted: bordes y separadores */
 
-  /* Accent */
-  --color-accent: #FF6B00;
-  --color-accent-dark: #E85D04;
+  /* Colores del Sistema Documental */
+  --color-ink: #14151A;           /* Texto principal y contrastes oscuros */
+  --color-signal-orange: #FF5A00; /* Acento de energía y CTAs primarios */
+  --color-corner-red: #C22A2E;    /* Sellos/Detalles de Sesión y Peso Físico */
+  --color-corner-blue: #1C3FAA;   /* Sellos/Detalles de Bienestar/Check-in */
+  --color-belt-gold: #D9A62E;     /* Progresos de rango, rachas largas */
+  --color-success-green: #3B7A3F; /* Deltas positivos únicamente */
+  --color-line-muted: #DDD6C1;
+  --color-text-muted: #8A8676;
+
+  /* Mapeos de Texto Estándar */
+  --color-text: #14151A;
+  --color-muted: #8A8676;         /* text-muted */
+
+  /* Accent standard overrides */
+  --color-accent: #FF5A00;
+  --color-accent-dark: #C22A2E;
   --color-accent-soft: #FFF3EC;
-  --color-blue: #3d7dd4;
-  --color-green: #27ae60;
 
-  /* Texto ligeramente más suave */
-  --color-text:    #1C1C1E;
-  --color-muted:   #6E6E73;
-
-  /* Tipografía: Outfit reemplaza DM Sans */
+  /* Tipografías */
   --font-sans: "Outfit", sans-serif;
   --font-condensed: "Barlow Condensed", sans-serif;
+  --font-display: "Big Shoulders Display", sans-serif;
+  --font-mono: "IBM Plex Mono", monospace;
 }
 
 @custom-variant active (&:active);
@@ -211,6 +220,54 @@
 
 /* Select styled para tema claro */
 select option {
-  background-color: #FFFFFF;
-  color: #1C1C1E;
+  background-color: #F6F1E4;
+  color: #14151A;
+}
+
+/* ── Elementos de Firma de Dirección de Arte ─────────────────── */
+
+.ticket-punch {
+  position: relative;
+  border-top: 1.5px dashed var(--color-line-muted);
+}
+.ticket-punch::before,
+.ticket-punch::after {
+  content: "";
+  position: absolute;
+  top: -6px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: var(--color-bg);
+  z-index: 10;
+}
+.ticket-punch::before {
+  left: -6px;
+}
+.ticket-punch::after {
+  right: -6px;
+}
+
+/* Sello circular rotado analógico */
+.stamp-circle {
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background-color: var(--color-card);
+}
+
+/* Marcador LCD Fatiga */
+.lcd-display {
+  font-family: var(--font-mono);
+  background-color: #14151A;
+  color: #FF5A00;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  letter-spacing: 0.1em;
 }

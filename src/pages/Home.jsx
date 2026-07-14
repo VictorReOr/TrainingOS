@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SportSelector from '../components/SportSelector';
-import { Play, CalendarDays, TrendingUp, Timer, Zap, Trophy, Flame, User } from 'lucide-react';
+import { Play, CalendarDays, TrendingUp, Timer, Trophy, Flame } from 'lucide-react';
 import { usePlanner } from '../context/PlannerContext';
 import { usePR } from '../context/PRContext';
 import { useAthlete } from '../context/AthleteContext';
@@ -36,12 +36,12 @@ export default function Home() {
     const today = new Date();
     const DAYS_KEYS = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
     const SESSION_TYPE_COLORS = {
-      gym_fuerza:      '#FF6B00',
-      gym_hipertrofia: '#3d7dd4',
-      gym:             '#FF6B00',
-      tkd:             '#3d7dd4',
-      cardio:          '#27ae60',
-      descanso:        '#E8E8E4',
+      gym_fuerza:      '#C22A2E', // corner-red para sesiones de fuerza
+      gym_hipertrofia: '#C22A2E',
+      gym:             '#C22A2E',
+      tkd:             '#1C3FAA', // corner-blue para tkd
+      cardio:          '#3B7A3F', // success-green para cardio
+      descanso:        '#DDD6C1', // line-muted
     };
     return Array.from({ length: 7 }, (_, i) => {
       const d = new Date(today);
@@ -57,39 +57,41 @@ export default function Home() {
         isToday: d.toDateString() === today.toDateString(),
         trained,
         isPast,
-        color: SESSION_TYPE_COLORS[sessionType] || '#FF6B00',
+        color: SESSION_TYPE_COLORS[sessionType] || '#C22A2E',
       };
     });
   }, [weekSessions]);
   const trainedCount = streak.filter(d => d.trained).length;
 
-  // Best PR this week (mock — first PR)
-  const latestPR = prs.length > 0 ? prs[prs.length - 1] : null;
+  // Best PR this week
+  const latestPR = prs.length > 0 ? prs[0] : null;
 
-  // Today's session (mock from planner)
+  // Today's session
   const DAYS_ES     = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
   const todayKey    = DAYS_ES[new Date().getDay()];
   const todaySession = weekSessions?.[todayKey] || null;
 
   const quickActions = [
-    { label: 'Plan',      sub: 'Semana actual', icon: <CalendarDays size={22} />, to: '/plan',      color: '#FF6B00' },
-    { label: 'Evolución', sub: 'PRs & gráficas', icon: <TrendingUp  size={22} />, to: '/evolution', color: '#1C1C1E' },
-    { label: 'Timer',     sub: 'Circuito',       icon: <Timer       size={22} />, to: '/timer',     color: '#1C1C1E' },
+    { label: 'Plan',      sub: 'Semanal', icon: <CalendarDays size={20} />, to: '/plan',      color: '#FF5A00' },
+    { label: 'Evolución', sub: 'Historial', icon: <TrendingUp  size={20} />, to: '/evolution', color: '#14151A' },
+    { label: 'Timer',     sub: 'Circuito',  icon: <Timer       size={20} />, to: '/timer',     color: '#14151A' },
   ];
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#F5F5F0] text-[#1C1C1E]">
+    <div className="flex flex-col min-h-screen bg-bg text-ink">
 
       {/* HEADER */}
-      <div className="px-5 pt-6 pb-4 bg-white border-b border-[#E8E8E4] sticky top-0 z-10">
-        <div className="flex items-start justify-between mb-2">
+      <div className="px-5 pt-6 pb-4 bg-card border-b border-border sticky top-0 z-10">
+        <div className="flex items-start justify-between mb-3">
           <button 
             onClick={() => navigate('/profile')} 
-            className="relative w-10 h-10 bg-[#FF6B00] rounded-full border border-[#E85D04] shadow-sm flex items-center justify-center text-white active:scale-95 transition-transform"
+            className="relative w-12 h-12 stamp-circle border-corner-blue text-corner-blue hover:text-signal-orange hover:border-signal-orange transition-all -rotate-6 flex items-center justify-center active:scale-95 cursor-pointer"
           >
-            <User size={20} />
+            <span className="font-mono text-sm font-black tracking-tighter">
+              {firstName ? firstName.slice(0, 2).toUpperCase() : 'OS'}
+            </span>
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-black flex items-center justify-center leading-none">
+              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-corner-red text-white text-[10px] font-black flex items-center justify-center leading-none font-mono">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
@@ -97,30 +99,39 @@ export default function Home() {
           <SportSelector />
         </div>
         <div>
-          <h1 className="font-sans font-light text-2xl leading-tight text-[#1C1C1E]">
-            {getGreetingBase()}{firstName && <>, <span className="font-semibold">{firstName}</span></>}!
+          <h1 className="font-sans font-light text-2xl leading-tight text-ink">
+            {getGreetingBase()}{firstName && <>, <span className="font-bold">{firstName}</span></>}!
           </h1>
-          <p className="text-sm text-[#6E6E73] font-normal tracking-[0.02em]">{getDayOfWeek()}, {new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long' })}</p>
+          <p className="font-mono text-xs text-muted tracking-wider mt-0.5">
+            {getDayOfWeek().toUpperCase()}, {new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long' }).toUpperCase()}
+          </p>
         </div>
       </div>
 
       <div className="flex-1 px-4 py-4 space-y-4" style={{ paddingBottom: 'calc(5rem + var(--safe-bottom,0px))' }}>
 
-        {/* ── HERO CARD — Sesión de hoy ── */}
+        {/* ── HERO TICKET — Sesión de hoy ── */}
         {todaySession ? (
-          <div className="bg-white border border-[#E8E8E4] rounded-3xl overflow-hidden shadow-sm stagger-1">
-            <div className="bg-[#FFF3EC] px-5 pt-5 pb-4 border-b border-[#E8E8E4]">
-              <p className="text-[10px] font-condensed font-bold text-[#E85D04] tracking-widest uppercase mb-1">
-                SESIÓN DE HOY
-              </p>
-              <h2 className="font-condensed font-black text-[32px] leading-tight text-[#1C1C1E]">
+          <div className="bg-card border border-border rounded-2xl overflow-hidden stagger-1 relative border-l-4 border-l-corner-red">
+            <div className="px-5 pt-5 pb-4">
+              <div className="flex justify-between items-center mb-2.5">
+                <span className="font-mono text-[9px] text-muted tracking-widest uppercase">REGISTRO DE HOY</span>
+                <span className="font-mono text-[9px] text-muted tracking-widest uppercase">
+                  FICHA N.0{new Date().getDate() || '84'}
+                </span>
+              </div>
+              <h2 className="font-display font-black text-3xl leading-tight text-ink uppercase tracking-wide">
                 {todaySession.name}
               </h2>
-              <p className="text-sm text-[#6E6E73] mt-1">
-                ⏱ {todaySession.duration} min · 💪 {todaySession.exercises} ejercicios
+              <p className="font-condensed font-bold text-xs text-muted tracking-widest uppercase mt-1">
+                ⏱ {todaySession.duration} MIN · 💪 {todaySession.exercises} EJERCICIOS
               </p>
             </div>
-            <div className="px-5 py-4">
+            
+            {/* Ticket perforation line */}
+            <div className="ticket-punch"></div>
+
+            <div className="px-5 py-4 bg-card">
               <button
                 onClick={() => {
                   loadSession({
@@ -139,22 +150,24 @@ export default function Home() {
                   });
                   navigate('/session');
                 }}
-                className="w-full py-4 bg-[#FF6B00] text-white font-condensed font-black text-xl rounded-2xl shadow-[0_4px_20px_rgba(255,107,0,0.35)] active:scale-[0.98] transition-transform tracking-wide flex items-center justify-center gap-2"
+                className="w-full py-3.5 bg-signal-orange text-ink font-display font-black text-xl rounded-xl active:scale-[0.98] transition-transform tracking-wider flex items-center justify-center gap-2 uppercase hover:bg-signal-orange/95 cursor-pointer"
               >
-                <Play size={20} fill="#1C1C1E" /> INICIAR SESIÓN
+                <Play size={18} fill="#14151A" stroke="none" /> INICIAR ENTRENAMIENTO
               </button>
             </div>
           </div>
         ) : (
-          /* Hero vacío + CTA Importar */
+          /* Hero vacío estilo documento oficial */
           <div className="space-y-4 stagger-1">
-            <div className="bg-white border-2 border-dashed border-[#E8E8E4] rounded-3xl p-6 text-center">
-              <div className="text-5xl mb-3">😴</div>
-              <h2 className="font-condensed font-black text-2xl text-[#1C1C1E] mb-1">Día de descanso</h2>
-              <p className="text-sm text-[#6E6E73] mb-4">Recuperación activa — mañana vuelves más fuerte</p>
+            <div className="bg-card border-2 border-dashed border-border rounded-2xl p-6 text-center">
+              <div className="w-14 h-14 stamp-circle border-text-muted text-text-muted mx-auto mb-4 -rotate-6">
+                <span className="text-[11px] font-mono font-black">DESC</span>
+              </div>
+              <h2 className="font-display font-black text-2xl text-ink uppercase">Día de descanso</h2>
+              <p className="font-sans text-sm text-muted mb-4 mt-1">Recuperación activa — mañana vuelves más fuerte</p>
               <button
                 onClick={() => navigate('/plan')}
-                className="border-2 border-[#FF6B00] text-[#E85D04] font-condensed font-black px-6 py-2.5 rounded-2xl hover:bg-[#FFF3EC] transition-colors"
+                className="border-2 border-signal-orange text-signal-orange font-display font-black px-6 py-2.5 rounded-xl hover:bg-signal-orange hover:text-ink transition-all cursor-pointer uppercase tracking-wider text-sm"
               >
                 VER PLAN SEMANAL
               </button>
@@ -162,65 +175,55 @@ export default function Home() {
             
             <button
                onClick={() => navigate('/import')}
-               className="w-full bg-[#1C1C1E] rounded-3xl p-5 text-left flex items-center justify-between active:scale-[0.98] transition-transform shadow-md"
+               className="w-full bg-ink rounded-2xl p-5 text-left flex items-center justify-between active:scale-[0.98] transition-transform shadow-sm cursor-pointer"
             >
                <div>
-                  <h3 className="font-condensed font-black text-white text-xl">¿Tienes código de sesión?</h3>
-                  <p className="text-sm text-[#A1A1AA] mt-1">Descarga el entreno de tu coach</p>
+                  <h3 className="font-condensed font-black text-white text-lg uppercase tracking-wide">¿Tienes código de sesión?</h3>
+                  <p className="font-mono text-[10px] text-muted uppercase tracking-wider mt-1">Descarga el entreno de tu coach</p>
                </div>
                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white shrink-0">
-                  <Play size={18} fill="white" />
+                  <Play size={16} fill="white" stroke="none" />
                </div>
             </button>
           </div>
         )}
 
-        {/* ── RACHA SEMANAL ── */}
-        <div className="bg-white border border-[#E8E8E4] rounded-2xl p-4 shadow-sm stagger-2">
-          <div className="flex items-center justify-between mb-3">
+        {/* ── RACHA SEMANAL RECTANGULAR ── */}
+        <div className="bg-card border border-border rounded-2xl p-4 shadow-sm stagger-2">
+          <div className="flex items-center justify-between mb-3.5">
             <div>
-              <p className="text-[10px] font-condensed font-bold text-[#6E6E73] tracking-widest uppercase">RACHA SEMANAL</p>
-              <p className="font-condensed font-black text-xl text-[#1C1C1E] leading-none mt-0.5">
-                {trainedCount}
-                <span className="text-sm font-sans font-normal text-[#6E6E73] ml-1">/ 7 días</span>
+              <p className="font-mono text-[9px] text-muted tracking-widest uppercase">Racha de Entrenamiento</p>
+              <p className="font-display font-black text-2xl text-ink leading-none mt-1 uppercase">
+                {trainedCount} <span className="text-xs font-mono font-normal text-muted tracking-normal">/ 7 días</span>
               </p>
             </div>
-            <div className="flex items-center gap-1 text-[#FF6B00]">
-              <Flame size={18} />
-              <span className="font-condensed font-black text-lg">{trainedCount}</span>
+            <div className="flex items-center gap-1 text-belt-gold">
+              <Flame size={18} fill="currentColor" stroke="none" />
+              <span className="font-display font-black text-xl leading-none">{trainedCount}</span>
             </div>
           </div>
+          
           <div className="flex gap-1.5 justify-between">
             {streak.map((day, i) => (
-              <div key={i} className="flex flex-col items-center gap-1">
+              <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                  className={`w-full h-8 rounded-lg flex items-center justify-center transition-all ${
                     day.isToday
-                      ? 'border-2 border-[#FF6B00]'
-                      : !day.trained
-                      ? 'bg-[#F5F5F0] border border-[#E8E8E4]'
-                      : ''
+                      ? 'border-[1.5px] border-signal-orange bg-signal-orange/10'
+                      : 'border border-border bg-bg/25'
                   }`}
                   style={
-                    day.isToday
-                      ? { backgroundColor: '#FFF3EC' }
-                      : day.trained
-                      ? { backgroundColor: day.color, opacity: day.isPast ? 0.5 : 1 }
+                    day.trained
+                      ? { backgroundColor: day.color, opacity: day.isPast ? 0.6 : 1 }
                       : {}
                   }
                 >
-                  {day.trained && !day.isToday && (
-                    <div className="w-2.5 h-2.5 rounded-full bg-white" />
-                  )}
-                  {day.isToday && day.trained && (
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: day.color }} />
-                  )}
-                  {day.isToday && !day.trained && (
-                    <div className="w-2.5 h-2.5 rounded-full bg-[#E8E8E4]" />
+                  {day.trained && (
+                    <span className="font-mono text-xs font-black text-white">✓</span>
                   )}
                 </div>
-                <span className={`text-[9px] font-condensed font-bold tracking-wider ${
-                  day.isToday ? 'text-[#FF6B00]' : day.trained ? 'text-[#6E6E73]' : 'text-[#D4D4D8]'
+                <span className={`text-[10px] font-mono font-bold tracking-wider ${
+                  day.isToday ? 'text-signal-orange' : 'text-muted'
                 }`}>
                   {day.label}
                 </span>
@@ -229,21 +232,17 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ── NIVEL DE FATIGA ── */}
-        <div
-          className="bg-white border border-[#E8E8E4] rounded-2xl p-4 shadow-sm stagger-3 flex items-start gap-4"
-          style={{ borderLeftWidth: '4px', borderLeftColor: fatigue.color }}
-        >
-          <div className="text-2xl leading-none mt-0.5">{fatigue.emoji}</div>
+        {/* ── NIVEL DE FATIGA LCD ── */}
+        <div className="bg-card border border-border rounded-2xl p-4 stagger-3 flex items-start gap-4">
+          <div className="lcd-display shrink-0 min-w-[75px] text-center font-mono font-black text-xs uppercase">
+            {fatigue.level === 'SIN_DATOS' ? '----' : fatigue.level.slice(0, 4)}
+          </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[10px] font-condensed font-bold text-[#6E6E73] tracking-widest uppercase">NIVEL DE FATIGA</p>
-            <p className="font-condensed font-black text-xl leading-none mt-1" style={{ color: fatigue.color }}>
-              {fatigue.label}
-            </p>
-            <p className="text-sm text-[#6E6E73] mt-1">{fatigue.mensaje}</p>
-            {fatigue.level !== 'SIN_DATOS' && (
-              <p className="text-xs text-[#A1A1AA] mt-1">RPE medio últimos 7 días: {fatigue.rpePonderado}</p>
-            )}
+            <p className="font-mono text-[9px] text-muted tracking-widest uppercase">Estado Neuromuscular</p>
+            <h4 className="font-condensed font-black text-base text-ink mt-0.5" style={{ color: fatigue.color }}>
+              {fatigue.label.toUpperCase()}
+            </h4>
+            <p className="text-xs text-muted mt-1 leading-normal">{fatigue.mensaje}</p>
           </div>
         </div>
 
@@ -251,65 +250,65 @@ export default function Home() {
         {latestPR && (
           <button
             onClick={() => navigate('/evolution')}
-            className="w-full bg-white border border-[#E8E8E4] rounded-2xl p-4 shadow-sm text-left flex items-center gap-4 active:scale-[0.98] transition-transform stagger-4 hover:border-[#FF6B00]"
+            className="w-full bg-card border border-border rounded-2xl p-4 text-left flex items-center gap-4 active:scale-[0.98] transition-transform stagger-4 hover:border-signal-orange cursor-pointer"
           >
-            <div className="w-12 h-12 bg-[#FFF3EC] border border-[#FDDCB5] rounded-2xl flex items-center justify-center shrink-0">
-              <Trophy size={22} className="text-[#E85D04]" />
+            <div className="w-12 h-12 stamp-circle border-corner-red text-corner-red flex items-center justify-center shrink-0 -rotate-3">
+              <Trophy size={18} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-condensed font-bold text-[#6E6E73] tracking-widest uppercase mb-0.5">ÚLTIMO PR</p>
-              <p className="font-condensed font-bold text-[17px] text-[#1C1C1E] truncate">{latestPR.exerciseName}</p>
-              <p className="text-xs text-[#6E6E73] mt-0.5">
-                {latestPR.cargaReal}kg × {latestPR.repsReales} reps
+              <p className="font-mono text-[9px] text-muted tracking-widest uppercase">Último Récord</p>
+              <p className="font-condensed font-black text-base text-ink uppercase truncate">{latestPR.exerciseName}</p>
+              <p className="font-mono text-[10px] text-muted mt-0.5">
+                {latestPR.cargaReal}KG × {latestPR.repsReales} REPS
               </p>
             </div>
             <div className="text-right shrink-0">
-              <div className="font-condensed font-black text-3xl text-[#FF6B00] leading-none">
+              <div className="font-display font-black text-3xl text-signal-orange leading-none">
                 {Math.round(latestPR.valor)}
               </div>
-              <div className="text-[10px] text-[#6E6E73] font-bold">kg 1RM</div>
+              <div className="font-mono text-[8px] text-muted uppercase tracking-wider font-bold">kg 1rm</div>
             </div>
           </button>
         )}
 
         {/* ── ACCESOS RÁPIDOS ── */}
         <div>
-          <p className="text-[10px] font-condensed font-bold text-[#6E6E73] tracking-widest uppercase mb-2 px-1">ACCESOS RÁPIDOS</p>
+          <p className="font-mono text-[9px] text-muted tracking-widest uppercase mb-2 px-1">Accesos Rápidos</p>
           <div className="grid grid-cols-3 gap-2.5">
             {quickActions.map(({ label, sub, icon, to, color }, qi) => (
               <button
                 key={to}
                 onClick={() => navigate(to)}
-                className={`bg-white border border-[#E8E8E4] rounded-2xl p-3.5 flex flex-col items-center gap-2 shadow-sm active:scale-[0.96] transition-transform hover:border-[#6E6E73] stagger-${Math.min(qi+4,7)}`}
+                className={`bg-card border border-border rounded-2xl p-3 flex flex-col items-center gap-2 active:scale-[0.96] transition-transform hover:border-muted cursor-pointer stagger-${Math.min(qi+4,7)}`}
               >
                 <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{ backgroundColor: color === '#FF6B00' ? '#FFF3EC' : '#F5F5F0', color }}
+                  style={{ backgroundColor: color === '#FF5A00' ? '#FFF3EC' : '#EDE6D3', color }}
                 >
                   {icon}
                 </div>
                 <div className="text-center">
-                  <p className="font-condensed font-black text-sm text-[#1C1C1E] leading-none">{label}</p>
-                  <p className="text-[10px] text-[#6E6E73] mt-0.5">{sub}</p>
+                  <p className="font-condensed font-black text-sm text-ink leading-none uppercase tracking-wide">{label}</p>
+                  <p className="font-mono text-[9px] text-muted mt-1 uppercase tracking-wider">{sub}</p>
                 </div>
               </button>
             ))}
           </div>
         </div>
 
-        {/* ── STATS RÁPIDAS ── */}
-        <div className="bg-white border border-[#E8E8E4] rounded-2xl p-5 shadow-sm stagger-7">
-          <p className="text-[10px] font-condensed font-bold text-[#6E6E73] tracking-widest uppercase mb-4">RESUMEN</p>
-          <div className="grid grid-cols-3 gap-4 divide-x divide-[#E8E8E4]">
+        {/* ── STATS RÁPIDAS (RESUMEN) ── */}
+        <div className="bg-card border border-border rounded-2xl p-5 stagger-7">
+          <p className="font-mono text-[9px] text-muted tracking-widest uppercase mb-4">Resumen Histórico</p>
+          <div className="grid grid-cols-3 gap-4 divide-x divide-border">
             {[
-              { label: 'PRs',         value: prs.length,   unit: 'marcas'   },
+              { label: 'Récords',     value: prs.length,   unit: 'marcas'   },
               { label: 'Esta semana', value: trainedCount,  unit: 'sesiones' },
               { label: 'Hoy',         value: todaySession ? todaySession.duration : 0, unit: 'min' },
             ].map(({ label, value, unit }) => (
               <div key={label} className="text-center">
-                <div className="font-condensed font-black text-4xl text-[#FF6B00] leading-none">{value}</div>
-                <div className="text-xs text-[#6E6E73] font-normal uppercase tracking-[0.1em] mt-1">{unit}</div>
-                <div className="text-[9px] text-[#A1A1AA] mt-0.5">{label}</div>
+                <div className="font-display font-black text-3.5xl text-signal-orange leading-none">{value}</div>
+                <div className="font-mono text-[9px] text-muted uppercase tracking-wider mt-1.5 font-bold">{unit}</div>
+                <div className="font-mono text-[8px] text-muted uppercase tracking-wider mt-0.5">{label}</div>
               </div>
             ))}
           </div>

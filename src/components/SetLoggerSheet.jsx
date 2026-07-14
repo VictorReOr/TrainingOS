@@ -6,14 +6,6 @@ import { useCircuit } from '../context/CircuitContext';
 import { useProgressiveOverload } from '../hooks/useProgressiveOverload';
 import { MOCK_SESSION, BLOCK_COLORS } from '../data/mockSession';
 
-const RPE_COLORS = {
-  6:  '#E85D04',
-  7:  '#84CC16',
-  8:  '#EAB308',
-  9:  '#F97316',
-  10: '#EF4444',
-};
-
 const parseDurationToSeconds = (durStr) => {
   if (!durStr) return 60;
   const match = durStr.match(/(\d+)/);
@@ -37,7 +29,6 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
     deloadReason,
     deloadLoad,
     weeklyImprovePct,
-    breakdown,
     lastSession,
     hasHistory
   } = useProgressiveOverload(exercise.id, exercise.name, exercise.reps || exercise.targetReps, sessionType || 'gym');
@@ -76,14 +67,8 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
       
       if (suggestedVal > 0) {
         logs.forEach((_, idx) => {
-          // Si es descarga por fatiga (seriesModifier === -99) y es la segunda mitad de series, no rellenar
-          if (seriesModifier === -99 && idx >= Math.ceil(logs.length / 2)) {
-            return;
-          }
-          // Si es fatiga leve (seriesModifier === -1) y es la última serie, no rellenar
-          if (seriesModifier === -1 && idx === logs.length - 1) {
-            return;
-          }
+          if (seriesModifier === -99 && idx >= Math.ceil(logs.length / 2)) return;
+          if (seriesModifier === -1 && idx === logs.length - 1) return;
 
           if (!logs[idx].carga) {
             onLogChange(idx, 'carga', suggestedVal);
@@ -100,7 +85,7 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
   }, [isVisible, suggestedVal, seriesModifier, logs, onLogChange, exercise.reps, exercise.targetReps]);
 
   const navigate = useNavigate();
-  const { startRest, startCountdown, stopTimer, mode, status, timeMs, setMode, setTimeMs } = useTimer();
+  const { startRest, startCountdown, stopTimer, mode, status, setMode, setTimeMs } = useTimer();
   const { initCircuit } = useCircuit();
 
   const [autoTimer, setAutoTimer] = useState(true);
@@ -111,7 +96,6 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
     return () => clearTimeout(timer);
   }, []);
 
-  // Auto-start countdown for duration exercises
   useEffect(() => {
     if (exercise.duration && autoTimer && !autoTimerStarted.current) {
       autoTimerStarted.current = true;
@@ -153,13 +137,13 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
       const workTime = blk.duration ? parseDurationToSeconds(blk.duration) : 60;
       blocks.push({
         id: blk.id, type: 'libre', name: blk.name,
-        color: BLOCK_COLORS[blk.type] || '#FF6B00',
+        color: BLOCK_COLORS[blk.type] || '#FF5A00',
         sets: 1, timeSeconds: workTime, sound: 'beep_short',
       });
       if (blk.exercises?.[0]?.restSeconds) {
         blocks.push({
           id: blk.id + '_rest', type: 'descanso', name: 'Descanso',
-          color: '#E8E8E4', sets: 1, timeSeconds: blk.exercises[0].restSeconds, sound: 'beep_long',
+          color: '#DDD6C1', sets: 1, timeSeconds: blk.exercises[0].restSeconds, sound: 'beep_long',
         });
       }
       return blocks;
@@ -176,23 +160,23 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
       <div
         id="backdrop"
         onClick={handleBackdropClick}
-        className={`fixed inset-0 bg-black/50 z-[60] transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+        className={`fixed inset-0 bg-black/60 z-[60] transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
       />
 
       {/* BOTTOM SHEET */}
       <div
-        className={`fixed bottom-0 left-0 w-full bg-white rounded-t-3xl shadow-[0_-8px_40px_rgba(0,0,0,0.12)] z-[60] flex flex-col transition-transform duration-300 ease-out pb-[calc(1rem+var(--safe-bottom))] ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}
+        className={`fixed bottom-0 left-0 w-full bg-card rounded-t-2xl border-t border-border shadow-lg z-[60] flex flex-col transition-transform duration-300 ease-out pb-[calc(1rem+var(--safe-bottom))] ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}
         style={{ maxHeight: '88vh' }}
       >
-        {/* Drag Handle */}
-        <div className="flex-shrink-0 pt-4 pb-3 px-5 border-b border-[#E8E8E4]">
-          <div className="w-10 h-1 bg-[#E8E8E4] rounded-full mx-auto mb-4" />
-          <div className="flex justify-between items-center">
+        {/* Header Section */}
+        <div className="flex-shrink-0 pt-4 pb-3 px-5 border-b border-border">
+          <div className="w-10 h-1 bg-border rounded-full mx-auto mb-4" />
+          <div className="flex justify-between items-start">
             <div>
-              <p className="text-[10px] font-condensed font-bold text-[#6E6E73] tracking-widest uppercase mb-0.5">
-                Registrar serie
+              <p className="font-mono text-[9px] text-muted tracking-widest uppercase mb-0.5">
+                REGISTRO DE SERIE
               </p>
-              <h2 className="font-condensed font-black text-2xl text-[#1C1C1E] leading-tight">
+              <h2 className="font-condensed font-black text-2xl text-ink uppercase tracking-wide leading-tight">
                 {exercise.name}
               </h2>
             </div>
@@ -200,29 +184,26 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
               {hasTimerContext && (
                 <button
                   onClick={() => setShowMiniTimer(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 border border-[#E8E8E4] text-[#6E6E73] font-bold text-xs font-condensed tracking-wider rounded-xl hover:border-[#FF6B00] hover:text-[#FF6B00] transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 border border-border text-muted font-mono font-bold text-[10px] tracking-wider rounded-xl hover:border-signal-orange hover:text-signal-orange transition-colors cursor-pointer"
                 >
-                  <Timer size={13} /> TIMER
+                  <Timer size={12} /> TIMER
                 </button>
               )}
               <button
                 onClick={handleClose}
-                className="p-2 bg-[#F5F5F0] text-[#6E6E73] rounded-full hover:text-[#1C1C1E] hover:bg-[#E8E8E4] transition-colors"
+                className="p-2 bg-bg/50 text-muted rounded-full hover:text-ink hover:bg-bg transition-colors cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
           </div>
-          <p className="text-xs text-[#6E6E73] font-medium mt-2">
-            Registra tus series reales para marcarlo completado.
-          </p>
 
           {/* Auto Timer Toggle */}
           {exercise.duration && (
             <div className="flex items-center justify-between mt-3 px-1">
-              <div className="flex items-center gap-1.5">
-                <Timer size={13} className="text-[#6E6E73]" />
-                <span className="text-xs text-[#6E6E73] font-bold">Timer automático</span>
+              <div className="flex items-center gap-1.5 font-mono text-[10px] text-muted uppercase tracking-wider">
+                <Timer size={12} />
+                <span>Timer automático</span>
               </div>
               <button
                 onClick={() => {
@@ -232,8 +213,8 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
                     stopTimer();
                   }
                 }}
-                className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${
-                  autoTimer ? 'bg-[#FF6B00]' : 'bg-[#E8E8E4]'
+                className={`relative w-11 h-6 rounded-full transition-colors duration-200 cursor-pointer ${
+                  autoTimer ? 'bg-signal-orange' : 'bg-border'
                 }`}
               >
                 <span
@@ -247,44 +228,41 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
         </div>
 
         {/* SERIES */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           
           {/* SUGERENCIA DE TESTS O SOBRECARGA */}
           {exercise.isTest ? (
-            <div className="bg-[#FFFDF0] border border-yellow-500/40 rounded-2xl p-4 flex flex-col gap-3">
+            <div className="bg-card border border-corner-red/35 rounded-2xl p-4 flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">🏆</span>
-                  <div>
-                    <h4 className="font-condensed font-black text-[#1C1C1E] text-base leading-none">
-                      Test Activo: {exercise.testType || 'AMRAP'}
-                    </h4>
-                    <p className="text-[9px] text-[#D4AF37] font-bold uppercase tracking-wider mt-1">
-                      Medición de Potencial de Fuerza
-                    </p>
-                  </div>
+                <div>
+                  <h4 className="font-condensed font-black text-ink text-base leading-none uppercase tracking-wide">
+                    TEST ACTIVO: {exercise.testType || 'AMRAP'}
+                  </h4>
+                  <p className="font-mono text-[9px] text-corner-red font-bold uppercase tracking-wider mt-1.5">
+                    POTENCIAL DE FUERZA MÁXIMA
+                  </p>
                 </div>
-                <span className="bg-[#FF6B00] text-[#1C1C1E] font-condensed font-black text-[9px] px-2.5 py-0.5 rounded-full uppercase tracking-wider leading-none">
-                  RPE 10 (Fallo)
+                <span className="bg-corner-red text-white font-mono font-bold text-[9px] px-2.5 py-0.5 rounded uppercase tracking-wider leading-none rotate-2">
+                  RPE 10 (FALLO)
                 </span>
               </div>
 
-              <div className="flex items-baseline gap-2">
-                <span className="font-condensed font-black text-3xl text-[#1C1C1E]">
-                  {suggestedVal} kg
+              <div className="flex items-baseline gap-1">
+                <span className="font-display font-black text-4xl text-ink leading-none">
+                  {suggestedVal}
                 </span>
-                <span className="text-xs font-bold text-[#6E6E73]">
+                <span className="font-mono text-[10px] text-muted uppercase tracking-wider font-bold">
                   {exercise.testType === 'AMRAP' 
-                    ? '× Máximas repeticiones posibles'
-                    : `× ${exercise.testType} reps máx.`}
+                    ? 'KG × MAX REPS'
+                    : `KG × ${exercise.testType} REPS MAX`}
                 </span>
               </div>
 
-              <div className="text-[11px] text-[#6E6E73] leading-relaxed space-y-1">
-                <p>• Este test recalibrará tu 1RM estimado y desbloqueará tu techo de sobrecarga progresiva ($P_{max}$).</p>
-                <p className="text-[#FF6B00] font-bold">• Instrucción: Entrena con total concentración hasta el fallo técnico.</p>
+              <div className="font-mono text-[10px] text-muted leading-relaxed space-y-1 uppercase tracking-wider">
+                <p>• Este test recalibrará tu 1RM estimado y actualizará tu techo de sobrecarga ($P_max$).</p>
+                <p className="text-corner-red font-bold">• Instrucción: Entrena con total concentración hasta el fallo técnico.</p>
                 {readiness && (
-                  <p className="text-amber-600 font-bold">• Disposición diaria de hoy: {Math.round(readiness.score * 100)}% ({readiness.status})</p>
+                  <p className="text-corner-blue font-bold">• Disposición: {Math.round(readiness.score * 100)}% ({readiness.status})</p>
                 )}
               </div>
 
@@ -292,55 +270,52 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
                 onClick={() => {
                   logs.forEach((_, idx) => onLogChange(idx, 'carga', suggestedVal));
                 }}
-                className="w-full py-2 bg-white border border-[#FF6B00] text-[#FF6B00] font-condensed font-black text-xs rounded-xl hover:bg-[#FF6B00] hover:text-white transition-all uppercase tracking-wider active:scale-[0.98]"
+                className="w-full py-2 border border-corner-red text-corner-red font-mono font-bold text-[10px] uppercase tracking-wider rounded-lg hover:bg-corner-red hover:text-white transition-all cursor-pointer"
               >
                 Aplicar peso de test
               </button>
             </div>
           ) : prescribedLoad > 0 ? (
-            <div className="bg-[#FFF3EC] border border-[#FF6B00]/30 rounded-2xl p-4 flex flex-col gap-3">
+            <div className="bg-card border border-signal-orange/20 rounded-2xl p-4 flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">📈</span>
-                  <div>
-                    <h4 className="font-condensed font-black text-[#1C1C1E] text-base leading-none">
-                      {isDeloadSuggested ? 'Semana de Descarga Recomendada' : 'Sugerencia Inteligente'}
-                    </h4>
-                    <p className="text-[9px] text-[#6E6E73] font-bold uppercase tracking-wider mt-1">
-                      Modelo Helms + Logístico ({confidence === 'high' ? 'Alta Confianza' : confidence === 'medium' ? 'Media Confianza' : 'Baja Confianza'})
-                    </p>
-                  </div>
+                <div>
+                  <h4 className="font-condensed font-black text-ink text-base leading-none uppercase tracking-wide">
+                    {isDeloadSuggested ? 'SEMANA DE DESCARGA' : 'SUGERENCIA DE CARGA'}
+                  </h4>
+                  <p className="font-mono text-[9px] text-muted font-bold uppercase tracking-wider mt-1.5">
+                    Helms + Modelo Logístico ({confidence === 'high' ? 'Alta Confianza' : confidence === 'medium' ? 'Media Confianza' : 'Baja Confianza'})
+                  </p>
                 </div>
                 {isDeloadSuggested && (
-                  <span className="bg-[#EF4444] text-white font-condensed font-black text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  <span className="bg-corner-red text-white font-mono font-bold text-[9px] px-2 py-0.5 rounded uppercase tracking-wider rotate-2">
                     DESCARGA
                   </span>
                 )}
               </div>
 
-              <div className="flex items-baseline gap-2">
-                <span className="font-condensed font-black text-3xl text-[#1C1C1E]">
-                  {suggestedVal} kg
+              <div className="flex items-baseline gap-1">
+                <span className="font-display font-black text-4xl text-ink leading-none">
+                  {suggestedVal}
                 </span>
-                <span className="text-xs font-bold text-[#6E6E73]">
-                  × {exercise.reps || exercise.targetReps || '8'} reps @RPE {rpeTarget}
+                <span className="font-mono text-[10px] text-muted uppercase tracking-wider font-bold">
+                  KG × {exercise.reps || exercise.targetReps || '8'} reps @RPE {rpeTarget}
                 </span>
               </div>
 
-              <div className="text-[11px] text-[#6E6E73] leading-relaxed space-y-1">
-                <p>• Representa el <span className="font-bold text-[#1C1C1E]">{pct1RM}%</span> de tu 1RM estimado ({e1RM}kg).</p>
+              <div className="font-mono text-[10px] text-muted leading-relaxed space-y-1 uppercase tracking-wider">
+                <p>• Equivale al <span className="font-bold text-ink">{pct1RM}%</span> de tu 1RM estimado ({e1RM}kg).</p>
                 {isDeloadSuggested ? (
-                  <p className="text-[#EF4444] font-bold">• {deloadReason}</p>
+                  <p className="text-corner-red font-bold">• {deloadReason}</p>
                 ) : (
                   <>
-                    {weeklyImprovePct > 0 && <p>• Mejora semanal proyectada: <span className="text-green-600 font-bold">+{weeklyImprovePct}%</span>.</p>}
-                    {lastSession && <p>• Sesión anterior ({lastSession.date.slice(5, 10)}): {lastSession.load}kg × {lastSession.reps} reps (RPE {lastSession.rpe}).</p>}
+                    {weeklyImprovePct > 0 && <p>• Mejora semanal proyectada: <span className="text-success-green font-bold">+{weeklyImprovePct}% DELTA</span>.</p>}
+                    {lastSession && <p>• Anterior ({lastSession.date.slice(5, 10)}): {lastSession.load}kg × {lastSession.reps} reps (RPE {lastSession.rpe}).</p>}
                   </>
                 )}
                 {readiness && (
-                  <div className="bg-amber-50 border border-amber-200/50 rounded-lg p-2 mt-2 text-[10px] text-amber-800 space-y-0.5">
-                    <p className="font-bold">⚠️ Autorregulación Activa ({Math.round(readiness.score * 100)}% Readiness):</p>
-                    <p>{readiness.message}</p>
+                  <div className="bg-bg/40 border border-border rounded-lg p-2.5 mt-2 space-y-0.5 text-[9px]">
+                    <p className="font-bold text-corner-blue">⚠️ AUTORREGULACIÓN ({Math.round(readiness.score * 100)}%):</p>
+                    <p>{readiness.message.toUpperCase()}</p>
                   </div>
                 )}
               </div>
@@ -353,19 +328,16 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
                     onLogChange(idx, 'carga', suggestedVal);
                   });
                 }}
-                className="w-full py-2 bg-white border border-[#FF6B00] text-[#FF6B00] font-condensed font-black text-xs rounded-xl hover:bg-[#FF6B00] hover:text-white transition-all uppercase tracking-wider active:scale-[0.98]"
+                className="w-full py-2 border border-signal-orange text-signal-orange font-mono font-bold text-[10px] uppercase tracking-wider rounded-lg hover:bg-signal-orange hover:text-ink transition-all cursor-pointer"
               >
                 Aplicar a todas las series
               </button>
             </div>
           ) : (
-            <div className="bg-[#F5F5F0] border border-[#E8E8E4] rounded-2xl p-4 flex flex-col gap-1.5">
-              <div className="flex items-center gap-2 text-[#6E6E73]">
-                <span className="text-xl">💡</span>
-                <h4 className="font-bold text-sm leading-none">Sin datos históricos</h4>
-              </div>
-              <p className="text-xs text-[#6E6E73] leading-normal">
-                Registra tu primer entrenamiento de este ejercicio para activar las sugerencias de sobrecarga progresiva basadas en RPE.
+            <div className="bg-bg/25 border border-border rounded-2xl p-4 flex flex-col gap-1.5">
+              <h4 className="font-condensed font-black text-sm uppercase text-ink leading-none">Sin datos históricos</h4>
+              <p className="font-mono text-[10px] text-muted uppercase tracking-wider leading-normal mt-0.5">
+                Registra tu primer entrenamiento para activar las sugerencias de sobrecarga.
               </p>
             </div>
           )}
@@ -375,8 +347,8 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
               key={index}
               className={`rounded-xl border transition-all duration-200 overflow-hidden ${
                 log.done
-                  ? 'border-[#FF6B00] border-l-4 bg-[#F5F5F0]'
-                  : 'border-[#E8E8E4] bg-[#F5F5F0]'
+                  ? 'border-signal-orange border-l-4 bg-bg/40'
+                  : 'border-border bg-bg/25'
               }`}
             >
               <div className="flex items-center gap-3 px-4 py-3">
@@ -385,7 +357,6 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
                   onClick={() => {
                     if (window.navigator?.vibrate) window.navigator.vibrate(10);
                     onToggleSet(index);
-                    // Auto-restart countdown for next series if autoTimer
                     if (autoTimer && exercise.duration && !log.done) {
                       const nextUndone = logs.findIndex((l, i) => i > index && !l.done);
                       if (nextUndone !== -1) {
@@ -396,61 +367,56 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
                       }
                     }
                   }}
-                  className={`w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl border-2 transition-all duration-200 ${
+                  className={`w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl border-2 transition-all duration-200 cursor-pointer ${
                     log.done
-                      ? 'bg-[#FF6B00] border-[#FF6B00]'
-                      : 'bg-white border-[#E8E8E4] hover:border-[#FF6B00]'
+                      ? 'bg-signal-orange border-signal-orange'
+                      : 'bg-card border-border hover:border-signal-orange'
                   }`}
                 >
-                  {log.done && <Check size={16} strokeWidth={3} color="#1C1C1E" />}
+                  {log.done && <Check size={16} strokeWidth={3} className="text-ink" />}
                 </button>
-                <span className="font-condensed font-black text-xl text-[#6E6E73] w-7">
+                <span className="font-mono font-black text-sm text-muted w-7">
                   S{index + 1}
                 </span>
 
                 {/* Inputs */}
                 <div className="flex-1 grid grid-cols-2 gap-3">
                   <div className="flex flex-col">
-                    <label className="text-[10px] text-[#6E6E73] font-bold uppercase tracking-wider mb-1">Carga (kg)</label>
+                    <label className="text-[9px] text-muted font-mono font-bold uppercase tracking-widest mb-1">Carga (kg)</label>
                     <input
                       type="number" inputMode="decimal"
                       value={log.carga}
                       onChange={e => onLogChange(index, 'carga', e.target.value)}
                       placeholder="0.0"
-                      className="w-full bg-white border border-[#E8E8E4] rounded-xl px-3 py-2.5 text-base font-bold text-[#1C1C1E] placeholder:text-[#D4D4D8] focus:border-[#FF6B00] outline-none transition-colors"
+                      className="w-full bg-card border border-border rounded-xl px-3 py-2 text-sm font-mono font-bold text-ink focus:border-signal-orange outline-none transition-colors"
                     />
                   </div>
                   <div className="flex flex-col">
-                    <label className="text-[10px] text-[#6E6E73] font-bold uppercase tracking-wider mb-1">Reps</label>
+                    <label className="text-[9px] text-muted font-mono font-bold uppercase tracking-widest mb-1">Reps</label>
                     <input
                       type="text" inputMode="text"
                       value={log.reps}
                       onChange={e => onLogChange(index, 'reps', e.target.value)}
                       placeholder={exercise.reps || exercise.targetReps || "0"}
-                      className="w-full bg-white border border-[#E8E8E4] rounded-xl px-3 py-2.5 text-base font-bold text-[#1C1C1E] placeholder:text-[#D4D4D8] focus:border-[#FF6B00] outline-none transition-colors"
+                      className="w-full bg-card border border-border rounded-xl px-3 py-2 text-sm font-mono font-bold text-ink focus:border-signal-orange outline-none transition-colors"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* RPE */}
+              {/* RPE (Casillas cuadradas) */}
               <div className="px-4 pb-3 pl-16">
-                <label className="text-[10px] text-[#6E6E73] font-bold uppercase tracking-wider mb-2 block">RPE Esfuerzo</label>
+                <label className="text-[9px] text-muted font-mono font-bold uppercase tracking-widest mb-2 block">Esfuerzo RPE</label>
                 <div className="flex items-center gap-1.5">
                   {[6, 7, 8, 9, 10].map(val => (
                     <button
                       key={val}
                       onClick={() => onLogChange(index, 'rpe', val)}
-                      className={`flex-1 py-2 rounded-lg text-sm font-condensed font-black transition-all border-2 ${
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-mono font-bold border transition-all cursor-pointer ${
                         log.rpe === val
-                          ? 'text-white scale-[1.05] shadow-sm border-transparent'
-                          : 'bg-white border-[#E8E8E4] text-[#6E6E73] hover:border-current'
+                          ? 'bg-signal-orange border-signal-orange text-ink font-black scale-105 shadow-none'
+                          : 'bg-card border-border text-muted hover:border-signal-orange'
                       }`}
-                      style={
-                        log.rpe === val
-                          ? { backgroundColor: RPE_COLORS[val], borderColor: RPE_COLORS[val] }
-                          : { color: RPE_COLORS[val] }
-                      }
                     >
                       {val}
                     </button>
@@ -461,13 +427,16 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
           ))}
         </div>
 
+        {/* Perforation Line */}
+        <div className="ticket-punch"></div>
+
         {/* CTA */}
-        <div className="px-5 pt-2">
+        <div className="px-5 pt-2 bg-card">
           <button
             onClick={handleClose}
-            className="w-full py-4 bg-[#FF6B00] text-white font-condensed font-black text-lg rounded-2xl shadow-[0_4px_16px_rgba(255,107,0,0.3)] active:scale-[0.98] transition-transform tracking-wide"
+            className="w-full py-3.5 bg-signal-orange text-ink font-display font-black text-xl rounded-xl tracking-wider hover:bg-signal-orange/95 cursor-pointer uppercase"
           >
-            GUARDAR Y CERRAR
+            Guardar y Cerrar
           </button>
         </div>
       </div>
@@ -480,37 +449,37 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
             onClick={handleBackdropClick}
             className="absolute inset-0 bg-black/40 animate-fade-in"
           />
-          <div className="relative bg-white border-t border-[#E8E8E4] rounded-t-3xl px-5 pt-5 pb-[calc(1rem+var(--safe-bottom))] animate-slide-up shadow-[0_-8px_40px_rgba(0,0,0,0.1)]">
-            <div className="w-10 h-1 bg-[#E8E8E4] rounded-full mx-auto mb-5" />
-            <p className="font-condensed font-bold text-xs text-[#6E6E73] tracking-widest uppercase mb-4">
+          <div className="relative bg-card border-t border-border rounded-t-2xl px-5 pt-5 pb-[calc(1rem+var(--safe-bottom))] animate-slide-up shadow-lg">
+            <div className="w-10 h-1 bg-border rounded-full mx-auto mb-5" />
+            <p className="font-mono text-[9px] text-muted tracking-widest uppercase mb-4 font-bold">
               OPCIONES DE TIEMPO
             </p>
             <div className="flex flex-col gap-2">
               {exercise.restSeconds && (
-                <button onClick={handleActionRest} className="w-full flex items-center justify-between p-4 bg-[#F5F5F0] rounded-2xl border border-[#E8E8E4] hover:border-[#FF6B00] transition-colors">
+                <button onClick={handleActionRest} className="w-full flex items-center justify-between p-4 bg-bg/25 rounded-xl border border-border hover:border-signal-orange transition-colors cursor-pointer">
                   <div className="flex items-center gap-3">
-                    <div className="bg-[#FFF3EC] text-[#E85D04] p-2 rounded-xl"><Hourglass size={20} /></div>
-                    <span className="font-bold text-[15px] text-[#1C1C1E]">Descanso entre series</span>
+                    <div className="bg-signal-orange/10 text-signal-orange p-2 rounded-lg"><Hourglass size={18} /></div>
+                    <span className="font-bold text-[14px] text-ink font-condensed tracking-wide uppercase">Descanso entre series</span>
                   </div>
-                  <span className="font-condensed font-black text-[#FF6B00] text-lg">{exercise.restSeconds}s</span>
+                  <span className="font-mono font-black text-signal-orange text-base">{exercise.restSeconds}s</span>
                 </button>
               )}
               {exercise.duration && (
-                <button onClick={handleActionDuration} className="w-full flex items-center justify-between p-4 bg-[#F5F5F0] rounded-2xl border border-[#E8E8E4] hover:border-[#FF6B00] transition-colors">
+                <button onClick={handleActionDuration} className="w-full flex items-center justify-between p-4 bg-bg/25 rounded-xl border border-border hover:border-signal-orange transition-colors cursor-pointer">
                   <div className="flex items-center gap-3">
-                    <div className="bg-[#FFF3EC] text-[#E85D04] p-2 rounded-xl"><Timer size={20} /></div>
-                    <span className="font-bold text-[15px] text-[#1C1C1E]">Duración del ejercicio</span>
+                    <div className="bg-signal-orange/10 text-signal-orange p-2 rounded-lg"><Timer size={18} /></div>
+                    <span className="font-bold text-[14px] text-ink font-condensed tracking-wide uppercase">Duración del ejercicio</span>
                   </div>
-                  <span className="font-condensed font-black text-[#FF6B00] text-lg">{exercise.duration}</span>
+                  <span className="font-mono font-black text-signal-orange text-base">{exercise.duration}</span>
                 </button>
               )}
-              <div className="h-px bg-[#E8E8E4] my-1" />
-              <button onClick={handleGenerateCircuit} className="w-full flex items-center justify-between p-4 bg-[#F5F5F0] rounded-2xl border border-[#E8E8E4] hover:border-[#FF6B00] transition-colors">
+              <div className="h-px bg-border my-1" />
+              <button onClick={handleGenerateCircuit} className="w-full flex items-center justify-between p-4 bg-bg/25 rounded-xl border border-border hover:border-signal-orange transition-colors cursor-pointer">
                 <div className="flex items-center gap-3">
-                  <div className="bg-[#FFF3EC] text-[#FF6B00] p-2 rounded-xl"><Repeat size={20} /></div>
-                  <span className="font-bold text-[15px] text-[#1C1C1E]">Generar circuito de sesión</span>
+                  <div className="bg-signal-orange/10 text-signal-orange p-2 rounded-lg"><Repeat size={18} /></div>
+                  <span className="font-bold text-[14px] text-ink font-condensed tracking-wide uppercase">Generar circuito de sesión</span>
                 </div>
-                <ArrowRight size={18} className="text-[#6E6E73]" />
+                <ArrowRight size={18} className="text-muted" />
               </button>
             </div>
           </div>
