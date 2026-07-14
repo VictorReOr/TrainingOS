@@ -401,6 +401,7 @@ export default function Evolution() {
 
   // Body Composition Form States
   const [showAddMetrics, setShowAddMetrics] = useState(false);
+  const [metricDate, setMetricDate] = useState(() => new Date().toLocaleDateString('sv'));
   const [metricWeight, setMetricWeight] = useState('');
   const [metricFat, setMetricFat] = useState('');
   const [metricWaist, setMetricWaist] = useState('');
@@ -414,6 +415,7 @@ export default function Evolution() {
     setIsSavingMetrics(true);
     try {
       await saveMetrics({
+        fecha: metricDate ? new Date(metricDate + 'T12:00:00').toISOString() : new Date().toISOString(),
         peso: metricWeight,
         grasa: metricFat,
         medidaCintura: metricWaist,
@@ -425,6 +427,7 @@ export default function Evolution() {
       setMetricWaist('');
       setMetricArm('');
       setMetricThigh('');
+      setMetricDate(new Date().toLocaleDateString('sv'));
       setShowAddMetrics(false);
     } catch (err) {
       console.error('Error saving metrics', err);
@@ -1242,6 +1245,17 @@ export default function Evolution() {
                       Registrar Composición Corporal
                     </h4>
                     
+                    <div className="mb-3">
+                      <label className="block text-[10px] text-[#6E6E73] font-bold uppercase mb-1">Fecha de Registro</label>
+                      <input
+                        type="date"
+                        required
+                        value={metricDate}
+                        onChange={e => setMetricDate(e.target.value)}
+                        className="w-full bg-white border border-[#E8E8E4] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#FF6B00]"
+                      />
+                    </div>
+
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="block text-[10px] text-[#6E6E73] font-bold uppercase mb-1">Peso (kg) *</label>
