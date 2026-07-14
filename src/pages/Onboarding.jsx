@@ -4,15 +4,15 @@ import { useAthlete } from '../context/AthleteContext';
 import { User, Users, ShieldCheck, Dumbbell, Circle, CheckCircle2, ChevronRight, Plus, Award } from 'lucide-react';
 
 const ROLES = [
-  { id: 'athlete', title: 'ATLETA', desc: 'Gestiono mis propios entrenamientos', icon: <User size={32} /> },
-  { id: 'coach', title: 'ENTRENADOR', desc: 'Gestiono atletas y diseño programas', icon: <Users size={32} /> },
-  { id: 'both', title: 'AMBOS', desc: 'Soy atleta y también entreno a otros', icon: <ShieldCheck size={32} /> }
+  { id: 'athlete', title: 'ATLETA', desc: 'Gestiono mis propios entrenamientos', icon: <User size={24} /> },
+  { id: 'coach', title: 'ENTRENADOR', desc: 'Gestiono atletas y diseño programas', icon: <Users size={24} /> },
+  { id: 'both', title: 'AMBOS', desc: 'Soy atleta y también entreno a otros', icon: <ShieldCheck size={24} /> }
 ];
 
 const LEVELS = [
-  { id: 'novato', title: 'NOVATO', desc: 'Menos de 1 año entrenando de forma consistente', emoji: '🟢' },
-  { id: 'intermedio', title: 'INTERMEDIO', desc: '1 a 3 años de entrenamiento consistente', emoji: '🟡' },
-  { id: 'avanzado', title: 'AVANZADO', desc: 'Más de 3 años, competidor o cercano a tus máximos', emoji: '🔴' }
+  { id: 'novato', title: 'NOVATO', desc: 'Menos de 1 año entrenando de forma consistente' },
+  { id: 'intermedio', title: 'INTERMEDIO', desc: '1 a 3 años de entrenamiento consistente' },
+  { id: 'avanzado', title: 'AVANZADO', desc: 'Más de 3 años, competidor o cercano a tus máximos' }
 ];
 
 const DEFAULT_SPORTS = [
@@ -35,7 +35,7 @@ export default function Onboarding() {
     name: '',
     role: 'athlete',
     sports: [
-      { id: 'gym', label: 'Gimnasio', icon: '🏋️', active: true } // Default starting point
+      { id: 'gym', label: 'Gimnasio', icon: '🏋️', active: true }
     ],
     level: 'intermedio'
   });
@@ -79,7 +79,7 @@ export default function Onboarding() {
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center">
+    <div className="min-h-screen bg-bg flex flex-col items-center pb-8">
       
       {/* Progress Indicator */}
       <div className="w-full pt-12 pb-6 px-6 flex justify-center gap-3">
@@ -87,7 +87,7 @@ export default function Onboarding() {
           <div 
             key={i} 
             className={`h-1.5 rounded-full transition-all duration-300 ${
-              step >= i ? 'w-8 bg-[#FF6B00]' : 'w-4 bg-[#E8E8E4]'
+              step >= i ? 'w-8 bg-signal-orange' : 'w-4 bg-border'
             }`} 
           />
         ))}
@@ -98,18 +98,18 @@ export default function Onboarding() {
         {/* STEP 1 */}
         {step === 1 && (
           <div className="w-full animate-slide-left">
-            <div className="w-24 h-24 bg-[#FFF3EC] text-[#FF6B00] rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-sm">
-              <Dumbbell size={48} />
+            <div className="w-20 h-20 stamp-circle border-signal-orange text-signal-orange bg-card mx-auto mb-8 -rotate-6 flex items-center justify-center">
+              <Dumbbell size={32} />
             </div>
-            <h1 className="font-condensed font-black text-4xl text-[#1C1C1E] text-center mb-2">
-              Bienvenido a<br/><span className="text-[#FF6B00]">TrainingOS</span>
+            <h1 className="font-display font-black text-4xl text-ink text-center mb-2 uppercase tracking-wide">
+              Bienvenido a<br/><span className="text-signal-orange">TrainingOS</span>
             </h1>
-            <p className="text-[#6E6E73] text-center mb-10 text-sm">
-              Tu sistema operativo de entrenamiento definitivo.
+            <p className="font-mono text-xs text-muted text-center mb-10 uppercase tracking-wider">
+              Tu sistema operativo de entrenamiento.
             </p>
 
             <div className="space-y-3 mt-6">
-              <label className="text-xs font-bold text-[#6E6E73] tracking-widest uppercase ml-1">
+              <label className="font-mono text-[9px] text-muted tracking-widest uppercase ml-1 block font-bold">
                 ¿Cómo te llamamos?
               </label>
               <input 
@@ -117,7 +117,7 @@ export default function Onboarding() {
                 value={formData.name}
                 onChange={e => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Tu nombre o apodo"
-                className="w-full bg-[#F5F5F0] border-2 border-transparent focus:border-[#FF6B00] focus:bg-white text-xl font-bold rounded-2xl p-4 outline-none transition-all placeholder:text-[#A1A1AA] placeholder:font-normal"
+                className="w-full bg-card border border-border text-xl font-condensed font-black rounded-xl p-4 outline-none focus:border-signal-orange transition-all placeholder:text-muted/50 placeholder:font-normal uppercase tracking-wide text-ink"
                 autoFocus
               />
             </div>
@@ -127,10 +127,10 @@ export default function Onboarding() {
         {/* STEP 2 */}
         {step === 2 && (
           <div className="w-full animate-slide-left">
-            <h2 className="font-condensed font-black text-3xl text-[#1C1C1E] mb-2 leading-tight">
+            <h2 className="font-display font-black text-3xl text-ink mb-1.5 uppercase tracking-wide leading-tight">
               ¿Cómo usarás<br/>TrainingOS?
             </h2>
-            <p className="text-[#6E6E73] text-sm mb-8">Personalizaremos tu experiencia según tu rol.</p>
+            <p className="font-mono text-xs text-muted mb-8 uppercase tracking-wider">Personalizaremos tu experiencia según tu rol.</p>
 
             <div className="space-y-4">
               {ROLES.map(role => {
@@ -139,23 +139,23 @@ export default function Onboarding() {
                   <button 
                     key={role.id}
                     onClick={() => setFormData({ ...formData, role: role.id })}
-                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left ${
+                    className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all text-left cursor-pointer ${
                       isActive 
-                        ? 'border-[#FF6B00] bg-[#FFF3EC]' 
-                        : 'border-[#E8E8E4] bg-white hover:border-[#1C1C1E]'
+                        ? 'border-signal-orange bg-signal-orange text-ink' 
+                        : 'border-border bg-card text-ink hover:border-ink'
                     }`}
                   >
-                    <div className={`p-3 rounded-xl ${isActive ? 'bg-[#FF6B00] text-white' : 'bg-[#F5F5F0] text-[#6E6E73]'}`}>
+                    <div className={`p-3 rounded-lg ${isActive ? 'bg-ink text-white' : 'bg-bg/40 text-muted border border-border'}`}>
                       {role.icon}
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-condensed font-black text-xl text-[#1C1C1E] leading-none mb-1">{role.title}</h3>
-                      <p className={`text-xs ${isActive ? 'text-[#E85D04]' : 'text-[#6E6E73]'}`}>
+                      <h3 className="font-condensed font-black text-lg leading-none mb-1 uppercase tracking-wide">{role.title}</h3>
+                      <p className={`text-xs ${isActive ? 'text-ink/80 font-bold' : 'text-muted font-normal'}`}>
                         {role.desc}
                       </p>
                     </div>
                     <div>
-                      {isActive ? <CheckCircle2 className="text-[#FF6B00]" /> : <Circle className="text-[#E8E8E4]" />}
+                      {isActive ? <CheckCircle2 className="text-ink" /> : <Circle className="text-border" />}
                     </div>
                   </button>
                 )
@@ -167,10 +167,10 @@ export default function Onboarding() {
         {/* STEP 3 */}
         {step === 3 && (
           <div className="w-full animate-slide-left flex flex-col h-[70vh]">
-            <h2 className="font-condensed font-black text-3xl text-[#1C1C1E] mb-2 leading-tight">
+            <h2 className="font-display font-black text-3xl text-ink mb-1.5 uppercase tracking-wide leading-tight">
               ¿Qué deportes<br/>practicas?
             </h2>
-            <p className="text-[#6E6E73] text-sm mb-6">Selecciona todos los que apliquen (mínimo 1).</p>
+            <p className="font-mono text-xs text-muted mb-6 uppercase tracking-wider">Selecciona todos los que apliquen (mínimo 1).</p>
 
             <div className="flex-1 overflow-y-auto hide-scrollbar pb-12">
               <div className="grid grid-cols-2 gap-3 mb-6">
@@ -180,14 +180,18 @@ export default function Onboarding() {
                     <button
                       key={sport.id}
                       onClick={() => toggleSport(sport)}
-                      className={`p-4 rounded-2xl border-2 flex flex-col items-center justify-center gap-2 transition-all ${
+                      className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all cursor-pointer ${
                         isActive 
-                          ? 'border-[#FF6B00] bg-[#FFF3EC] text-[#FF6B00]' 
-                          : 'border-[#E8E8E4] bg-white text-[#6E6E73]'
+                          ? 'border-signal-orange bg-signal-orange text-ink font-bold' 
+                          : 'border-border bg-card text-muted hover:border-ink'
                       }`}
                     >
-                      <span className="text-3xl">{sport.icon}</span>
-                      <span className={`font-bold text-sm ${isActive ? 'text-[#1C1C1E]' : 'text-[#6E6E73]'}`}>{sport.label}</span>
+                      {sport.icon && (
+                        <div className="w-8 h-8 stamp-circle border-border flex items-center justify-center text-sm shrink-0">
+                          {sport.icon}
+                        </div>
+                      )}
+                      <span className="font-condensed font-black text-sm uppercase tracking-wider">{sport.label}</span>
                     </button>
                   )
                 })}
@@ -197,36 +201,40 @@ export default function Onboarding() {
                   <button
                     key={sport.id}
                     onClick={() => toggleSport(sport)}
-                    className="p-4 rounded-2xl border-2 border-[#FF6B00] bg-[#FFF3EC] text-[#FF6B00] flex flex-col items-center justify-center gap-2 transition-all"
+                    className="p-4 rounded-xl border border-signal-orange bg-signal-orange text-ink flex flex-col items-center justify-center gap-2 transition-all cursor-pointer"
                   >
-                    <span className="text-3xl">{sport.icon}</span>
-                    <span className="font-bold text-sm text-[#1C1C1E]">{sport.label}</span>
+                    {sport.icon && (
+                      <div className="w-8 h-8 stamp-circle border-ink flex items-center justify-center text-sm shrink-0">
+                        {sport.icon}
+                      </div>
+                    )}
+                    <span className="font-condensed font-black text-sm text-ink uppercase tracking-wider">{sport.label}</span>
                   </button>
                 ))}
 
                 {/* Add Custom Button */}
                 <button
                   onClick={() => setShowCustomSport(true)}
-                  className="p-4 rounded-2xl border-2 border-dashed border-[#E8E8E4] bg-[#F5F5F0] text-[#6E6E73] flex flex-col items-center justify-center gap-2 transition-all hover:border-[#1C1C1E]"
+                  className="p-4 rounded-xl border-2 border-dashed border-border bg-card text-muted flex flex-col items-center justify-center gap-2 transition-all hover:border-ink cursor-pointer"
                 >
-                  <Plus size={32} />
-                  <span className="font-bold text-sm">Añadir otro</span>
+                  <Plus size={24} />
+                  <span className="font-mono text-[9px] font-bold uppercase tracking-wider">Añadir otro</span>
                 </button>
               </div>
 
               {showCustomSport && (
-                <div className="bg-[#F5F5F0] p-3 rounded-2xl flex gap-2 animate-fade-in-up">
+                <div className="bg-bg/25 border border-border p-3 rounded-xl flex gap-2 animate-fade-in-up">
                   <input
                     type="text"
                     value={customSportInput}
                     onChange={e => setCustomSportInput(e.target.value)}
                     placeholder="Ej. Tenis"
-                    className="flex-1 bg-white border border-[#E8E8E4] rounded-xl px-4 py-2 font-bold outline-none focus:border-[#FF6B00]"
+                    className="flex-1 bg-card border border-border rounded-xl px-4 py-2 font-mono text-sm outline-none focus:border-signal-orange text-ink"
                     autoFocus
                   />
                   <button 
                     onClick={addCustomSport}
-                    className="bg-[#FF6B00] text-white font-bold px-4 rounded-xl active:scale-95"
+                    className="bg-signal-orange text-ink font-display font-black px-4 rounded-xl cursor-pointer uppercase tracking-wider text-xs"
                   >
                     Añadir
                   </button>
@@ -239,58 +247,52 @@ export default function Onboarding() {
         {/* STEP 4 */}
         {step === 4 && (
           <div className="w-full animate-slide-left">
-            <div className="w-24 h-24 bg-[#FFF3EC] text-[#FF6B00] rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-sm">
-              <Award size={48} />
+            <div className="w-20 h-20 stamp-circle border-signal-orange text-signal-orange bg-card mx-auto mb-8 -rotate-6 flex items-center justify-center">
+              <Award size={32} />
             </div>
-            <h2 className="font-condensed font-black text-3xl text-[#1C1C1E] mb-2 leading-tight">
+            <h2 className="font-display font-black text-3xl text-ink mb-1.5 uppercase tracking-wide leading-tight">
               ¿Cuál es tu nivel<br/>de experiencia?
             </h2>
-            <p className="text-[#6E6E73] text-sm mb-8">Esto nos ayuda a calibrar tu plan de entrenamiento.</p>
+            <p className="font-mono text-xs text-muted mb-8 uppercase tracking-wider">Esto nos ayuda a calibrar tu plan de entrenamiento.</p>
 
             <div className="space-y-4">
-              {LEVELS.map(level => {
-                const isActive = formData.level === level.id;
+              {LEVELS.map(lvl => {
+                const isActive = formData.level === lvl.id;
                 return (
-                  <button 
-                    key={level.id}
-                    onClick={() => setFormData({ ...formData, level: level.id })}
-                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left ${
+                  <button
+                    key={lvl.id}
+                    onClick={() => setFormData({ ...formData, level: lvl.id })}
+                    className={`w-full flex items-center gap-4 p-4 rounded-xl border transition-all text-left cursor-pointer ${
                       isActive 
-                        ? 'border-[#FF6B00] bg-[#FFF3EC]' 
-                        : 'border-[#E8E8E4] bg-white hover:border-[#1C1C1E]'
+                        ? 'border-signal-orange bg-signal-orange text-ink font-bold' 
+                        : 'border-border bg-card text-ink hover:border-ink'
                     }`}
                   >
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${isActive ? 'bg-[#FF6B00]/10' : 'bg-[#F5F5F0]'}`}>
-                      {level.emoji}
-                    </div>
                     <div className="flex-1">
-                      <h3 className="font-condensed font-black text-xl text-[#1C1C1E] leading-none mb-1">{level.title}</h3>
-                      <p className={`text-xs ${isActive ? 'text-[#E85D04]' : 'text-[#6E6E73]'}`}>
-                        {level.desc}
+                      <h3 className="font-condensed font-black text-lg leading-none mb-1 uppercase tracking-wide">{lvl.title}</h3>
+                      <p className={`text-xs ${isActive ? 'text-ink/80 font-bold' : 'text-muted font-normal'}`}>
+                        {lvl.desc}
                       </p>
                     </div>
                     <div>
-                      {isActive ? <CheckCircle2 className="text-[#FF6B00]" /> : <Circle className="text-[#E8E8E4]" />}
+                      {isActive ? <CheckCircle2 className="text-ink" /> : <Circle className="text-border" />}
                     </div>
                   </button>
-                )
+                );
               })}
             </div>
           </div>
         )}
 
-      </div>
-
-      {/* FIXED BOTTOM BAR */}
-      <div className="w-full p-6 border-t border-[#E8E8E4] bg-white">
-        <button 
-          onClick={handleNext}
-          disabled={(step === 1 && !formData.name.trim()) || (step === 3 && formData.sports.length === 0)}
-          className="w-full bg-[#FF6B00] text-white font-condensed font-black text-xl rounded-2xl py-4 shadow-[0_4px_20px_rgba(255,107,0,0.3)] disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
-        >
-          {step === 4 ? 'EMPEZAR' : 'CONTINUAR'}
-          {step < 4 && <ChevronRight size={24} />}
-        </button>
+        {/* BOTTOM NAV CTA */}
+        <div className="mt-8">
+          <button
+            onClick={handleNext}
+            className="w-full py-3.5 bg-signal-orange text-ink font-display font-black text-xl rounded-xl active:scale-[0.98] transition-transform tracking-wider uppercase flex justify-center items-center gap-1 cursor-pointer"
+          >
+            CONTINUAR <ChevronRight size={18} />
+          </button>
+        </div>
       </div>
     </div>
   );
