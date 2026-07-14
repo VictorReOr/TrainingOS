@@ -4,9 +4,9 @@ import { useAthlete } from '../context/AthleteContext';
 import { User, Users, ShieldCheck, Dumbbell, Circle, CheckCircle2, ChevronRight, Plus, Award } from 'lucide-react';
 
 const ROLES = [
-  { id: 'athlete', title: 'ATLETA', desc: 'Gestiono mis propios entrenamientos', icon: <User size={24} /> },
-  { id: 'coach', title: 'ENTRENADOR', desc: 'Gestiono atletas y diseño programas', icon: <Users size={24} /> },
-  { id: 'both', title: 'AMBOS', desc: 'Soy atleta y también entreno a otros', icon: <ShieldCheck size={24} /> }
+  { id: 'athlete', title: 'ATLETA', desc: 'Gestiono mis propios entrenamientos', icon: <User size={20} /> },
+  { id: 'coach', title: 'ENTRENADOR', desc: 'Gestiono atletas y diseño programas', icon: <Users size={20} /> },
+  { id: 'both', title: 'AMBOS', desc: 'Soy atleta y también entreno a otros', icon: <ShieldCheck size={20} /> }
 ];
 
 const LEVELS = [
@@ -98,10 +98,10 @@ export default function Onboarding() {
         {/* STEP 1 */}
         {step === 1 && (
           <div className="w-full animate-slide-left">
-            <div className="w-20 h-20 stamp-circle border-signal-orange text-signal-orange bg-card mx-auto mb-8 -rotate-6 flex items-center justify-center">
-              <Dumbbell size={32} />
+            <div className="w-24 h-6 border border-signal-orange text-signal-orange mx-auto mb-8 flex items-center justify-center font-mono font-bold text-[9px] tracking-wider uppercase rounded bg-card">
+              REGISTRO
             </div>
-            <h1 className="font-display font-black text-4xl text-ink text-center mb-2 uppercase tracking-wide">
+            <h1 className="font-display font-black text-4.5xl text-ink text-center mb-2 uppercase tracking-wide">
               Bienvenido a<br/><span className="text-signal-orange">TrainingOS</span>
             </h1>
             <p className="font-mono text-xs text-muted text-center mb-10 uppercase tracking-wider">
@@ -145,7 +145,7 @@ export default function Onboarding() {
                         : 'border-border bg-card text-ink hover:border-ink'
                     }`}
                   >
-                    <div className={`p-3 rounded-lg ${isActive ? 'bg-ink text-white' : 'bg-bg/40 text-muted border border-border'}`}>
+                    <div className={`p-2.5 rounded-lg ${isActive ? 'bg-ink text-white' : 'bg-bg/40 text-muted border border-border'}`}>
                       {role.icon}
                     </div>
                     <div className="flex-1">
@@ -180,14 +180,14 @@ export default function Onboarding() {
                     <button
                       key={sport.id}
                       onClick={() => toggleSport(sport)}
-                      className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-2 transition-all cursor-pointer ${
+                      className={`p-4 rounded-xl border flex flex-col items-center justify-center gap-2.5 transition-all cursor-pointer ${
                         isActive 
                           ? 'border-signal-orange bg-signal-orange text-ink font-bold' 
                           : 'border-border bg-card text-muted hover:border-ink'
                       }`}
                     >
                       {sport.icon && (
-                        <div className="w-8 h-8 stamp-circle border-border flex items-center justify-center text-sm shrink-0">
+                        <div className="w-6 h-6 border border-border flex items-center justify-center text-xs bg-card shrink-0 rounded">
                           {sport.icon}
                         </div>
                       )}
@@ -201,10 +201,10 @@ export default function Onboarding() {
                   <button
                     key={sport.id}
                     onClick={() => toggleSport(sport)}
-                    className="p-4 rounded-xl border border-signal-orange bg-signal-orange text-ink flex flex-col items-center justify-center gap-2 transition-all cursor-pointer"
+                    className="p-4 rounded-xl border border-signal-orange bg-signal-orange text-ink flex flex-col items-center justify-center gap-2.5 transition-all cursor-pointer"
                   >
                     {sport.icon && (
-                      <div className="w-8 h-8 stamp-circle border-ink flex items-center justify-center text-sm shrink-0">
+                      <div className="w-6 h-6 border border-ink flex items-center justify-center text-xs shrink-0 rounded bg-card">
                         {sport.icon}
                       </div>
                     )}
@@ -217,7 +217,7 @@ export default function Onboarding() {
                   onClick={() => setShowCustomSport(true)}
                   className="p-4 rounded-xl border-2 border-dashed border-border bg-card text-muted flex flex-col items-center justify-center gap-2 transition-all hover:border-ink cursor-pointer"
                 >
-                  <Plus size={24} />
+                  <Plus size={20} />
                   <span className="font-mono text-[9px] font-bold uppercase tracking-wider">Añadir otro</span>
                 </button>
               </div>
@@ -247,8 +247,8 @@ export default function Onboarding() {
         {/* STEP 4 */}
         {step === 4 && (
           <div className="w-full animate-slide-left">
-            <div className="w-20 h-20 stamp-circle border-signal-orange text-signal-orange bg-card mx-auto mb-8 -rotate-6 flex items-center justify-center">
-              <Award size={32} />
+            <div className="w-24 h-6 border border-signal-orange text-signal-orange mx-auto mb-8 flex items-center justify-center font-mono font-bold text-[9px] tracking-wider uppercase rounded bg-card">
+              EXPERIENCIA
             </div>
             <h2 className="font-display font-black text-3xl text-ink mb-1.5 uppercase tracking-wide leading-tight">
               ¿Cuál es tu nivel<br/>de experiencia?

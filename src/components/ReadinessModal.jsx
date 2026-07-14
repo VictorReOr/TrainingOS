@@ -53,7 +53,7 @@ export default function ReadinessModal({ onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col justify-end md:justify-center md:items-center bg-black/60 backdrop-blur-xs animate-fade-in">
+    <div className="fixed inset-0 z-[100] flex flex-col justify-end md:justify-center md:items-center bg-black/50 backdrop-blur-xs animate-fade-in">
       {/* Container */}
       <div 
         className="w-full md:max-w-md bg-card rounded-t-2xl md:rounded-2xl border-t border-l border-r md:border border-border px-6 pt-5 pb-[calc(1.5rem+var(--safe-bottom))] shadow-lg relative animate-slide-up flex flex-col max-h-[85vh] md:max-h-[90vh]"
@@ -64,7 +64,7 @@ export default function ReadinessModal({ onClose }) {
         {step === 1 && (
           <div className="flex flex-col flex-1 overflow-y-auto hide-scrollbar">
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="font-mono text-[9px] text-corner-blue font-bold tracking-widest uppercase border border-corner-blue/30 px-1.5 py-0.5 rounded -rotate-2">
+              <span className="font-mono text-[8px] text-corner-blue font-bold tracking-widest uppercase border border-corner-blue/40 px-1.5 py-0.5 rounded">
                 FICHA DE CONTROL
               </span>
             </div>
@@ -125,7 +125,7 @@ export default function ReadinessModal({ onClose }) {
         {step === 2 && (
           <div className="flex flex-col">
             <div className="flex items-center gap-2 mb-1.5">
-              <span className="font-mono text-[9px] text-corner-blue font-bold tracking-widest uppercase border border-corner-blue/30 px-1.5 py-0.5 rounded -rotate-2">
+              <span className="font-mono text-[8px] text-corner-blue font-bold tracking-widest uppercase border border-corner-blue/40 px-1.5 py-0.5 rounded">
                 TEST NEUROMUSCULAR
               </span>
             </div>
@@ -173,8 +173,8 @@ export default function ReadinessModal({ onClose }) {
         {/* STEP 3: RESULT */}
         {step === 3 && (
           <div className="flex flex-col items-center text-center py-4">
-            <div className="w-14 h-14 stamp-circle border-corner-blue text-corner-blue flex items-center justify-center mx-auto mb-4 -rotate-6">
-              <Check size={26} strokeWidth={2.5} />
+            <div className="w-20 h-6 border border-corner-blue text-corner-blue flex items-center justify-center mx-auto mb-4 font-mono font-bold text-[9px] uppercase tracking-wider rounded">
+              COMPLETADO
             </div>
             <span className="font-mono text-[9px] text-muted tracking-widest uppercase mb-1 font-bold">ANÁLISIS COMPLETADO</span>
             <h3 className="font-display font-black text-3.5xl text-ink mb-1 uppercase tracking-wide">

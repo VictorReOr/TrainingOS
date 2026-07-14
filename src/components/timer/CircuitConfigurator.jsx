@@ -268,7 +268,7 @@ export default function CircuitConfigurator() {
         {/* EMPTY STATE */}
         {circuitBlocks.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center px-6">
-            <div className="w-14 h-14 stamp-circle border-border mx-auto mb-4 -rotate-6 text-muted flex items-center justify-center font-mono font-black text-sm uppercase">
+            <div className="w-14 h-6 border border-border mx-auto mb-4 flex items-center justify-center font-mono font-bold text-[9px] text-muted tracking-wider uppercase rounded bg-card">
               CIRC
             </div>
             <h3 className="font-display font-black text-2xl text-ink mb-1 uppercase tracking-wide">Tu circuito está vacío</h3>

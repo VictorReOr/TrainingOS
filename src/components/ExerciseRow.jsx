@@ -47,7 +47,7 @@ export default function ExerciseRow({ exercise, sessionType = 'gym', isDone, isA
         >
           <span>{exercise.name}</span>
           {exercise.isTest && (
-            <span className="font-mono text-[9px] font-black text-corner-red border border-corner-red/30 px-1.5 py-0.5 rounded tracking-widest inline-block leading-none uppercase -rotate-2">
+            <span className="font-mono text-[8px] font-bold text-corner-red border border-corner-red/40 px-1.5 py-0.5 rounded tracking-widest inline-block leading-none uppercase">
               TEST {exercise.testType || 'AMRAP'}
             </span>
           )}

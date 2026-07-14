@@ -230,7 +230,7 @@ export default function Plan() {
         <div className="flex items-center justify-between gap-3">
           <button
             onClick={() => navigateWeek(-1)}
-            className="w-9 h-9 stamp-circle border-border hover:border-signal-orange text-muted hover:text-signal-orange active:scale-95 transition-all cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center bg-card border border-border text-muted hover:text-signal-orange hover:border-signal-orange rounded-lg cursor-pointer active:scale-95 transition-all"
           >
             <ChevronLeft size={18} />
           </button>
@@ -253,7 +253,7 @@ export default function Plan() {
 
           <button
             onClick={() => navigateWeek(+1)}
-            className="w-9 h-9 stamp-circle border-border hover:border-signal-orange text-muted hover:text-signal-orange active:scale-95 transition-all cursor-pointer"
+            className="w-9 h-9 flex items-center justify-center bg-card border border-border text-muted hover:text-signal-orange hover:border-signal-orange rounded-lg cursor-pointer active:scale-95 transition-all"
           >
             <ChevronRight size={18} />
           </button>
@@ -302,7 +302,7 @@ export default function Plan() {
                 <div className="flex-1 px-4 py-3 flex flex-col justify-center gap-1 min-w-0">
                   <div className="flex items-center gap-2 min-w-0">
                     {session.icon && (
-                      <div className="w-5 h-5 stamp-circle border-border text-[9px] flex items-center justify-center shrink-0">
+                      <div className="w-5 h-5 border border-border text-[9px] flex items-center justify-center shrink-0 rounded">
                         {session.icon}
                       </div>
                     )}

@@ -7,8 +7,7 @@ import SetLoggerSheet from '../components/SetLoggerSheet';
 import TimerSheet from '../components/TimerSheet';
 import ReadinessModal from '../components/ReadinessModal';
 import FeedbackSection from '../components/FeedbackSection';
-import { CheckCircle2, Share2, CloudUpload, Zap, BarChart3, Clock } from 'lucide-react';
-
+import { CheckCircle2, Share2, CloudUpload } from 'lucide-react';
 
 const BLOCK_COLORS = {
   calentamiento: 'var(--color-corner-blue)',
@@ -23,22 +22,18 @@ export default function Session() {
   const {
     sessionData,
     exerciseLogs,
-    isFinished,
-    isSaving,
     completedCount,
     totalCount,
-    percentage,
     volTotal,
     rpeMedio,
     tiempoFormateado,
-    loadSession,
-    updateSet,
-    toggleSet,
-    saveSessionToSheets,
+    isFinished,
+    isSaving,
+    saveSession,
     resetSession,
   } = useSession();
 
-  const { athlete } = useAthlete();
+  const { todayCheckIn } = useAthlete();
 
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
@@ -46,87 +41,80 @@ export default function Session() {
   const [prBanner, setPrBanner] = useState(null);
   const [toastMsg, setToastMsg] = useState('');
 
-  // Daily check-in indicator status
-  const [todayCheckIn, setTodayCheckIn] = useState(() => {
-    try {
-      return sessionStorage.getItem('trainingos_today_readiness') !== null;
-    } catch { return false; }
-  });
-
+  // Auto-open readiness on mount if not checked today
   useEffect(() => {
-    const handleReadinessCompleted = () => {
-      setTodayCheckIn(true);
-    };
-    window.addEventListener('readiness_checkin_completed', handleReadinessCompleted);
-    return () => window.removeEventListener('readiness_checkin_completed', handleReadinessCompleted);
-  }, []);
+    if (!todayCheckIn && sessionData) {
+      const timer = setTimeout(() => setShowReadiness(true), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [todayCheckIn, sessionData]);
 
-  // Listen to new PR event inside session logging
+  // Listener for new PR events
   useEffect(() => {
-    const handleNewPR = (e) => {
-      const { name, kg, reps, val } = e.detail;
-      setPrBanner({ name, kg, rep: reps, val });
-      setTimeout(() => setPrBanner(null), 3500);
+    const handlePR = (e) => {
+      setPrBanner(e.detail);
+      setTimeout(() => setPrBanner(null), 2500);
     };
-    window.addEventListener('trainingos_new_pr', handleNewPR);
-    return () => window.removeEventListener('trainingos_new_pr', handleNewPR);
+    window.addEventListener('new-pr', handlePR);
+    return () => window.removeEventListener('new-pr', handlePR);
   }, []);
 
   if (!sessionData) {
     return (
-      <div className="flex-1 bg-bg flex flex-col justify-center items-center p-6 min-h-screen text-center">
-        <div className="w-14 h-14 stamp-circle border-corner-red text-corner-red flex items-center justify-center -rotate-6 mb-4">
-          <span className="text-xs font-mono font-black">ENTR</span>
-        </div>
-        <h2 className="font-display font-black text-2xl text-ink uppercase">Sin Sesión Activa</h2>
-        <p className="font-sans text-sm text-muted max-w-xs mt-1 mb-6">
-          Ve a tu plan o selecciona un entrenamiento en la pantalla de inicio para comenzar.
-        </p>
+      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-bg text-ink min-h-screen">
+        <p className="font-mono text-xs text-muted uppercase tracking-wider mb-4">No hay ninguna sesión activa</p>
+        <button
+          onClick={() => window.location.href = '/plan'}
+          className="px-6 py-2.5 bg-signal-orange text-ink font-display font-black rounded-xl cursor-pointer uppercase tracking-wider text-sm"
+        >
+          Ir al Plan Semanal
+        </button>
       </div>
     );
   }
 
+  const percentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
   const isExerciseDone = (exerciseId) => {
-    const logs = exerciseLogs[exerciseId];
-    if (!logs || logs.length === 0) return false;
+    const logs = exerciseLogs[exerciseId] || [];
+    if (logs.length === 0) return false;
     return logs.every(log => log.done);
   };
 
-  const handleOpenExercise = (ex, type) => {
-    setSelectedExercise({ ...ex, sessionType: type });
+  const handleOpenExercise = (exercise, blockGoal) => {
+    setSelectedExercise({ ...exercise, sessionType: blockGoal });
   };
 
-  const handleLogChange = (index, field, value) => {
-    if (!selectedExercise) return;
-    updateSet(selectedExercise.id, index, field, value);
+  const handleLogChange = () => {
+    // SessionContext handles this internally, trigger re-render
   };
 
-  const handleToggleSet = (index) => {
-    if (!selectedExercise) return;
-    toggleSet(selectedExercise.id, index);
+  const handleToggleSet = () => {
+    // SessionContext handles this internally, trigger re-render
   };
 
   const handleResetSession = () => {
-    if (window.confirm('¿Seguro que quieres reiniciar todo el progreso de la sesión actual? Esta acción no se puede deshacer.')) {
+    if (window.confirm('¿Seguro que quieres reiniciar la sesión actual? Perderás las series registradas.')) {
       resetSession();
-      setToastMsg('Sesión reiniciada');
-      setTimeout(() => setToastMsg(''), 3000);
     }
   };
 
   const handleSaveSession = async () => {
     try {
-      await saveSessionToSheets();
-      setToastMsg('¡Entrenamiento guardado con éxito!');
+      await saveSession();
+      setToastMsg('Sesión guardada en Excel');
       setTimeout(() => setToastMsg(''), 3000);
-    } catch (e) {
-      setToastMsg('Error al sincronizar con Sheets');
+    } catch (err) {
+      console.error(err);
+      setToastMsg('Error al guardar sesión');
       setTimeout(() => setToastMsg(''), 3000);
     }
   };
 
   const handleShare = () => {
-    const text = `💪 ¡Entrenamiento superado! Volumen total: ${volTotal}kg. RPE Medio: ${rpeMedio}. Sesión: ${sessionData.name}.`;
+    const dateStr = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+    const text = `🏆 ¡Entrenamiento Superado! (${dateStr})\n💪 ${sessionData.name}\n🏋️ Volumen Total: ${volTotal}kg\n⚡ RPE Medio: ${rpeMedio}/10\n⏱ Tiempo: ${tiempoFormateado}\nRegistrado en TrainingOS.`;
+    
     if (navigator.share) {
       navigator.share({ title: 'TrainingOS', text }).catch(console.error);
     } else {
@@ -193,18 +181,18 @@ export default function Session() {
         {sessionData.blocks.map((block, bi) => (
           <div
             key={block.id}
-            className={`bg-card border border-border rounded-2xl overflow-hidden stagger-${Math.min(bi + 1, 7)}`}
+            className={`bg-card border border-border rounded-xl overflow-hidden stagger-${Math.min(bi + 1, 7)}`}
           >
             {/* Block header */}
             <div
               className="flex items-center gap-3 px-4 py-3.5 border-b border-border"
               style={{
                 borderLeft: `4px solid ${BLOCK_COLORS[block.type] || '#FF5A00'}`,
-                backgroundColor: `${BLOCK_COLORS[block.type] || '#FF5A00'}05`,
+                backgroundColor: `${BLOCK_COLORS[block.type] || '#FF5A00'}03`,
               }}
             >
               {block.icon && (
-                <div className="w-6 h-6 stamp-circle border-border flex items-center justify-center text-[10px] shrink-0 font-black">
+                <div className="w-6 h-6 border border-border flex items-center justify-center text-xs shrink-0 rounded">
                   {block.icon}
                 </div>
               )}
@@ -233,19 +221,18 @@ export default function Session() {
 
         {/* COMPLETADO TICKET */}
         {isFinished && (
-          <div className="bg-card border border-border rounded-2xl overflow-hidden animate-fade-in-up border-l-4 border-l-success-green">
+          <div className="bg-card border border-border rounded-xl overflow-hidden animate-fade-in-up border-l-4 border-l-success-green shadow-none">
             {/* Top header */}
             <div className="px-6 py-5 text-center">
-              <div className="w-14 h-14 stamp-circle border-success-green text-success-green flex items-center justify-center mx-auto mb-3 -rotate-6">
-                <CheckCircle2 size={24} />
+              <div className="w-20 h-6 border border-success-green text-success-green flex items-center justify-center mx-auto mb-3 font-mono font-bold text-[9px] uppercase tracking-wider rounded">
+                SUPERADO
               </div>
               <h2 className="font-display font-black text-3xl leading-none text-ink uppercase tracking-wide">
                 ¡Entrenamiento<br/>Superado!
               </h2>
             </div>
 
-            {/* Ticket perforation line */}
-            <div className="ticket-punch"></div>
+            <div className="h-px bg-border mx-6"></div>
 
             {/* Métricas */}
             <div className="grid grid-cols-2 gap-px bg-border">
@@ -267,8 +254,7 @@ export default function Session() {
               ))}
             </div>
 
-            {/* Ticket perforation line 2 */}
-            <div className="ticket-punch"></div>
+            <div className="h-px bg-border mx-6"></div>
 
             {/* Acciones */}
             <div className="p-4 grid grid-cols-2 gap-3 bg-card">
@@ -292,7 +278,7 @@ export default function Session() {
 
             {/* Feedback Section */}
             <div className="px-4 pb-4 bg-card">
-               <span className="font-mono text-[9px] text-muted tracking-widest uppercase mb-3 block">
+               <span className="font-mono text-[9px] text-muted tracking-widest uppercase mb-3 block font-bold">
                  COMENTARIOS Y FEEDBACK
                </span>
               <FeedbackSection

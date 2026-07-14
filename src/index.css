@@ -1,29 +1,29 @@
 @import "tailwindcss";
 
 @theme {
-  /* Colores de Fondo y Bordes (Efecto Papel Oficial) */
-  --color-bg: #EDE6D3;            /* paper-base: fondo de pantalla */
-  --color-card: #F6F1E4;          /* paper-card: fondo de tarjetas/tickets */
-  --color-border: #DDD6C1;        /* line-muted: bordes y separadores */
+  /* Colores de Fondo y Bordes (Dossier Técnico de Alto Rendimiento) */
+  --color-bg: #F3F4F6;            /* Gris claro neutro y limpio */
+  --color-card: #FFFFFF;          /* Blanco puro */
+  --color-border: #E5E7EB;        /* Gris de precisión de 1px */
 
   /* Colores del Sistema Documental */
-  --color-ink: #14151A;           /* Texto principal y contrastes oscuros */
-  --color-signal-orange: #FF5A00; /* Acento de energía y CTAs primarios */
-  --color-corner-red: #C22A2E;    /* Sellos/Detalles de Sesión y Peso Físico */
-  --color-corner-blue: #1C3FAA;   /* Sellos/Detalles de Bienestar/Check-in */
-  --color-belt-gold: #D9A62E;     /* Progresos de rango, rachas largas */
-  --color-success-green: #3B7A3F; /* Deltas positivos únicamente */
-  --color-line-muted: #DDD6C1;
-  --color-text-muted: #8A8676;
+  --color-ink: #111827;           /* Negro carbón principal */
+  --color-signal-orange: #FF5A00; /* Naranja acento de carreras */
+  --color-corner-red: #EF4444;    /* Detalle/Sello de test o sesión física */
+  --color-corner-blue: #3B82F6;   /* Detalle de bienestar */
+  --color-belt-gold: #F59E0B;     /* Rango / Logro */
+  --color-success-green: #10B981; /* Deltas positivos */
+  --color-line-muted: #E5E7EB;
+  --color-text-muted: #6B7280;
 
   /* Mapeos de Texto Estándar */
-  --color-text: #14151A;
-  --color-muted: #8A8676;         /* text-muted */
+  --color-text: #111827;
+  --color-muted: #6B7280;         /* text-muted */
 
   /* Accent standard overrides */
   --color-accent: #FF5A00;
-  --color-accent-dark: #C22A2E;
-  --color-accent-soft: #FFF3EC;
+  --color-accent-dark: #EF4444;
+  --color-accent-soft: #FFEFEB;
 
   /* Tipografías */
   --font-sans: "Outfit", sans-serif;
@@ -202,8 +202,8 @@
 
 /* Pulso naranja para el FAB y puntos activos */
 @keyframes pulse-green {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(255,107,0,0.5); }
-  50%       { box-shadow: 0 0 0 10px rgba(255,107,0,0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,90,0,0.4); }
+  50%       { box-shadow: 0 0 0 10px rgba(255,90,0,0); }
 }
 .pulse-green { animation: pulse-green 2s ease-in-out infinite; }
 
@@ -220,54 +220,25 @@
 
 /* Select styled para tema claro */
 select option {
-  background-color: #F6F1E4;
-  color: #14151A;
-}
-
-/* ── Elementos de Firma de Dirección de Arte ─────────────────── */
-
-.ticket-punch {
-  position: relative;
-  border-top: 1.5px dashed var(--color-line-muted);
-}
-.ticket-punch::before,
-.ticket-punch::after {
-  content: "";
-  position: absolute;
-  top: -6px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background-color: var(--color-bg);
-  z-index: 10;
-}
-.ticket-punch::before {
-  left: -6px;
-}
-.ticket-punch::after {
-  right: -6px;
-}
-
-/* Sello circular rotado analógico */
-.stamp-circle {
-  border: 1.5px solid currentColor;
-  border-radius: 50%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--font-mono);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
   background-color: var(--color-card);
+  color: var(--color-ink);
 }
 
-/* Marcador LCD Fatiga */
-.lcd-display {
-  font-family: var(--font-mono);
-  background-color: #14151A;
-  color: #FF5A00;
-  border-radius: 0.5rem;
-  padding: 0.5rem 1rem;
-  letter-spacing: 0.1em;
+/* ── Elementos de Firma de Dirección de Arte: Dossier Técnico ── */
+
+/* Código de barras simulado */
+.barcode-sim {
+  background: repeating-linear-gradient(
+    90deg,
+    currentColor,
+    currentColor 2px,
+    transparent 2px,
+    transparent 5px
+  );
 }
+
+/* Cabecera de telemetría / sección */
+.dossier-header-border {
+  border-bottom: 2px double var(--color-border);
+}
+
