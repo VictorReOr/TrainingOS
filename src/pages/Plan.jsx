@@ -39,6 +39,7 @@ const SESSION_TEMPLATES = [
 
 // ─── Helpers ─────────────────────────────────────────────
 const parseDate   = (str)           => { const [y,m,d] = str.split('-').map(Number); return new Date(y,m-1,d); };
+const formatISO   = (d)             => { const pad = n => n.toString().padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 const getDayDate  = (monday, i)     => { const d = new Date(monday); d.setDate(d.getDate() + i); return d; };
 const isToday     = (date)          => { const t = new Date(); return date.toDateString() === t.toDateString(); };
 const isPast      = (date)          => { const today = new Date(); today.setHours(0,0,0,0); const d = new Date(date); d.setHours(0,0,0,0); return d < today; };
@@ -102,7 +103,7 @@ export default function Plan() {
     const base = {};
     DAYS_ES.forEach((dayKey, i) => {
       const d = new Date(currentWeekStart); d.setDate(d.getDate() + i);
-      const dateISO = d.toISOString().slice(0, 10);
+      const dateISO = formatISO(d);
       base[dayKey] = weekAssignments[dateISO] || weekSessions[dayKey] || null;
     });
     
@@ -154,7 +155,7 @@ export default function Plan() {
 
   const handleAssignSession = (template) => {
     if (!addSheetDay) return;
-    const dateISO = addSheetDay.dayDate.toISOString().slice(0, 10);
+    const dateISO = formatISO(addSheetDay.dayDate);
     assignSessionToDay(dateISO, template);
     closeAddSheet();
   };
@@ -181,7 +182,7 @@ export default function Plan() {
       const dayIndex = DAYS_ES.indexOf(dayKey);
       if (dayIndex !== -1) {
         const dayDate = getDayDate(currentWeekStart, dayIndex);
-        const dateISO = dayDate.toISOString().slice(0, 10);
+        const dateISO = formatISO(dayDate);
         const sess = routine.sessions[dayKey];
         assignSessionToDay(dateISO, { ...sess, id: sess.id + '_' + Date.now() });
       }

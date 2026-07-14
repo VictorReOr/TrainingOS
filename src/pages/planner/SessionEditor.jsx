@@ -47,6 +47,8 @@ const getWeekDates = (offset = 0) => {
 
 const isToday = (date) => date.toDateString() === new Date().toDateString();
 
+const formatISO = (d) => { const pad = n => n.toString().padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+
 // ─── Componente Principal ─────────────────────────────────────────────────────
 export default function SessionEditor() {
   const navigate = useNavigate();
@@ -346,7 +348,7 @@ export default function SessionEditor() {
               exercises: draft.blocks.reduce((acc, b) => acc + b.exercises.length, 0),
               duration: draft.blocks.reduce((acc, b) => acc + (parseInt(b.duration) || 0), 0),
             };
-            assignSessionToDay(date.toISOString().slice(0, 10), sessionData);
+            assignSessionToDay(formatISO(date), sessionData);
             setDayPickerOpen(false);
             showToast(`"»${draft.name}«" asignado al ${dayLabel} ✓`);
             setTimeout(() => navigate('/plan'), 1200);
