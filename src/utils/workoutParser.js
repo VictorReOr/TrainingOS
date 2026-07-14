@@ -18,7 +18,7 @@ export function parseWorkouts(rows) {
 
   rows.forEach(row => {
     let rId = (row.rutina_id || '').toString().trim();
-    let day = (row.dia || '').toString().toLowerCase().trim();
+    let day = normDay(row.dia || '');
 
     // Auto-detect: if rutina_id looks like a day name and dia is empty,
     // the user put the day in the rutina_id column
