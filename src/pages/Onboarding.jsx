@@ -1,12 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAthlete } from '../context/AthleteContext';
-import { User, Users, ShieldCheck, Dumbbell, Circle, CheckCircle2, ChevronRight, Plus } from 'lucide-react';
+import { User, Users, ShieldCheck, Dumbbell, Circle, CheckCircle2, ChevronRight, Plus, Award } from 'lucide-react';
 
 const ROLES = [
   { id: 'athlete', title: 'ATLETA', desc: 'Gestiono mis propios entrenamientos', icon: <User size={32} /> },
   { id: 'coach', title: 'ENTRENADOR', desc: 'Gestiono atletas y diseño programas', icon: <Users size={32} /> },
   { id: 'both', title: 'AMBOS', desc: 'Soy atleta y también entreno a otros', icon: <ShieldCheck size={32} /> }
+];
+
+const LEVELS = [
+  { id: 'novato', title: 'NOVATO', desc: 'Menos de 1 año entrenando de forma consistente', emoji: '🟢' },
+  { id: 'intermedio', title: 'INTERMEDIO', desc: '1 a 3 años de entrenamiento consistente', emoji: '🟡' },
+  { id: 'avanzado', title: 'AVANZADO', desc: 'Más de 3 años, competidor o cercano a tus máximos', emoji: '🔴' }
 ];
 
 const DEFAULT_SPORTS = [
@@ -30,7 +36,8 @@ export default function Onboarding() {
     role: 'athlete',
     sports: [
       { id: 'gym', label: 'Gimnasio', icon: '🏋️', active: true } // Default starting point
-    ]
+    ],
+    level: 'intermedio'
   });
   
   const [showCustomSport, setShowCustomSport] = useState(false);
@@ -38,8 +45,8 @@ export default function Onboarding() {
 
   const handleNext = () => {
     if (step === 1 && !formData.name.trim()) return;
-    if (step === 3) {
-      if (formData.sports.length === 0) return;
+    if (step === 3 && formData.sports.length === 0) return;
+    if (step === 4) {
       updateProfile(formData);
       navigate('/plan');
       return;
@@ -76,7 +83,7 @@ export default function Onboarding() {
       
       {/* Progress Indicator */}
       <div className="w-full pt-12 pb-6 px-6 flex justify-center gap-3">
-        {[1, 2, 3].map(i => (
+        {[1, 2, 3, 4].map(i => (
           <div 
             key={i} 
             className={`h-1.5 rounded-full transition-all duration-300 ${
@@ -229,6 +236,49 @@ export default function Onboarding() {
           </div>
         )}
 
+        {/* STEP 4 */}
+        {step === 4 && (
+          <div className="w-full animate-slide-left">
+            <div className="w-24 h-24 bg-[#FFF3EC] text-[#FF6B00] rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-sm">
+              <Award size={48} />
+            </div>
+            <h2 className="font-condensed font-black text-3xl text-[#1C1C1E] mb-2 leading-tight">
+              ¿Cuál es tu nivel<br/>de experiencia?
+            </h2>
+            <p className="text-[#6E6E73] text-sm mb-8">Esto nos ayuda a calibrar tu plan de entrenamiento.</p>
+
+            <div className="space-y-4">
+              {LEVELS.map(level => {
+                const isActive = formData.level === level.id;
+                return (
+                  <button 
+                    key={level.id}
+                    onClick={() => setFormData({ ...formData, level: level.id })}
+                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left ${
+                      isActive 
+                        ? 'border-[#FF6B00] bg-[#FFF3EC]' 
+                        : 'border-[#E8E8E4] bg-white hover:border-[#1C1C1E]'
+                    }`}
+                  >
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${isActive ? 'bg-[#FF6B00]/10' : 'bg-[#F5F5F0]'}`}>
+                      {level.emoji}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-condensed font-black text-xl text-[#1C1C1E] leading-none mb-1">{level.title}</h3>
+                      <p className={`text-xs ${isActive ? 'text-[#E85D04]' : 'text-[#6E6E73]'}`}>
+                        {level.desc}
+                      </p>
+                    </div>
+                    <div>
+                      {isActive ? <CheckCircle2 className="text-[#FF6B00]" /> : <Circle className="text-[#E8E8E4]" />}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
       </div>
 
       {/* FIXED BOTTOM BAR */}
@@ -238,8 +288,8 @@ export default function Onboarding() {
           disabled={(step === 1 && !formData.name.trim()) || (step === 3 && formData.sports.length === 0)}
           className="w-full bg-[#FF6B00] text-white font-condensed font-black text-xl rounded-2xl py-4 shadow-[0_4px_20px_rgba(255,107,0,0.3)] disabled:opacity-50 disabled:shadow-none transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
         >
-          {step === 3 ? 'EMPEZAR' : 'CONTINUAR'}
-          {step < 3 && <ChevronRight size={24} />}
+          {step === 4 ? 'EMPEZAR' : 'CONTINUAR'}
+          {step < 4 && <ChevronRight size={24} />}
         </button>
       </div>
     </div>

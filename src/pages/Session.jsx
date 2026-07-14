@@ -3,6 +3,7 @@ import ProgressBar from '../components/ProgressBar';
 import ExerciseRow from '../components/ExerciseRow';
 import SetLoggerSheet from '../components/SetLoggerSheet';
 import TimerSheet from '../components/TimerSheet';
+import { getRPETargetForGoal } from '../utils/overloadEngine';
 import FeedbackSection from '../components/FeedbackSection';
 import { CheckCircle2, CloudUpload, Share2, Clock, Zap, BarChart3 } from 'lucide-react';
 import { useTimer } from '../context/TimerContext';
@@ -72,12 +73,12 @@ export default function Session() {
   const percentage     = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
   const isFinished     = percentage === 100;
 
-  const handleOpenExercise = (exercise) => {
+  const handleOpenExercise = (exercise, blockGoal) => {
     if (!exerciseLogs[exercise.id]) {
       setExerciseLogs(prev => ({ ...prev, [exercise.id]: getInitialLogs(exercise) }));
     }
     if (window.navigator?.vibrate) window.navigator.vibrate(10);
-    setSelectedExercise(exercise);
+    setSelectedExercise({ ...exercise, sessionType: blockGoal });
   };
 
   const handleResetSession = () => {
@@ -150,6 +151,7 @@ export default function Session() {
     const ejerciciosLimpios = [];
     Object.entries(exerciseLogs).forEach(([exId, sets]) => {
       let exVol = 0;
+      let rpeSum = 0, rpeSets = 0;
       const exObj = allExercises.find(e => e.id === exId);
       
       sets.forEach(set => {
@@ -164,13 +166,25 @@ export default function Session() {
           const rpe  = set.rpe || null;
           volTotal  += kg * rep;
           exVol     += kg * rep;
-          if (rpe !== null) { rpeTotal += rpe; rpeCount++; }
+          if (rpe !== null) { 
+            rpeTotal += rpe; 
+            rpeCount++; 
+            rpeSum += rpe;
+            rpeSets++;
+          }
         }
       });
+
+      const goalConfig = getRPETargetForGoal(sessionData.type || 'gym');
+      const rpeTarget = goalConfig.rpeTarget;
+      const avgRPE = rpeSets > 0 ? parseFloat((rpeSum / rpeSets).toFixed(1)) : null;
+
       ejerciciosLimpios.push({ 
         id: exId, 
         nombre: exObj ? exObj.name : 'Desconocido',
-        seriesLog: sets.filter(s => s.done) 
+        seriesLog: sets.filter(s => s.done),
+        rpeTarget,
+        avgRPE
       });
     });
     const rpeMedio       = rpeCount > 0 ? (rpeTotal / rpeCount).toFixed(1) : '-';
@@ -389,9 +403,10 @@ export default function Session() {
                 <ExerciseRow
                   key={exercise.id}
                   exercise={exercise}
+                  sessionType={block.goal || sessionData.type || 'gym'}
                   isDone={isExerciseDone(exercise.id)}
                   isActive={selectedExercise?.id === exercise.id}
-                  onToggle={() => handleOpenExercise(exercise)}
+                  onToggle={() => handleOpenExercise(exercise, block.goal || sessionData.type || 'gym')}
                 />
               ))}
             </div>
@@ -403,6 +418,7 @@ export default function Session() {
       {selectedExercise && (
         <SetLoggerSheet
           exercise={selectedExercise}
+          sessionType={selectedExercise.sessionType || sessionData.type || 'gym'}
           logs={exerciseLogs[selectedExercise.id]}
           onLogChange={handleLogChange}
           onToggleSet={handleToggleSet}

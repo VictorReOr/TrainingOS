@@ -3,8 +3,7 @@ import { X, Check, Timer, ArrowRight, Hourglass, Repeat } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTimer } from '../context/TimerContext';
 import { useCircuit } from '../context/CircuitContext';
-import { usePR } from '../context/PRContext';
-import { suggestLoad, suggestProgressiveOverload } from '../utils/loadSuggestion';
+import { useProgressiveOverload } from '../hooks/useProgressiveOverload';
 import { MOCK_SESSION, BLOCK_COLORS } from '../data/mockSession';
 
 const RPE_COLORS = {
@@ -21,38 +20,41 @@ const parseDurationToSeconds = (durStr) => {
   return match ? parseInt(match[1]) * 60 : 60;
 };
 
-export default function SetLoggerSheet({ exercise, logs, onLogChange, onToggleSet, onClose, onOpenTimerGlobal }) {
+export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChange, onToggleSet, onClose, onOpenTimerGlobal }) {
   const [isVisible, setIsVisible] = useState(false);
   const [showMiniTimer, setShowMiniTimer] = useState(false);
+  const hasPrefilled = useRef(false);
 
-  // ── Sugerencia dinámica de carga ──
-  const { prs } = usePR();
-  const sessionLogs = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem('trainingos_session_logs') || '[]');
-    } catch { return []; }
-  }, []);
-  const dynamicSuggestion = useMemo(
-    () => suggestLoad(exercise.id, exercise.reps, prs, sessionLogs),
-    [exercise.id, exercise.reps, prs, sessionLogs]
-  );
-
-  const progressiveSuggestions = useMemo(() => {
-    return logs.map((_, i) => suggestProgressiveOverload(exercise.name, i, sessionLogs));
-  }, [exercise.name, logs.length, sessionLogs]);
+  // ── Sugerencia científica de sobrecarga ──
+  const {
+    prescribedLoad,
+    nextSessionLoad,
+    rpeTarget,
+    pct1RM,
+    e1RM,
+    confidence,
+    isDeloadSuggested,
+    deloadReason,
+    deloadLoad,
+    weeklyImprovePct,
+    breakdown,
+    lastSession,
+    hasHistory
+  } = useProgressiveOverload(exercise.id, exercise.name, exercise.reps || exercise.targetReps, sessionType || 'gym');
 
   useEffect(() => {
     if (isVisible && !hasPrefilled.current) {
       hasPrefilled.current = true;
-      let madeChanges = false;
       const targetReps = exercise.reps || exercise.targetReps || '';
       
-      progressiveSuggestions.forEach((sug, idx) => {
-        if (sug && !logs[idx].carga) {
-          onLogChange(idx, 'carga', sug.suggestedLoad);
-          madeChanges = true;
-        }
-      });
+      const suggestedVal = isDeloadSuggested ? deloadLoad : prescribedLoad;
+      if (suggestedVal > 0) {
+        logs.forEach((_, idx) => {
+          if (!logs[idx].carga) {
+            onLogChange(idx, 'carga', suggestedVal);
+          }
+        });
+      }
 
       logs.forEach((l, idx) => {
         if (!l.reps && targetReps) {
@@ -60,7 +62,7 @@ export default function SetLoggerSheet({ exercise, logs, onLogChange, onToggleSe
         }
       });
     }
-  }, [isVisible, progressiveSuggestions, logs, onLogChange, exercise.reps, exercise.targetReps]);
+  }, [isVisible, prescribedLoad, isDeloadSuggested, deloadLoad, logs, onLogChange, exercise.reps, exercise.targetReps]);
 
   const navigate = useNavigate();
   const { startRest, startCountdown, stopTimer, mode, status, timeMs, setMode, setTimeMs } = useTimer();
@@ -211,6 +213,72 @@ export default function SetLoggerSheet({ exercise, logs, onLogChange, onToggleSe
 
         {/* SERIES */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+          
+          {/* SUGERENCIA INTELIGENTE DE SOBRECARGA */}
+          {prescribedLoad > 0 ? (
+            <div className="bg-[#FFF3EC] border border-[#FF6B00]/30 rounded-2xl p-4 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">📈</span>
+                  <div>
+                    <h4 className="font-condensed font-black text-[#1C1C1E] text-base leading-none">
+                      {isDeloadSuggested ? 'Semana de Descarga Recomendada' : 'Sugerencia Inteligente'}
+                    </h4>
+                    <p className="text-[9px] text-[#6E6E73] font-bold uppercase tracking-wider mt-1">
+                      Modelo Helms + Logístico ({confidence === 'high' ? 'Alta Confianza' : confidence === 'medium' ? 'Media Confianza' : 'Baja Confianza'})
+                    </p>
+                  </div>
+                </div>
+                {isDeloadSuggested && (
+                  <span className="bg-[#EF4444] text-white font-condensed font-black text-[9px] px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    DESCARGA
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-baseline gap-2">
+                <span className="font-condensed font-black text-3xl text-[#1C1C1E]">
+                  {isDeloadSuggested ? deloadLoad : prescribedLoad} kg
+                </span>
+                <span className="text-xs font-bold text-[#6E6E73]">
+                  × {exercise.reps || exercise.targetReps || '8'} reps @RPE {rpeTarget}
+                </span>
+              </div>
+
+              <div className="text-[11px] text-[#6E6E73] leading-relaxed space-y-1">
+                <p>• Representa el <span className="font-bold text-[#1C1C1E]">{pct1RM}%</span> de tu 1RM estimado ({e1RM}kg).</p>
+                {isDeloadSuggested ? (
+                  <p className="text-[#EF4444] font-bold">• {deloadReason}</p>
+                ) : (
+                  <>
+                    {weeklyImprovePct > 0 && <p>• Mejora semanal proyectada: <span className="text-green-600 font-bold">+{weeklyImprovePct}%</span>.</p>}
+                    {lastSession && <p>• Sesión anterior ({lastSession.date.slice(5, 10)}): {lastSession.load}kg × {lastSession.reps} reps (RPE {lastSession.rpe}).</p>}
+                  </>
+                )}
+              </div>
+
+              <button
+                onClick={() => {
+                  const val = isDeloadSuggested ? deloadLoad : prescribedLoad;
+                  logs.forEach((_, idx) => onLogChange(idx, 'carga', val));
+                }}
+                className="w-full py-2 bg-white border border-[#FF6B00] text-[#FF6B00] font-condensed font-black text-xs rounded-xl hover:bg-[#FF6B00] hover:text-white transition-all uppercase tracking-wider active:scale-[0.98]"
+              >
+                Aplicar a todas las series
+              </button>
+            </div>
+          ) : (
+            <div className="bg-[#F5F5F0] border border-[#E8E8E4] rounded-2xl p-4 flex flex-col gap-1.5">
+              <div className="flex items-center gap-2 text-[#6E6E73]">
+                <span className="text-xl">💡</span>
+                <h4 className="font-bold text-sm leading-none">Sin datos históricos</h4>
+              </div>
+              <p className="text-xs text-[#6E6E73] leading-normal">
+                Registra tu primer entrenamiento de este ejercicio para activar las sugerencias de sobrecarga progresiva basadas en RPE.
+              </p>
+            </div>
+          )}
+
           {logs.map((log, index) => (
             <div
               key={index}
@@ -260,57 +328,6 @@ export default function SetLoggerSheet({ exercise, logs, onLogChange, onToggleSe
                       placeholder="0.0"
                       className="w-full bg-white border border-[#E8E8E4] rounded-xl px-3 py-2.5 text-base font-bold text-[#1C1C1E] placeholder:text-[#D4D4D8] focus:border-[#FF6B00] outline-none transition-colors"
                     />
-                    {progressiveSuggestions[index] !== null ? (
-                      <div className="flex flex-col gap-1 mt-1.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[11px] text-[#FF6B00] font-black flex items-center gap-1 tracking-wide uppercase">
-                            📈 Sugerido: {progressiveSuggestions[index].suggestedLoad}kg
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-[#6E6E73] font-bold">
-                          Basado en: {progressiveSuggestions[index].previousLoad}kg (RPE {progressiveSuggestions[index].previousRpe}) · {progressiveSuggestions[index].reason}
-                        </span>
-                      </div>
-                    ) : dynamicSuggestion !== null ? (
-                      <div className="flex flex-col gap-1 mt-1.5">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-xs text-[#FF6B00] font-semibold">
-                            💡 Sugerido: {dynamicSuggestion.load}kg
-                          </span>
-                          <button
-                            onClick={() => {
-                              if (!log.carga) {
-                                onLogChange(index, 'carga', dynamicSuggestion.load);
-                              }
-                            }}
-                            className="text-[10px] bg-[#FFF3EC] text-[#FF6B00] px-2 py-0.5 rounded font-bold hover:bg-[#FF6B00] hover:text-white transition-colors"
-                          >
-                            Usar
-                          </button>
-                        </div>
-                        <span className="text-[10px] text-[#6E6E73]">
-                          {dynamicSuggestion.pct}% de 1RM ({dynamicSuggestion.oneRM}kg)
-                          {dynamicSuggestion.avgRPE !== null && dynamicSuggestion.fatigueFactor < 1
-                            ? ` · Fatiga RPE ${dynamicSuggestion.avgRPE} → −${Math.round((1 - dynamicSuggestion.fatigueFactor) * 100)}%`
-                            : ''}
-                        </span>
-                      </div>
-                    ) : exercise.suggestedWeight?.min && exercise.suggestedWeight?.max ? (
-                      <div className="flex items-center gap-1.5 mt-1.5">
-                        <span className="text-xs text-[#FF6B00]">💡 Sugerido: {exercise.suggestedWeight.min}-{exercise.suggestedWeight.max}kg</span>
-                        <button
-                          onClick={() => {
-                            if (!log.carga) {
-                              const avg = (exercise.suggestedWeight.min + exercise.suggestedWeight.max) / 2;
-                              onLogChange(index, 'carga', avg);
-                            }
-                          }}
-                          className="text-[10px] bg-[#FFF3EC] text-[#FF6B00] px-2 py-0.5 rounded font-bold hover:bg-[#FF6B00] hover:text-white transition-colors"
-                        >
-                          Usar
-                        </button>
-                      </div>
-                    ) : null}
                   </div>
                   <div className="flex flex-col">
                     <label className="text-[10px] text-[#6E6E73] font-bold uppercase tracking-wider mb-1">Reps</label>

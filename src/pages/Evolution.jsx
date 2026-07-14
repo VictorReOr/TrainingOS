@@ -345,6 +345,42 @@ export default function Evolution() {
 
   const chart1Data = useMemo(() => getExerciseChartData(selectedChartExId), [selectedChartExId, getExerciseChartData]);
   const chart4Data = useMemo(() => getMesocycleComparison(selectedChartExId), [selectedChartExId, getMesocycleComparison]);
+  
+  const overloadChartData = useMemo(() => {
+    if (!selectedChartExId) return [];
+    const history = [];
+    const sortedLogs = [...sessionLogs].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+    sortedLogs.forEach(log => {
+      const ex = (log.ejercicios || []).find(e => e.id === selectedChartExId);
+      if (ex && ex.seriesLog && ex.seriesLog.length > 0) {
+        const loads = ex.seriesLog.map(s => parseFloat(s.carga)).filter(v => !isNaN(v) && v > 0);
+        if (loads.length > 0) {
+          const avgLoad = loads.reduce((a, b) => a + b, 0) / loads.length;
+          history.push({
+            fecha: log.fecha,
+            cargaReal: avgLoad,
+            prescribedLoad: ex.prescribedLoad || avgLoad,
+            avgRPE: ex.avgRPE || 8.0,
+            rpeTarget: ex.rpeTarget || 8.0
+          });
+        }
+      }
+    });
+    return history;
+  }, [selectedChartExId, sessionLogs]);
+
+  const { athlete } = useAthlete();
+  const potentialPct = useMemo(() => {
+    if (!selectedChartExId) return 0;
+    const bestRecord = getPRForExercise(selectedChartExId);
+    if (!bestRecord) return 0;
+    const e1RM = bestRecord.valor;
+    const level = athlete?.level || 'intermedio';
+    const factor = level === 'novato' ? 2.5 : level === 'avanzado' ? 1.2 : 1.5;
+    const pMax = e1RM * factor;
+    return Math.round((e1RM / pMax) * 100);
+  }, [selectedChartExId, prs, athlete]);
+
   const meanRPE    = useMemo(() => {
     if (!sessionLogs.length) return 7;
     return sessionLogs.reduce((acc, curr) => acc + curr.rpeMedio, 0) / sessionLogs.length;
@@ -818,6 +854,42 @@ export default function Evolution() {
                     ) : (
                       <div className="h-[200px] flex items-center justify-center border-2 border-dashed border-[#E8E8E4] rounded-2xl text-[#6E6E73] text-sm text-center px-4">
                         Completa más sesiones para ver la progresión.
+                      </div>
+                    )}
+                  </>
+                ),
+              },
+              {
+                title: 'Progresión de Sobrecarga',
+                sub: 'Historial de cargas de entreno reales vs. prescripción científica del motor',
+                content: (
+                  <>
+                    <div className="flex gap-3 mb-4">
+                      <div className="bg-[#FFF3EC] border border-[#FF6B00]/20 rounded-xl p-3 flex-1 flex flex-col items-center">
+                        <span className="text-[10px] text-[#6E6E73] font-bold uppercase tracking-wider mb-0.5">Potencial Realizado</span>
+                        <span className="font-condensed font-black text-2xl text-[#FF6B00]">{potentialPct}%</span>
+                      </div>
+                      <div className="bg-[#F5F5F0] border border-[#E8E8E4] rounded-xl p-3 flex-1 flex flex-col items-center">
+                        <span className="text-[10px] text-[#6E6E73] font-bold uppercase tracking-wider mb-0.5">Historial</span>
+                        <span className="font-condensed font-black text-2xl text-[#1C1C1E]">{overloadChartData.length} registros</span>
+                      </div>
+                    </div>
+                    {overloadChartData.length > 1 ? (
+                      <div style={{ width: '100%', height: 200 }}>
+                        <ResponsiveContainer>
+                          <LineChart data={overloadChartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" vertical={false} />
+                            <XAxis dataKey="fecha" tickFormatter={formatShortDate} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="#E8E8E4" tickMargin={8} />
+                            <YAxis domain={['auto','auto']} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="#E8E8E4" />
+                            <Tooltip cursor={{ stroke: '#FF6B00', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                            <Line type="monotone" name="Carga Real" dataKey="cargaReal" stroke="#FF6B00" strokeWidth={2.5} dot={{ r: 4, fill: '#FF6B00', stroke: 'white', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#FF6B00' }} />
+                            <Line type="monotone" name="Prescrita" dataKey="prescribedLoad" stroke="#3d7dd4" strokeDasharray="5 5" strokeWidth={2} dot={false} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    ) : (
+                      <div className="h-[200px] flex items-center justify-center border-2 border-dashed border-[#E8E8E4] rounded-2xl text-[#6E6E73] text-sm text-center px-4">
+                        Completa al menos 2 sesiones con este ejercicio para ver la comparativa de sobrecarga.
                       </div>
                     )}
                   </>

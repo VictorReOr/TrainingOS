@@ -1,125 +1,42 @@
 /**
- * TrainingOS — Sugerencia dinámica de cargas
- *
- * Calcula el peso recomendado para un ejercicio basándose en:
- *   1. El mejor 1RM histórico del atleta para ese ejercicio (PRContext)
- *   2. El porcentaje del 1RM según las repeticiones objetivo prescritas
- *   3. Un ajuste por fatiga reciente (RPE medio de las últimas 3 sesiones)
- *
- * @module utils/loadSuggestion
+ * TrainingOS — Wrapper de sugerencias de cargas compatible con la versión anterior.
+ * Reenvía internamente los cálculos al nuevo motor overloadEngine.js.
  */
-
-// ─── Tabla de porcentajes 1RM según repeticiones objetivo ─────────────────────
-const REP_PERCENTAGE_TABLE = [
-  { maxReps: 1,  pct: 0.95 },
-  { maxReps: 2,  pct: 0.90 },
-  { maxReps: 3,  pct: 0.87 },
-  { maxReps: 5,  pct: 0.83 },
-  { maxReps: 6,  pct: 0.80 },
-  { maxReps: 8,  pct: 0.75 },
-  { maxReps: 10, pct: 0.70 },
-  { maxReps: 12, pct: 0.67 },
-  { maxReps: 15, pct: 0.62 },
-];
-
-const DEFAULT_PCT = 0.55; // reps > 15
-
-// ─── Tabla de ajuste por fatiga (RPE medio) ──────────────────────────────────
-const FATIGUE_ADJUSTMENTS = [
-  { minRPE: 8.5, factor: 0.85 }, // Reducir 15%
-  { minRPE: 8.0, factor: 0.90 }, // Reducir 10%
-  { minRPE: 7.0, factor: 0.95 }, // Reducir 5%
-];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+import {
+  prescribeLoad,
+  computeNextSession,
+  estimateOneRM,
+  roundToPlate,
+  parseReps,
+  getRPETargetForGoal,
+  estimatePMax
+} from './overloadEngine';
 
 /**
- * Parsea un valor de repeticiones que puede venir como número, string,
- * rango ("8-12"), o con texto ("Al fallo-1", "10/lado").
- * Devuelve el número entero inferior o null si no aplica.
- */
-function parseReps(repsVal) {
-  if (typeof repsVal === 'number') return repsVal > 0 ? repsVal : null;
-  if (!repsVal || typeof repsVal !== 'string') return null;
-
-  let clean = repsVal.trim().toLowerCase();
-
-  // Descartar ejercicios sin repeticiones numéricas
-  if (clean.includes('fallo')) return null;
-
-  // Rangos: tomar el límite inferior (ej. "8" de "8-12")
-  if (clean.includes('-')) {
-    clean = clean.split('-')[0].trim();
-  }
-
-  // Lateralizados: "10/lado" → 10
-  if (clean.includes('/')) {
-    clean = clean.split('/')[0].trim();
-  }
-
-  const num = parseInt(clean, 10);
-  return isNaN(num) || num <= 0 ? null : num;
-}
-
-/**
- * Devuelve el porcentaje del 1RM correspondiente a las repeticiones objetivo.
- */
-function getPercentageForReps(reps) {
-  for (const entry of REP_PERCENTAGE_TABLE) {
-    if (reps <= entry.maxReps) return entry.pct;
-  }
-  return DEFAULT_PCT;
-}
-
-/**
- * Devuelve el factor de ajuste por fatiga según el RPE medio.
- * Si el RPE es inferior a 7 → sin ajuste (factor 1.0).
- */
-function getFatigueFactor(avgRPE) {
-  for (const entry of FATIGUE_ADJUSTMENTS) {
-    if (avgRPE > entry.minRPE) return entry.factor;
-  }
-  // La tabla de ajustes tiene minRPE 7.0 como mínimo.
-  // Si avgRPE es exactamente 7.0, entra en la condición avgRPE > 7.0 → false,
-  // así que verificamos el rango 7-8 explícitamente.
-  if (avgRPE >= 7.0) return 0.95;
-  return 1.0;
-}
-
-// ─── Función principal ───────────────────────────────────────────────────────
-
-/**
- * Sugiere la carga recomendada para un ejercicio.
- *
- * @param {string}       exerciseId  — ID del ejercicio
- * @param {number|string} targetReps — Repeticiones objetivo prescritas
- * @param {Array}         prs        — Array de PRs del atleta (de PRContext)
- * @param {Array}         sessionLogs — Array de logs de sesión completados (de localStorage)
- * @returns {{ load: number, oneRM: number, pct: number, fatigueFactor: number, avgRPE: number|null } | null}
+ * Wrapper de suggestLoad para compatibilidad con la versión anterior.
+ * Calcula el peso recomendado usando el nuevo motor de prescripción por Helms.
  */
 export function suggestLoad(exerciseId, targetReps, prs, sessionLogs) {
-  // ── PASO 1: Obtener 1RM actual ─────────────────────────────────────────────
+  // Obtener mejor 1RM de los PRs
   const exercisePRs = (prs || []).filter(pr => pr.exerciseId === exerciseId);
   if (exercisePRs.length === 0) return null;
 
-  const bestPR = exercisePRs.reduce((max, pr) =>
-    pr.valor > max.valor ? pr : max
-  );
+  const bestPR = exercisePRs.reduce((max, pr) => pr.valor > max.valor ? pr : max);
   const oneRM = bestPR.valor;
   if (!oneRM || oneRM <= 0) return null;
 
-  // ── PASO 2: Calcular % del 1RM según reps objetivo ─────────────────────────
   const reps = parseReps(targetReps);
-  if (reps === null) return null; // Ejercicio sin reps (solo duración) → sin sugerencia
+  if (reps === null) return null;
 
-  const pct = getPercentageForReps(reps);
-  let suggested = oneRM * pct;
+  // Derivar RPE target por defecto (8.0 por defecto para hipertrofia/gym)
+  const rpeTarget = 8.0;
 
-  // ── PASO 3: Ajuste por fatiga reciente ─────────────────────────────────────
-  // Buscar las últimas 3 sesiones que contengan este ejercicio
+  // Prescribir usando Helms
+  const prescription = prescribeLoad({ e1RM: oneRM, targetReps: reps, rpeTarget });
+
+  // Calcular fatiga de las últimas 3 sesiones para mantener compatibilidad con factor de fatiga
   const recentExerciseLogs = [];
   const logs = sessionLogs || [];
-
   for (let i = 0; i < logs.length && recentExerciseLogs.length < 3; i++) {
     const log = logs[i];
     const exInLog = (log.ejercicios || []).find(e => e.id === exerciseId);
@@ -137,88 +54,214 @@ export function suggestLoad(exerciseId, targetReps, prs, sessionLogs) {
         .map(set => parseFloat(set.rpe))
         .filter(v => !isNaN(v) && v > 0)
     );
-
     if (rpes.length > 0) {
       avgRPE = rpes.reduce((a, b) => a + b, 0) / rpes.length;
-      fatigueFactor = getFatigueFactor(avgRPE);
-      suggested *= fatigueFactor;
+      if (avgRPE > 8.5) fatigueFactor = 0.85;
+      else if (avgRPE > 8.0) fatigueFactor = 0.90;
+      else if (avgRPE >= 7.0) fatigueFactor = 0.95;
     }
   }
 
-  // Redondear al entero más cercano (mínimo 0)
-  const load = Math.max(0, Math.round(suggested));
+  // Carga final ajustada por fatiga en este fallback
+  const finalLoad = roundToPlate(prescription.prescribedLoad * fatigueFactor);
 
   return {
-    load,
+    load: finalLoad,
     oneRM: Math.round(oneRM),
-    pct: Math.round(pct * 100),
+    pct: prescription.pct1RM,
     fatigueFactor,
-    avgRPE: avgRPE !== null ? Math.round(avgRPE * 10) / 10 : null,
+    avgRPE: avgRPE !== null ? Math.round(avgRPE * 10) / 10 : null
   };
 }
 
 /**
- * Sobrecarga Progresiva Automática
- * Sugiere la carga para una serie específica basándose en el historial real del atleta.
- * Regla: +5% si el RPE fue < 10. Si el RPE fue 10, se mantiene el peso.
- * Redondeo al múltiplo de 1.25kg más cercano.
- * 
- * @param {string} exerciseName - Nombre del ejercicio para buscar en el historial
- * @param {number} setIndex - Índice de la serie (0 para la primera serie)
- * @param {Array} sessionLogs - Array de logs de sesión completados
- * @returns {{ suggestedLoad: number, reason: string, previousLoad: number, previousRpe: number } | null}
+ * Wrapper de suggestProgressiveOverload para compatibilidad.
+ * Busca el historial del ejercicio por nombre y llama a computeNextSession.
  */
 export function suggestProgressiveOverload(exerciseName, setIndex, sessionLogs) {
   if (!sessionLogs || sessionLogs.length === 0) return null;
 
-  // 1. Buscar la última vez que hizo este ejercicio
-  let lastLog = null;
-  let lastSetLog = null;
+  // 1. Extraer historial del ejercicio por nombre
+  const exerciseHistory = [];
+  let lastSessionExercise = null;
 
-  // sessionLogs suelen venir ordenados del más reciente al más antiguo, o al revés.
-  // Asumiremos que están ordenados cronológicamente (más antiguo al principio),
-  // por lo que iteramos hacia atrás para encontrar la más reciente.
-  for (let i = sessionLogs.length - 1; i >= 0; i--) {
+  // Iterar de más recientes a más antiguos
+  for (let i = 0; i < sessionLogs.length; i++) {
     const session = sessionLogs[i];
-    // Buscar si el ejercicio está en esta sesión (comparando por nombre en minúsculas)
-    const exInLog = (session.ejercicios || []).find(e => 
-      e.name?.toLowerCase().trim() === exerciseName?.toLowerCase().trim()
+    const ex = (session.ejercicios || []).find(e =>
+      e.nombre?.toLowerCase().trim() === exerciseName?.toLowerCase().trim()
     );
 
-    if (exInLog && exInLog.seriesLog && exInLog.seriesLog[setIndex]) {
-      lastLog = session;
-      lastSetLog = exInLog.seriesLog[setIndex];
-      break;
+    if (ex && ex.seriesLog && ex.seriesLog.length > 0) {
+      // Calcular promedio de RPE y carga de la sesión
+      const rpes = ex.seriesLog.map(s => parseFloat(s.rpe)).filter(v => !isNaN(v) && v > 0);
+      const loads = ex.seriesLog.map(s => parseFloat(s.carga)).filter(v => !isNaN(v) && v > 0);
+      const repsList = ex.seriesLog.map(s => parseReps(s.reps)).filter(v => v !== null);
+
+      if (loads.length > 0) {
+        const avgLoad = loads.reduce((a, b) => a + b, 0) / loads.length;
+        const avgRPE = rpes.length > 0 ? rpes.reduce((a, b) => a + b, 0) / rpes.length : 8.0;
+        const avgReps = repsList.length > 0 ? Math.round(repsList.reduce((a, b) => a + b, 0) / repsList.length) : 8;
+        const e1RM = estimateOneRM(avgLoad, avgReps);
+
+        const histEntry = {
+          date: session.fecha,
+          load: avgLoad,
+          avgRPE,
+          e1RM,
+          reps: avgReps
+        };
+        exerciseHistory.push(histEntry);
+
+        if (!lastSessionExercise) {
+          lastSessionExercise = { ex, session, avgLoad, avgRPE, avgReps, e1RM };
+        }
+      }
     }
   }
 
-  if (!lastSetLog) return null; // No hay historial para esta serie
+  if (!lastSessionExercise) return null;
 
-  const prevLoad = parseFloat(lastSetLog.carga);
-  const prevRpe = parseFloat(lastSetLog.rpe);
+  // Revertir para que esté en orden cronológico ascendente para el motor
+  exerciseHistory.reverse();
 
-  if (isNaN(prevLoad) || prevLoad <= 0) return null; // Sin carga anterior válida
+  // Obtener RPE target según tipo de sesión
+  const goalConfig = getRPETargetForGoal(lastSessionExercise.session.sessionType || 'gym');
+  const rpeTarget = goalConfig.rpeTarget;
 
-  let suggestedLoad = prevLoad;
-  let reason = '';
-
-  if (isNaN(prevRpe) || prevRpe < 10) {
-    // Sobrecarga del 5%
-    suggestedLoad = prevLoad * 1.05;
-    reason = '+5%';
-  } else {
-    // RPE 10 (Fallo) - Mantenemos peso
-    suggestedLoad = prevLoad;
-    reason = 'Mantenido (RPE 10)';
-  }
-
-  // Redondear al múltiplo de 1.25 más cercano
-  suggestedLoad = Math.round(suggestedLoad / 1.25) * 1.25;
+  // Calcular usando el nuevo motor
+  const result = computeNextSession({
+    lastLoad: lastSessionExercise.avgLoad,
+    lastAvgRPE: lastSessionExercise.avgRPE,
+    rpeTarget,
+    targetReps: lastSessionExercise.avgReps,
+    e1RM: lastSessionExercise.e1RM,
+    athleteLevel: 'intermedio', // default para compatibilidad
+    exerciseHistory
+  });
 
   return {
-    suggestedLoad,
-    reason,
-    previousLoad: prevLoad,
-    previousRpe: prevRpe
+    suggestedLoad: result.nextLoad,
+    reason: result.isDeloadSuggested ? 'Descarga (Estancamiento)' : `${result.improvePct >= 0 ? '+' : ''}${result.improvePct}%`,
+    previousLoad: lastSessionExercise.avgLoad,
+    previousRpe: lastSessionExercise.avgRPE
+  };
+}
+
+/**
+ * Obtiene la sugerencia unificada y desglosada para la UI moderna de sobrecarga.
+ */
+export function getFullSuggestion({
+  exerciseId,
+  exerciseName,
+  targetReps,
+  sessionType,
+  prs,
+  sessionLogs,
+  athleteLevel,
+  pMaxOverride = null
+}) {
+  const reps = parseReps(targetReps) || 8;
+  const level = athleteLevel || 'intermedio';
+
+  // 1. Obtener e1RM actual
+  const exercisePRs = (prs || []).filter(pr => pr.exerciseId === exerciseId);
+  const bestPR = exercisePRs.reduce((max, pr) => pr.valor > max.valor ? pr : max, null);
+  const e1RM = bestPR ? bestPR.valor : 0;
+
+  // 2. RPE Target
+  const goalConfig = getRPETargetForGoal(sessionType);
+  const rpeTarget = goalConfig.rpeTarget;
+
+  // 3. Si no hay e1RM, no se puede hacer mucho, se devuelve low confidence
+  if (!e1RM || e1RM <= 0) {
+    return {
+      prescribedLoad: 0,
+      nextSessionLoad: 0,
+      rpeTarget,
+      pct1RM: 0,
+      confidence: 'low',
+      reason: 'Sin datos previos'
+    };
+  }
+
+  // 4. Construir historial de las últimas sesiones para este ejercicio
+  const exerciseHistory = [];
+  let lastSessionExercise = null;
+
+  const logs = sessionLogs || [];
+  for (let i = 0; i < logs.length; i++) {
+    const log = logs[i];
+    const ex = (log.ejercicios || []).find(e =>
+      e.id === exerciseId || e.nombre?.toLowerCase().trim() === exerciseName?.toLowerCase().trim()
+    );
+
+    if (ex && ex.seriesLog && ex.seriesLog.length > 0) {
+      const rpes = ex.seriesLog.map(s => parseFloat(s.rpe)).filter(v => !isNaN(v) && v > 0);
+      const loads = ex.seriesLog.map(s => parseFloat(s.carga)).filter(v => !isNaN(v) && v > 0);
+      const repsList = ex.seriesLog.map(s => parseReps(s.reps)).filter(v => v !== null);
+
+      if (loads.length > 0) {
+        const avgLoad = loads.reduce((a, b) => a + b, 0) / loads.length;
+        const avgRPE = rpes.length > 0 ? rpes.reduce((a, b) => a + b, 0) / rpes.length : 8.0;
+        const avgReps = repsList.length > 0 ? Math.round(repsList.reduce((a, b) => a + b, 0) / repsList.length) : reps;
+        const sessionE1RM = estimateOneRM(avgLoad, avgReps);
+
+        exerciseHistory.push({
+          date: log.fecha,
+          load: avgLoad,
+          avgRPE,
+          e1RM: sessionE1RM,
+          reps: avgReps
+        });
+
+        if (!lastSessionExercise) {
+          lastSessionExercise = { ex, log, avgLoad, avgRPE, avgReps, sessionE1RM };
+        }
+      }
+    }
+  }
+
+  exerciseHistory.reverse();
+
+  // 5. Prescribir carga para la sesión de hoy
+  const prescription = prescribeLoad({ e1RM, targetReps: reps, rpeTarget });
+
+  // 6. Proyección para la próxima sesión si tuviéramos RPE real
+  let nextSessionLoad = prescription.prescribedLoad;
+  let overloadResult = null;
+
+  if (lastSessionExercise) {
+    overloadResult = computeNextSession({
+      lastLoad: lastSessionExercise.avgLoad,
+      lastAvgRPE: lastSessionExercise.avgRPE,
+      rpeTarget,
+      targetReps: reps,
+      e1RM,
+      athleteLevel: level,
+      exerciseHistory,
+      pMaxOverride
+    });
+    nextSessionLoad = overloadResult.nextLoad;
+  }
+
+  return {
+    prescribedLoad: prescription.prescribedLoad,
+    nextSessionLoad,
+    rpeTarget,
+    pct1RM: prescription.pct1RM,
+    e1RM,
+    confidence: overloadResult ? overloadResult.confidence : 'low',
+    isDeloadSuggested: overloadResult ? overloadResult.isDeloadSuggested : false,
+    deloadReason: overloadResult ? overloadResult.deloadReason : null,
+    deloadLoad: overloadResult ? overloadResult.deloadLoad : null,
+    weeklyImprovePct: overloadResult ? overloadResult.improvePct : 0,
+    breakdown: overloadResult ? overloadResult.breakdown : null,
+    lastSession: lastSessionExercise ? {
+      date: lastSessionExercise.log.fecha,
+      load: lastSessionExercise.avgLoad,
+      rpe: lastSessionExercise.avgRPE,
+      reps: lastSessionExercise.avgReps
+    } : null
   };
 }

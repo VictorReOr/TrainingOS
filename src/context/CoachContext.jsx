@@ -27,6 +27,10 @@ export function CoachProvider({ children }) {
     setAthletes(prev => prev.filter(a => a.id !== id));
   };
 
+  const updateAthlete = (id, updatedFields) => {
+    setAthletes(prev => prev.map(a => a.id === id ? { ...a, ...updatedFields } : a));
+  };
+
   const selectAthlete = (id) => {
     setSelectedAthleteId(id);
   };
@@ -44,6 +48,7 @@ export function CoachProvider({ children }) {
       selectedAthleteId,
       addAthlete,
       removeAthlete,
+      updateAthlete,
       selectAthlete,
       getAthleteById
     }}>

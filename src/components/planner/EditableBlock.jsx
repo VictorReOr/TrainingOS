@@ -121,6 +121,34 @@ export default function EditableBlock({
         </div>
       </div>
 
+      {/* ── OBJETIVO DEL BLOQUE ── */}
+      <div className="px-3 py-2 bg-black/5 border-b border-border/30 flex items-center justify-between gap-2">
+        <span className="text-[10px] font-black text-muted uppercase tracking-wider">Objetivo del bloque:</span>
+        <div className="flex gap-1.5 overflow-x-auto hide-scrollbar">
+          {[
+            { id: 'gym_fuerza', label: 'Fuerza' },
+            { id: 'gym_hipertrofia', label: 'Hipertrofia' },
+            { id: 'gym_potencia', label: 'Potencia' },
+            { id: 'resistencia', label: 'Resistencia' }
+          ].map(g => {
+            const active = (block.goal || 'gym_hipertrofia') === g.id;
+            return (
+              <button
+                key={g.id}
+                onClick={() => updateField('goal', g.id)}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-black transition-all ${
+                  active 
+                    ? 'bg-[#FF6B00] text-white shadow-sm border border-transparent'
+                    : 'bg-surface border border-border text-muted hover:text-text'
+                }`}
+              >
+                {g.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* ── EJERCICIOS DEL BLOQUE ── */}
       <div className="p-3 flex flex-col gap-2">
         {block.exercises.map((ex, i) => (

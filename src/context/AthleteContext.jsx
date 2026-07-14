@@ -13,6 +13,7 @@ const DEFAULT_ATHLETE = {
   ],
   activeSport: 'all', // 'all' | 'gym' | 'tkd' | 'cardio'
   primarySport: 'gym',
+  level: 'intermedio', // 'novato' | 'intermedio' | 'avanzado'
   onboardingCompleted: false
 };
 
@@ -82,6 +83,8 @@ export function AthleteProvider({ children }) {
     setAthlete(prev => ({ ...prev, primarySport: sportId }));
   };
 
+  const setLevel = (level) => updateProfile({ level });
+
   // Computed label for the pill button
   const activeLabel = useMemo(() => {
     if (athlete.activeSport === 'all') {
@@ -108,6 +111,7 @@ export function AthleteProvider({ children }) {
       addSport,
       toggleSport,
       setPrimarySport,
+      setLevel,
       viewMode,
       setViewMode
     }}>

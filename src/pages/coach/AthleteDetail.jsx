@@ -12,8 +12,11 @@ import { fetchWorkouts } from '../../services/sheets';
 import { parseWorkouts } from '../../utils/workoutParser';
 import { DownloadCloud } from 'lucide-react';
 
+import { getFullSuggestion } from '../../utils/loadSuggestion';
+
 const TABS = [
   { id: 'plan', label: 'Plan', icon: <CalendarDays size={18} /> },
+  { id: 'overload', label: 'Sobrecarga', icon: <Dumbbell size={18} /> },
   { id: 'evolution', label: 'Evolución', icon: <TrendingUp size={18} /> },
   { id: 'history', label: 'Historial', icon: <ClipboardList size={18} /> }
 ];
@@ -23,7 +26,7 @@ const DAYS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', '
 export default function AthleteDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { getAthleteById } = useCoach();
+  const { getAthleteById, updateAthlete } = useCoach();
   const athlete = getAthleteById(id);
 
   const [activeTab, setActiveTab] = useState('plan');
@@ -50,6 +53,66 @@ export default function AthleteDetail() {
   } = useAthletePlan(id);
   const { sessionLogs, prs, loading: evLoading } = useAthleteEvolution(id);
   const fatigue = useFatigue(id);
+
+  // Computaciones de sobrecarga progresiva
+  const athleteExercises = React.useMemo(() => {
+    const map = {};
+    sessionLogs.forEach(log => {
+      (log.ejercicios || []).forEach(ex => {
+        if (ex.id && !map[ex.id]) {
+          map[ex.id] = ex.nombre;
+        }
+      });
+    });
+    return Object.entries(map).map(([exId, name]) => ({ id: exId, name }));
+  }, [sessionLogs]);
+
+  const overloadData = React.useMemo(() => {
+    if (!athlete) return [];
+    const level = athlete.level || 'intermedio';
+    return athleteExercises.map(ex => {
+      const exercisePRs = (prs || []).filter(pr => pr.exerciseId === ex.id);
+      const bestPR = exercisePRs.reduce((max, pr) => pr.valor > max.valor ? pr : max, null);
+      const e1RM = bestPR ? bestPR.valor : 0;
+
+      const sugg = getFullSuggestion({
+        exerciseId: ex.id,
+        exerciseName: ex.name,
+        targetReps: 8,
+        sessionType: 'gym',
+        prs,
+        sessionLogs,
+        athleteLevel: level,
+        pMaxOverride: athlete.pMaxOverrides?.[ex.id] || null
+      });
+
+      return {
+        id: ex.id,
+        name: ex.name,
+        e1RM: Math.round(e1RM),
+        pct: sugg.weeklyImprovePct,
+        avgRPE: sugg.lastSession ? Math.round(sugg.lastSession.rpe * 10) / 10 : '-',
+        isDeload: sugg.isDeloadSuggested,
+        confidence: sugg.confidence,
+        pMax: sugg.breakdown ? Math.round(sugg.breakdown.pMax) : 0
+      };
+    });
+  }, [athleteExercises, prs, sessionLogs, athlete]);
+
+  const handleLevelChange = (lvl) => {
+    updateAthlete(athlete.id, { level: lvl });
+  };
+
+  const handlePMaxOverrideChange = (exId, val) => {
+    const parsed = parseFloat(val);
+    const overrides = athlete.pMaxOverrides || {};
+    updateAthlete(athlete.id, {
+      pMaxOverrides: {
+        ...overrides,
+        [exId]: isNaN(parsed) || parsed <= 0 ? null : parsed
+      }
+    });
+  };
 
   if (!athlete) return <div className="p-10 text-center">Atleta no encontrado.</div>;
 
@@ -206,6 +269,77 @@ export default function AthleteDetail() {
                 )
               })
             )}
+          </div>
+        )}
+
+        {/* OVERLOAD TAB */}
+        {activeTab === 'overload' && (
+          <div className="space-y-6">
+            <div className="bg-white border border-[#E8E8E4] rounded-2xl p-5 shadow-sm">
+              <h3 className="font-condensed font-black text-lg text-[#1C1C1E] uppercase tracking-wide mb-3">Nivel del Atleta</h3>
+              <div className="flex gap-2">
+                {['novato', 'intermedio', 'avanzado'].map(lvl => (
+                  <button
+                    key={lvl}
+                    onClick={() => handleLevelChange(lvl)}
+                    className={`flex-1 py-2.5 rounded-xl text-xs font-black uppercase transition-all border ${
+                      (athlete.level || 'intermedio') === lvl
+                        ? 'bg-[#FF6B00] border-transparent text-white shadow-sm'
+                        : 'bg-[#F5F5F0] border-[#E8E8E4] text-[#6E6E73] hover:text-[#1C1C1E]'
+                    }`}
+                  >
+                    {lvl === 'novato' ? '🟢 Novato' : lvl === 'avanzado' ? '🔴 Avanzado' : '🟡 Intermedio'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-white border border-[#E8E8E4] rounded-2xl p-5 shadow-sm overflow-hidden">
+              <h3 className="font-condensed font-black text-lg text-[#1C1C1E] uppercase tracking-wide mb-4">Ejercicios y Límites</h3>
+              {overloadData.length === 0 ? (
+                <p className="text-sm text-[#6E6E73] text-center py-4">Sin datos de ejercicios. El atleta debe completar entrenamientos.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-[#E8E8E4] text-[10px] text-[#6E6E73] uppercase font-bold">
+                        <th className="py-2 pr-4">Ejercicio</th>
+                        <th className="py-2 px-4 text-center">e1RM</th>
+                        <th className="py-2 px-4 text-center">Mejora/sem</th>
+                        <th className="py-2 px-4 text-center">RPE Real</th>
+                        <th className="py-2 px-4 text-center">Límite P_max</th>
+                        <th className="py-2 pl-4 text-right">Techo Manual</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#E8E8E4]">
+                      {overloadData.map(ex => (
+                        <tr key={ex.id} className="text-sm">
+                          <td className="py-3 pr-4 font-semibold text-[#1C1C1E]">
+                            {ex.name}
+                            {ex.isDeload && (
+                              <span className="ml-2 bg-red-100 text-red-600 text-[9px] font-black px-1.5 py-0.5 rounded uppercase">DELOAD</span>
+                            )}
+                          </td>
+                          <td className="py-3 px-4 text-center font-condensed font-black text-[#1C1C1E] text-base">{ex.e1RM}kg</td>
+                          <td className="py-3 px-4 text-center font-bold text-green-600">+{ex.pct}%</td>
+                          <td className="py-3 px-4 text-center font-semibold text-[#6E6E73]">{ex.avgRPE}</td>
+                          <td className="py-3 px-4 text-center font-bold text-[#1C1C1E]">{ex.pMax}kg</td>
+                          <td className="py-3 pl-4 text-right">
+                            <input
+                              type="number"
+                              placeholder="Fijar techo"
+                              value={athlete.pMaxOverrides?.[ex.id] || ''}
+                              onChange={(e) => handlePMaxOverrideChange(ex.id, e.target.value)}
+                              className="w-20 bg-[#F5F5F0] border border-[#E8E8E4] rounded-lg px-2 py-1 text-xs font-bold text-right text-[#1C1C1E] focus:border-[#FF6B00] outline-none"
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

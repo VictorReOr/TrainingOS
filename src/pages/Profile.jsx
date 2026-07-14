@@ -314,6 +314,34 @@ export default function Profile() {
           </div>
         </div>
 
+        {/* NIVEL DE EXPERIENCIA */}
+        <div className="bg-white border border-[#E8E8E4] rounded-3xl p-5 shadow-sm">
+          <h3 className="font-condensed font-black text-xl mb-4 tracking-wide uppercase text-[#1C1C1E]">Nivel de Experiencia</h3>
+          <div className="flex gap-2">
+            {[
+              { id: 'novato', label: 'Novato', emoji: '🟢' },
+              { id: 'intermedio', label: 'Intermedio', emoji: '🟡' },
+              { id: 'avanzado', label: 'Avanzado', emoji: '🔴' }
+            ].map(lvl => {
+              const isActive = (athlete.level || 'intermedio') === lvl.id;
+              return (
+                <button
+                  key={lvl.id}
+                  onClick={() => updateProfile({ level: lvl.id })}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-3 rounded-2xl font-bold text-sm transition-all ${
+                    isActive
+                      ? 'bg-[#FF6B00] text-white shadow-sm'
+                      : 'bg-[#F5F5F0] border border-[#E8E8E4] text-[#6E6E73] hover:border-[#1C1C1E]'
+                  }`}
+                >
+                  <span>{lvl.emoji}</span>
+                  <span>{lvl.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         {/* ATLETAS (SOLO COACH O AMBOS) */}
         {(currentUser?.role === 'coach' || currentUser?.role === 'both') && (
           <div className="bg-[#1C1C1E] text-white rounded-3xl p-5 shadow-sm">

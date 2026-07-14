@@ -1,7 +1,15 @@
 import React from 'react';
 import { Check } from 'lucide-react';
+import { useProgressiveOverload } from '../hooks/useProgressiveOverload';
 
-export default function ExerciseRow({ exercise, isDone, isActive, onToggle }) {
+export default function ExerciseRow({ exercise, sessionType = 'gym', isDone, isActive, onToggle }) {
+  const { weeklyImprovePct, isDeloadSuggested, trendDirection, hasHistory } = useProgressiveOverload(
+    exercise.id,
+    exercise.name,
+    exercise.reps || exercise.targetReps,
+    sessionType
+  );
+
   return (
     <div
       onClick={onToggle}
@@ -41,7 +49,7 @@ export default function ExerciseRow({ exercise, isDone, isActive, onToggle }) {
         </div>
 
         {/* Pills — solo borde, sin relleno */}
-        <div className="mt-2 flex flex-wrap gap-1.5">
+        <div className="mt-2 flex flex-wrap gap-1.5 items-center">
           {exercise.series && exercise.reps && (
             <span className="inline-block border border-[#E8E8E4] text-[#6E6E73] text-xs font-sans font-medium px-2.5 py-0.5 rounded-md tracking-wide">
               {exercise.series} × {exercise.reps}
@@ -60,6 +68,24 @@ export default function ExerciseRow({ exercise, isDone, isActive, onToggle }) {
           {exercise.notes && (
             <span className="inline-block border border-[#E8E8E4] text-[#6E6E73] text-xs font-sans font-medium px-2.5 py-0.5 rounded-md tracking-wide break-words max-w-full">
               {exercise.notes}
+            </span>
+          )}
+          {hasHistory && (
+            <span className={`inline-flex items-center gap-0.5 border text-[11px] font-sans font-bold px-2 py-0.5 rounded-md ${
+              isDeloadSuggested
+                ? 'border-red-200 text-red-500 bg-red-50'
+                : weeklyImprovePct > 0
+                ? 'border-green-200 text-green-600 bg-green-50'
+                : 'border-blue-200 text-blue-500 bg-blue-50'
+            }`}>
+              {isDeloadSuggested ? (
+                <>🔄 Descarga</>
+              ) : (
+                <>
+                  {trendDirection === 'up' || weeklyImprovePct > 0 ? '↗' : trendDirection === 'down' ? '↘' : '→'}{' '}
+                  {weeklyImprovePct > 0 ? `+${weeklyImprovePct}%` : 'Estable'}
+                </>
+              )}
             </span>
           )}
         </div>
