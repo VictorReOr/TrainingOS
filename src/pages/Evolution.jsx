@@ -393,10 +393,45 @@ export default function Evolution() {
     cmjLogs, 
     cardioTests, 
     bodyMetrics, 
-    cmjStats 
+    cmjStats,
+    saveMetrics
   } = useReadiness();
 
   const [activeTestSubTab, setActiveTestSubTab] = useState('wellness');
+
+  // Body Composition Form States
+  const [showAddMetrics, setShowAddMetrics] = useState(false);
+  const [metricWeight, setMetricWeight] = useState('');
+  const [metricFat, setMetricFat] = useState('');
+  const [metricWaist, setMetricWaist] = useState('');
+  const [metricArm, setMetricArm] = useState('');
+  const [metricThigh, setMetricThigh] = useState('');
+  const [isSavingMetrics, setIsSavingMetrics] = useState(false);
+
+  const handleSaveMetrics = async (e) => {
+    e.preventDefault();
+    if (!metricWeight) return;
+    setIsSavingMetrics(true);
+    try {
+      await saveMetrics({
+        peso: metricWeight,
+        grasa: metricFat,
+        medidaCintura: metricWaist,
+        medidaBrazo: metricArm,
+        medidaMuslo: metricThigh
+      });
+      setMetricWeight('');
+      setMetricFat('');
+      setMetricWaist('');
+      setMetricArm('');
+      setMetricThigh('');
+      setShowAddMetrics(false);
+    } catch (err) {
+      console.error('Error saving metrics', err);
+    } finally {
+      setIsSavingMetrics(false);
+    }
+  };
 
   const TABS = [
     { key: 'prs',      label: 'PRs',      Icon: Trophy },
@@ -1185,21 +1220,144 @@ export default function Evolution() {
 
             {activeTestSubTab === 'composition' && (
               <div className="bg-white border border-[#E8E8E4] rounded-2xl p-5 shadow-sm space-y-4">
-                <SectionHeader 
-                  title="Composición Corporal" 
-                  sub="Peso corporal y porcentaje de grasa" 
-                />
-
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {bodyMetrics.map(log => (
-                    <div key={log.id} className="flex justify-between items-center py-2 border-b border-[#E8E8E4] text-xs">
-                      <span className="font-bold text-[#1C1C1E]">{formatDate(log.fecha)}</span>
-                      <span className="font-condensed font-black text-sm text-[#1C1C1E]">
-                        {log.peso} kg {log.grasa ? `· ${log.grasa}% grasa` : ''}
-                      </span>
-                    </div>
-                  ))}
+                <div className="flex justify-between items-start">
+                  <SectionHeader 
+                    title="Composición Corporal" 
+                    sub="Peso corporal y porcentaje de grasa" 
+                  />
+                  {!showAddMetrics && (
+                    <button
+                      onClick={() => setShowAddMetrics(true)}
+                      className="px-3 py-1.5 bg-[#FFF3EC] text-[#FF6B00] border border-[#FDDCB5] rounded-xl font-condensed font-black text-xs hover:bg-[#FF6B00] hover:text-white transition-colors"
+                    >
+                      + NUEVO REGISTRO
+                    </button>
+                  )}
                 </div>
+
+                {/* Formulario de registro */}
+                {showAddMetrics && (
+                  <form onSubmit={handleSaveMetrics} className="bg-[#F5F5F0] border border-[#E8E8E4] rounded-2xl p-4 space-y-3 animate-fade-in-up">
+                    <h4 className="font-condensed font-black text-xs text-[#1C1C1E] uppercase tracking-wider">
+                      Registrar Composición Corporal
+                    </h4>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[10px] text-[#6E6E73] font-bold uppercase mb-1">Peso (kg) *</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          required
+                          value={metricWeight}
+                          onChange={e => setMetricWeight(e.target.value)}
+                          placeholder="75.5"
+                          className="w-full bg-white border border-[#E8E8E4] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#FF6B00]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-[#6E6E73] font-bold uppercase mb-1">Grasa (%)</label>
+                        <input
+                          type="number"
+                          step="0.1"
+                          value={metricFat}
+                          onChange={e => setMetricFat(e.target.value)}
+                          placeholder="14.2"
+                          className="w-full bg-white border border-[#E8E8E4] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#FF6B00]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <label className="block text-[9px] text-[#6E6E73] font-bold uppercase mb-1">Cintura (cm)</label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          value={metricWaist}
+                          onChange={e => setMetricWaist(e.target.value)}
+                          placeholder="82"
+                          className="w-full bg-white border border-[#E8E8E4] rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#FF6B00]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] text-[#6E6E73] font-bold uppercase mb-1">Brazo (cm)</label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          value={metricArm}
+                          onChange={e => setMetricArm(e.target.value)}
+                          placeholder="36"
+                          className="w-full bg-white border border-[#E8E8E4] rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#FF6B00]"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] text-[#6E6E73] font-bold uppercase mb-1">Muslo (cm)</label>
+                        <input
+                          type="number"
+                          step="0.5"
+                          value={metricThigh}
+                          onChange={e => setMetricThigh(e.target.value)}
+                          placeholder="58"
+                          className="w-full bg-white border border-[#E8E8E4] rounded-xl px-2.5 py-1.5 text-xs focus:outline-none focus:border-[#FF6B00]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowAddMetrics(false)}
+                        className="px-3 py-1.5 border border-[#E8E8E4] rounded-xl font-condensed font-bold text-xs text-[#6E6E73] bg-white hover:bg-[#FAFAFA]"
+                      >
+                        CANCELAR
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={isSavingMetrics}
+                        className="px-4 py-1.5 bg-[#FF6B00] text-white rounded-xl font-condensed font-black text-xs shadow-md disabled:opacity-50"
+                      >
+                        {isSavingMetrics ? 'GUARDANDO...' : 'GUARDAR'}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {bodyMetrics.length > 0 ? (
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {bodyMetrics.map(log => (
+                      <div key={log.id} className="flex justify-between items-start py-2.5 border-b border-[#E8E8E4] text-xs">
+                        <div>
+                          <span className="font-bold text-[#1C1C1E] block">{formatDate(log.fecha)}</span>
+                          {(log.medidaCintura || log.medidaBrazo || log.medidaMuslo) && (
+                            <span className="text-[10px] text-[#6E6E73] mt-0.5 block">
+                              {[
+                                log.medidaCintura && `📏 Cintura: ${log.medidaCintura}cm`,
+                                log.medidaBrazo && `💪 Brazo: ${log.medidaBrazo}cm`,
+                                log.medidaMuslo && `🍗 Muslo: ${log.medidaMuslo}cm`,
+                              ].filter(Boolean).join('  |  ')}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="font-condensed font-black text-sm text-[#1C1C1E] block">
+                            {log.peso} kg
+                          </span>
+                          {log.grasa && (
+                            <span className="text-[10px] text-green-600 font-bold block">
+                              {log.grasa}% grasa
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-[#E8E8E4] rounded-2xl text-[#6E6E73] text-xs p-4 text-center">
+                    <span>Sin registros de composición corporal.</span>
+                    <span className="text-[10px] text-[#8E8E93] mt-1">Registra tu peso para ver tu progreso histórico aquí.</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
