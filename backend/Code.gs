@@ -57,7 +57,7 @@ function initSheets() {
     'mesocycles':        ['id','season_id','atleta_id','nombre','tipo','fecha_inicio','semanas','objetivo','color','created_at'],
     'session_templates': ['id','atleta_id','nombre','tipo','deporte','duracion','ejercicios_count','bloques_json','created_at','updated_at'],
     'week_assignments':  ['id','atleta_id','fecha_iso','session_id','session_json','created_at'],
-    'prs':               ['id','exercise_id','exercise_name','atleta_id','fecha','valor','unidad','created_at'],
+    'prs':               ['id','exercise_id','exercise_name','atleta_id','fecha','valor','carga_real','reps_reales','unidad','created_at'],
     'timer_templates':   ['id','atleta_id','nombre','blocks_json','created_at'],
     'workouts':          ['rutina_id','dia','bloque','grupo_muscular','tipo','ejercicio','series','repeticiones','tiempo_ejecucion','tiempo_descanso'],
     'wellness_logs':     ['id','atleta_id','fecha','sleep','stress','doms','fatigue'],
@@ -207,6 +207,8 @@ function doPost(e) {
         atleta_id:     payload.atletaId     || 'unknown',
         fecha:         payload.fecha        || now,
         valor:         payload.valor        || 0,
+        carga_real:    payload.cargaReal    || 0,
+        reps_reales:   payload.repsReales   || 0,
         unidad:        payload.unidad       || 'kg',
         created_at:    now,
       });

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { savePR as _savePR } from '../services/sheets';
+import { savePR as _savePR, getPRs } from '../services/sheets';
 
 // ══════════════════════════════════════════════════════
 // PRContext — TrainingOS (Prompt 3.1)
@@ -36,6 +36,43 @@ export function PRProvider({ children }) {
   useEffect(() => {
     localStorage.setItem(LS_KEY, JSON.stringify(prs));
   }, [prs]);
+
+  // Sincronizar PRs desde Google Sheets al iniciar
+  useEffect(() => {
+    const syncPRsFromSheets = async () => {
+      const demoMode = localStorage.getItem('trainingos_demo_mode') === 'true';
+      if (!USE_SHEETS || demoMode) return;
+      try {
+        const atletaId = import.meta.env.VITE_ATLETA_ID || 'v-atleta-1';
+        const res = await getPRs(atletaId);
+        if (res && res.rows) {
+          const mapped = res.rows.map(r => ({
+            id: r.id || `pr-${Date.now()}-${Math.random()}`,
+            exerciseId: r.exercise_id,
+            exerciseName: r.exercise_name,
+            atletaId: r.atleta_id || atletaId,
+            fecha: r.fecha || new Date().toISOString(),
+            valor: parseFloat(r.valor) || 0,
+            cargaReal: parseFloat(r.carga_real) || parseFloat(r.valor) * 0.8,
+            repsReales: parseInt(r.reps_reales) || 5,
+            unidad: r.unidad || 'kg'
+          }));
+          // Combinar local y remoto sin duplicados
+          setPrs(prev => {
+            const merged = [...prev];
+            mapped.forEach(m => {
+              const exists = merged.some(p => p.id === m.id || (p.exerciseId === m.exerciseId && p.fecha === m.fecha));
+              if (!exists) merged.push(m);
+            });
+            return merged.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+          });
+        }
+      } catch (err) {
+        console.warn('[PRContext] Error fetching PRs from Sheets:', err);
+      }
+    };
+    syncPRsFromSheets();
+  }, []);
 
   /**
    * Devuelve el último récord máximo para un ejercicio
@@ -83,6 +120,8 @@ export function PRProvider({ children }) {
       atletaId: record.atletaId,
       fecha: record.fecha,
       valor: record.valor,
+      cargaReal: record.cargaReal,
+      repsReales: record.repsReales,
       unidad: record.unidad
     }));
   };
