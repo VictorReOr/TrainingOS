@@ -60,6 +60,9 @@ function initSheets() {
     'prs':               ['id','exercise_id','exercise_name','atleta_id','fecha','valor','unidad','created_at'],
     'timer_templates':   ['id','atleta_id','nombre','blocks_json','created_at'],
     'workouts':          ['rutina_id','dia','bloque','grupo_muscular','tipo','ejercicio','series','repeticiones','tiempo_ejecucion','tiempo_descanso'],
+    'wellness_logs':     ['id','atleta_id','fecha','sleep','stress','doms','fatigue'],
+    'performance_tests': ['id','atleta_id','fecha','tipo','valor','valor_original','unidad'],
+    'body_metrics':      ['id','atleta_id','fecha','peso','grasa','medidaCintura','medidaBrazo','medidaMuslo']
   };
 
   Object.keys(SCHEMAS).forEach(function(name) {
@@ -218,6 +221,49 @@ function doPost(e) {
         nombre:      payload.nombre   || payload.name   || '',
         blocks_json: JSON.stringify(payload.blocks      || []),
         created_at:  now,
+      });
+      return _ok({ id: id });
+    }
+
+    if (action === 'saveDailyWellness') {
+      var id = payload.id || Utilities.getUuid();
+      _appendRow('wellness_logs', {
+        id:          id,
+        atleta_id:   payload.atletaId || 'unknown',
+        fecha:       payload.fecha || now,
+        sleep:       payload.sleep || 5,
+        stress:      payload.stress || 5,
+        doms:        payload.doms || 5,
+        fatigue:     payload.fatigue || 5
+      });
+      return _ok({ id: id });
+    }
+
+    if (action === 'saveTestRecord') {
+      var id = payload.id || Utilities.getUuid();
+      _appendRow('performance_tests', {
+        id:             id,
+        atleta_id:      payload.atletaId || 'unknown',
+        fecha:          payload.fecha || now,
+        tipo:           payload.tipo || '',
+        valor:          payload.valor || 0,
+        valor_original: payload.valorOriginal || '',
+        unidad:         payload.unidad || ''
+      });
+      return _ok({ id: id });
+    }
+
+    if (action === 'saveBodyMetrics') {
+      var id = payload.id || Utilities.getUuid();
+      _appendRow('body_metrics', {
+        id:             id,
+        atleta_id:      payload.atletaId || 'unknown',
+        fecha:          payload.fecha || now,
+        peso:           payload.peso || 0,
+        grasa:          payload.grasa || '',
+        medidaCintura:  payload.medidaCintura || '',
+        medidaBrazo:    payload.medidaBrazo || '',
+        medidaMuslo:    payload.medidaMuslo || ''
       });
       return _ok({ id: id });
     }
