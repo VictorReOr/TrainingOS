@@ -34,7 +34,7 @@ export default function Home() {
 
   const streak = useMemo(() => {
     const today = new Date();
-    const DAYS_KEYS = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+    const DAYS_KEYS = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
     const SESSION_TYPE_COLORS = {
       gym_fuerza:      '#FF6B00',
       gym_hipertrofia: '#3d7dd4',
@@ -67,7 +67,7 @@ export default function Home() {
   const latestPR = prs.length > 0 ? prs[prs.length - 1] : null;
 
   // Today's session (mock from planner)
-  const DAYS_ES     = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const DAYS_ES     = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
   const todayKey    = DAYS_ES[new Date().getDay()];
   const todaySession = weekSessions?.[todayKey] || null;
 
