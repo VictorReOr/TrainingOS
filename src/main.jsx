@@ -12,28 +12,31 @@ import { PRProvider } from './context/PRContext'
 import { CoachProvider } from './context/CoachContext'
 import { FeedbackProvider } from './context/FeedbackContext'
 import { AuthProvider } from './context/AuthContext'
+import { ReadinessProvider } from './context/ReadinessContext'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <AuthProvider>
         <PRProvider>
-          <CoachProvider>
-          <PlannerProvider>
-            <SessionProvider>
-              <AthleteProvider>
-                <FeedbackProvider>
-                  <TimerProvider>
-                    <CircuitProvider>
-                      <App />
-                    </CircuitProvider>
-                  </TimerProvider>
-                </FeedbackProvider>
-              </AthleteProvider>
-            </SessionProvider>
-          </PlannerProvider>
-        </CoachProvider>
-      </PRProvider>
+          <ReadinessProvider>
+            <CoachProvider>
+            <PlannerProvider>
+              <SessionProvider>
+                <AthleteProvider>
+                  <FeedbackProvider>
+                    <TimerProvider>
+                      <CircuitProvider>
+                        <App />
+                      </CircuitProvider>
+                    </TimerProvider>
+                  </FeedbackProvider>
+                </AthleteProvider>
+              </SessionProvider>
+            </PlannerProvider>
+          </CoachProvider>
+          </ReadinessProvider>
+        </PRProvider>
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>,

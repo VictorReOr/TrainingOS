@@ -293,3 +293,30 @@ export async function getFeedback(sessionId, atletaId) {
       .filter(f => f.sessionId === sessionId && f.atletaId === atletaId),
   }));
 }
+
+/**
+ * Guarda un registro de test de rendimiento.
+ */
+export async function saveTestRecord(testData) {
+  return _request('POST', 'saveTestRecord', testData, async () => ({
+    status: 'success', id: `mock-test-${Date.now()}`
+  }));
+}
+
+/**
+ * Guarda el check-in diario de Wellness y disposición.
+ */
+export async function saveDailyWellness(wellnessData) {
+  return _request('POST', 'saveDailyWellness', wellnessData, async () => ({
+    status: 'success', id: `mock-well-${Date.now()}`
+  }));
+}
+
+/**
+ * Guarda el registro de antropometría / composición corporal.
+ */
+export async function saveBodyMetrics(metricsData) {
+  return _request('POST', 'saveBodyMetrics', metricsData, async () => ({
+    status: 'success', id: `mock-metrics-${Date.now()}`
+  }));
+}

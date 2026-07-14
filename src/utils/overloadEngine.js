@@ -289,3 +289,82 @@ export function parseReps(repsVal) {
 export function getRPETargetForGoal(sessionType) {
   return GOAL_DEFAULTS[sessionType] || { rpeTarget: 8.0, repsRange: [6, 12], label: 'General' };
 }
+
+/**
+ * Calcula el VO2Max a partir de la distancia recorrida en el test de Cooper (12 min).
+ * Fórmula: (distancia en metros - 504.9) / 44.73
+ */
+export function calculateCooperVO2Max(meters) {
+  if (isNaN(meters) || meters <= 504.9) return 0;
+  return Math.round(((meters - 504.9) / 44.73) * 10) / 10;
+}
+
+/**
+ * Calcula el VO2Max a partir de la velocidad final en el test Course-Navette (Beep Test).
+ * Fórmula para adultos: 31.025 + 3.238 * velocidadFinal - 3.248 * edad + 0.1536 * velocidadFinal * edad
+ */
+export function calculateBeepVO2Max(speedFinal, age) {
+  if (isNaN(speedFinal) || isNaN(age) || speedFinal <= 0 || age <= 0) return 0;
+  const vo2 = 31.025 + (3.238 * speedFinal) - (3.248 * age) + (0.1536 * speedFinal * age);
+  return Math.round(vo2 * 10) / 10;
+}
+
+/**
+ * Calcula la puntuación de disposición diaria (Readiness Score) y determina los ajustes de carga/volumen.
+ * @param {object} wellness - { sleep, stress, doms, fatigue } valorados de 1 a 5
+ * @param {number|null} cmjToday - altura del salto vertical hoy
+ * @param {number|null} cmjAvg - media del salto vertical de los últimos 30 días
+ */
+export function calculateReadinessAdjuster(wellness, cmjToday = null, cmjAvg = null) {
+  const { sleep = 5, stress = 5, doms = 5, fatigue = 5 } = wellness || {};
+  
+  // Normalizar WellnessScore de 0.0 a 1.0 (5 es excelente, 1 es pésimo)
+  const wellnessScore = (sleep + stress + doms + fatigue) / 20;
+
+  let jumpScore = 1.0;
+  let hasJump = false;
+  
+  if (cmjToday && cmjAvg && cmjAvg > 0) {
+    jumpScore = cmjToday / cmjAvg;
+    hasJump = true;
+  }
+
+  // Ponderación: 60% wellness, 40% salto CMJ (si existe), si no 100% wellness
+  const readinessScore = hasJump 
+    ? (wellnessScore * 0.6) + (Math.min(1.2, jumpScore) * 0.4)
+    : wellnessScore;
+
+  let loadFactor = 1.0;
+  let seriesModifier = 0; // 0 = sin cambio, -1 = quitar 1 serie, -99 = descarga (50%)
+  let status = 'normal';
+  let message = 'Tus niveles de fatiga y disposición son normales. Buen entreno.';
+
+  if (readinessScore >= 0.85) {
+    loadFactor = 1.05; // +5% empuje
+    seriesModifier = 0;
+    status = 'excelente';
+    message = '¡Estado óptimo detectado! Cargas aumentadas un 5% para la sesión de hoy.';
+  } else if (readinessScore >= 0.70) {
+    loadFactor = 1.0;
+    seriesModifier = 0;
+    status = 'normal';
+  } else if (readinessScore >= 0.55) {
+    loadFactor = 0.95; // Conservar / Ajustar ligeramente a la baja
+    seriesModifier = -1; // Reducir 1 serie
+    status = 'fatiga_leve';
+    message = 'Fatiga leve detectada. Carga disminuida un 5% y volumen reducido en 1 serie.';
+  } else {
+    loadFactor = 0.85; // Descarga reactiva (-15% carga)
+    seriesModifier = -99; // Mitad de series
+    status = 'fatiga_alta';
+    message = '¡Fatiga alta detectada! Se recomienda descarga reactiva (-15% de carga y -50% de series) por seguridad.';
+  }
+
+  return {
+    readinessScore: Math.round(readinessScore * 100) / 100,
+    loadFactor,
+    seriesModifier,
+    status,
+    message
+  };
+}

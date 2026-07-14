@@ -187,6 +187,58 @@ export default function EditableExercise({ exercise, onChange, onDelete }) {
             </div>
           </div>
 
+          {/* Test de Rendimiento */}
+          <div className="bg-surface/30 border border-border/50 rounded-xl p-3 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-text">¿Es un Test de Rendimiento?</span>
+              <button
+                type="button"
+                onClick={() => handleChange('isTest', !exercise.isTest)}
+                className={`relative w-10 h-5 rounded-full transition-colors duration-200 ${
+                  exercise.isTest ? 'bg-[#FF6B00]' : 'bg-border'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-4 h-4 bg-surface rounded-full shadow transition-transform duration-200 ${
+                    exercise.isTest ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+
+            {exercise.isTest && (
+              <div className="flex flex-col gap-2 animate-fade-in">
+                <label className="block text-[10px] font-black text-muted tracking-widest">TIPO DE TEST</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'AMRAP', label: 'AMRAP' },
+                    { id: '1RM', label: '1RM Real' },
+                    { id: '3RM', label: '3RM' },
+                    { id: '5RM', label: '5RM' },
+                    { id: 'Cooper', label: 'Cooper' },
+                    { id: 'Beep', label: 'Beep Test' }
+                  ].map(t => {
+                    const active = (exercise.testType || 'AMRAP') === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => handleChange('testType', t.id)}
+                        className={`py-2 rounded-lg text-xs font-bold transition-all border ${
+                          active 
+                            ? 'bg-[#FF6B00]/10 border-[#FF6B00]/50 text-[#FF6B00]'
+                            : 'bg-surface border-border text-muted hover:text-text'
+                        }`}
+                      >
+                        {t.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Notas */}
           <div>
             <label className="block text-[10px] font-black text-muted tracking-widest mb-1">NOTAS (Opcional)</label>
@@ -194,8 +246,8 @@ export default function EditableExercise({ exercise, onChange, onDelete }) {
               type="text"
               value={exercise.notes || ''}
               onChange={(e) => handleChange('notes', e.target.value)}
-              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm placeholder:text-muted/50 focus:border-blue outline-none"
-              placeholder="Instrucciones espciales..."
+              className="w-full bg-surface border border-border rounded-lg px-3 py-2 text-sm placeholder:text-muted/50 focus:border-[#FF6B00] outline-none"
+              placeholder="Instrucciones especiales..."
             />
           </div>
 

@@ -114,6 +114,20 @@ export default function AthleteDetail() {
     });
   };
 
+  const pupilWellness = React.useMemo(() => {
+    try {
+      const all = JSON.parse(localStorage.getItem('trainingos_wellness_logs') || '[]');
+      return all;
+    } catch { return []; }
+  }, []);
+
+  const pupilCMJ = React.useMemo(() => {
+    try {
+      const all = JSON.parse(localStorage.getItem('trainingos_cmj_logs') || '[]');
+      return all;
+    } catch { return []; }
+  }, []);
+
   if (!athlete) return <div className="p-10 text-center">Atleta no encontrado.</div>;
 
   const handleOpenAssign = (day) => {
@@ -292,6 +306,44 @@ export default function AthleteDetail() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* WIDGET DE READINESS Y FATIGA DEL SNC */}
+            <div className="bg-white border border-[#E8E8E4] rounded-2xl p-5 shadow-sm space-y-4">
+              <h3 className="font-condensed font-black text-lg text-[#1C1C1E] uppercase tracking-wide mb-1 flex items-center gap-2">
+                <Activity size={18} className="text-[#FF6B00]" />
+                Estado de Readiness del Alumno
+              </h3>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-[#F5F5F0] border border-[#E8E8E4] rounded-xl p-3.5">
+                  <span className="text-[10px] text-[#6E6E73] font-bold block uppercase tracking-wider">Cuestionario Wellness</span>
+                  <span className="font-condensed font-black text-2xl text-[#1C1C1E] block mt-1">
+                    {pupilWellness.length > 0 
+                      ? `${(pupilWellness.reduce((acc, curr) => acc + (curr.sleep + curr.stress + curr.doms + curr.fatigue) / 4, 0) / pupilWellness.length).toFixed(1)} / 5.0`
+                      : 'Sin Datos'}
+                  </span>
+                  <span className="text-[9px] text-[#8E8E93] block mt-0.5">Media acumulada de disposición</span>
+                </div>
+
+                <div className="bg-[#F5F5F0] border border-[#E8E8E4] rounded-xl p-3.5">
+                  <span className="text-[10px] text-[#6E6E73] font-bold block uppercase tracking-wider">Último Salto CMJ</span>
+                  <span className="font-condensed font-black text-2xl text-[#FF6B00] block mt-1">
+                    {pupilCMJ.length > 0 
+                      ? `${pupilCMJ[0].valor} cm`
+                      : 'Sin Datos'}
+                  </span>
+                  <span className="text-[9px] text-[#8E8E93] block mt-0.5">Neuromuscular (salto CMJ)</span>
+                </div>
+              </div>
+
+              {pupilWellness.length > 0 && (
+                <div className="border-t border-[#E8E8E4] pt-3">
+                  <p className="text-xs text-[#6E6E73] leading-relaxed">
+                    • <strong>Último check-in ({new Date(pupilWellness[0].fecha).toLocaleDateString()}):</strong> Sueño {pupilWellness[0].sleep}/5, Fatiga {pupilWellness[0].fatigue}/5.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="bg-white border border-[#E8E8E4] rounded-2xl p-5 shadow-sm overflow-hidden">

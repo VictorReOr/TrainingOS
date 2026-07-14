@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Trophy, TrendingUp, ClipboardList, ChevronRight, X, ChevronDown, Search, Share2, RotateCcw } from 'lucide-react';
+import { Trophy, TrendingUp, ClipboardList, ChevronRight, X, ChevronDown, Search, Share2, RotateCcw, Activity, Heart } from 'lucide-react';
 import { usePR } from '../context/PRContext';
 import { useAthlete } from '../context/AthleteContext';
 import { useSession } from '../context/SessionContext';
 import { useFeedback } from '../context/FeedbackContext';
+import { useReadiness } from '../context/ReadinessContext';
 import SportSelector from '../components/SportSelector';
 import FeedbackSection from '../components/FeedbackSection';
 import { useEvolutionData } from '../hooks/useEvolutionData';
@@ -387,9 +388,20 @@ export default function Evolution() {
   }, [sessionLogs]);
   const rpeColor   = meanRPE < 7 ? '#27ae60' : meanRPE <= 8.5 ? '#FF6B00' : '#EF4444';
 
+  const { 
+    wellnessLogs, 
+    cmjLogs, 
+    cardioTests, 
+    bodyMetrics, 
+    cmjStats 
+  } = useReadiness();
+
+  const [activeTestSubTab, setActiveTestSubTab] = useState('wellness');
+
   const TABS = [
     { key: 'prs',      label: 'PRs',      Icon: Trophy },
     { key: 'graficas', label: 'Gráficas', Icon: TrendingUp },
+    { key: 'tests',    label: 'Tests',    Icon: Activity },
     { key: 'historial',label: 'Historial',Icon: ClipboardList },
   ];
 
@@ -512,6 +524,30 @@ export default function Evolution() {
                 }`}
               >
                 {cat}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Category chips Tests */}
+        {activeTab === 'tests' && (
+          <div className="flex overflow-x-auto gap-2 hide-scrollbar pt-3 -mx-5 px-5 pb-0.5">
+            {[
+              { id: 'wellness', label: 'Wellness' },
+              { id: 'cmj', label: 'Salto CMJ' },
+              { id: 'cardio', label: 'Cardio' },
+              { id: 'composition', label: 'Composición' }
+            ].map(sub => (
+              <button
+                key={sub.id}
+                onClick={() => setActiveTestSubTab(sub.id)}
+                className={`whitespace-nowrap px-4 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                  activeTestSubTab === sub.id
+                    ? 'border-[#FF6B00] text-[#FF6B00] bg-[#FFF3EC]'
+                    : 'border-[#E8E8E4] text-[#6E6E73] bg-white'
+                }`}
+              >
+                {sub.label}
               </button>
             ))}
           </div>
@@ -960,6 +996,212 @@ export default function Evolution() {
                 {content}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* ── TESTS ── */}
+        {activeTab === 'tests' && (
+          <div className="space-y-4 animate-fade-in-up">
+            {activeTestSubTab === 'wellness' && (
+              <div className="bg-white border border-[#E8E8E4] rounded-2xl p-5 shadow-sm space-y-4">
+                <SectionHeader 
+                  title="Historial de Wellness Index" 
+                  sub="Disposición general acumulada del atleta" 
+                />
+                
+                {wellnessLogs.length > 0 ? (
+                  <>
+                    <div style={{ width: '100%', height: 180 }}>
+                      <ResponsiveContainer>
+                        <LineChart data={[...wellnessLogs].reverse()} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" vertical={false} />
+                          <XAxis dataKey="fecha" tickFormatter={formatShortDate} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="#E8E8E4" />
+                          <YAxis domain={[1, 5]} ticks={[1,2,3,4,5]} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="#E8E8E4" />
+                          <Tooltip content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const data = payload[0].payload;
+                              return (
+                                <div className="bg-white border border-[#E8E8E4] p-3 rounded-xl shadow-lg text-xs space-y-1 font-sans">
+                                  <p className="font-bold text-[#1C1C1E]">{formatDate(data.fecha)}</p>
+                                  <p className="text-blue-600 font-semibold">Sueño: {data.sleep}/5</p>
+                                  <p className="text-purple-600 font-semibold">Estrés: {data.stress}/5</p>
+                                  <p className="text-red-500 font-semibold">Agujetas: {data.doms}/5</p>
+                                  <p className="text-amber-500 font-semibold">Fatiga: {data.fatigue}/5</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }} />
+                          <Line type="monotone" name="Sueño" dataKey="sleep" stroke="#007AFF" strokeWidth={2} dot={{ r: 3 }} />
+                          <Line type="monotone" name="Fatiga" dataKey="fatigue" stroke="#FF6B00" strokeWidth={2} dot={{ r: 3 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {wellnessLogs.map(log => {
+                        const score = (log.sleep + log.stress + log.doms + log.fatigue) / 4;
+                        return (
+                          <div key={log.id} className="flex justify-between items-center py-2 border-b border-[#E8E8E4] text-xs">
+                            <div>
+                              <span className="font-bold block text-[#1C1C1E]">{formatDate(log.fecha)}</span>
+                              <span className="text-[#6E6E73]">Sueño: {log.sleep} · Estrés: {log.stress} · Agujetas: {log.doms} · Fatiga: {log.fatigue}</span>
+                            </div>
+                            <span className={`font-condensed font-black text-sm px-2 py-0.5 rounded ${
+                              score >= 4 ? 'bg-green-100 text-green-700' : score >= 2.5 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                            }`}>
+                              {score.toFixed(1)}/5
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-[#E8E8E4] rounded-2xl text-[#6E6E73] text-xs p-4 text-center">
+                    <span>Sin registros de check-in Wellness.</span>
+                    <span className="text-[10px] text-[#8E8E93] mt-1">Completa tu check-in diario al iniciar una sesión.</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTestSubTab === 'cmj' && (
+              <div className="bg-white border border-[#E8E8E4] rounded-2xl p-5 shadow-sm space-y-4">
+                <SectionHeader 
+                  title="Test de Salto CMJ" 
+                  sub="Fatiga neuromuscular objetiva acumulada" 
+                />
+                
+                {cmjLogs.length > 0 ? (
+                  <>
+                    <div className="bg-[#FFFDF0] border border-yellow-500/20 rounded-xl p-4 flex justify-between items-center">
+                      <div>
+                        <span className="text-[10px] text-[#6E6E73] font-bold block uppercase tracking-wider">Media 30 Días</span>
+                        <span className="font-condensed font-black text-2xl text-[#1C1C1E]">{cmjStats.avg30d} cm</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[10px] text-[#6E6E73] font-bold block uppercase tracking-wider">Último Salto</span>
+                        <span className="font-condensed font-black text-2xl text-[#FF6B00]">{cmjStats.lastJump} cm</span>
+                      </div>
+                    </div>
+
+                    <div style={{ width: '100%', height: 180 }}>
+                      <ResponsiveContainer>
+                        <LineChart data={[...cmjLogs].reverse()} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" vertical={false} />
+                          <XAxis dataKey="fecha" tickFormatter={formatShortDate} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="#E8E8E4" />
+                          <YAxis tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="#E8E8E4" />
+                          <Tooltip content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const data = payload[0].payload;
+                              return (
+                                <div className="bg-white border border-[#E8E8E4] p-3 rounded-xl shadow-lg text-xs font-sans">
+                                  <p className="font-bold text-[#1C1C1E]">{formatDate(data.fecha)}</p>
+                                  <p className="text-[#FF6B00] font-black">Salto: {data.valor} cm</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }} />
+                          <Line type="monotone" dataKey="valor" stroke="#FF6B00" strokeWidth={2.5} dot={{ r: 4, fill: '#FF6B00', stroke: 'white', strokeWidth: 2 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {cmjLogs.map(log => (
+                        <div key={log.id} className="flex justify-between items-center py-2 border-b border-[#E8E8E4] text-xs">
+                          <span className="font-bold text-[#1C1C1E]">{formatDate(log.fecha)}</span>
+                          <span className="font-condensed font-black text-sm text-[#1C1C1E]">{log.valor} cm</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-[#E8E8E4] rounded-2xl text-[#6E6E73] text-xs p-4 text-center">
+                    <span>Sin registros de salto vertical.</span>
+                    <span className="text-[10px] text-[#8E8E93] mt-1">Registra tu test de salto en el check-in diario.</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTestSubTab === 'cardio' && (
+              <div className="bg-white border border-[#E8E8E4] rounded-2xl p-5 shadow-sm space-y-4">
+                <SectionHeader 
+                  title="Capacidad Cardiovascular (VO2Max)" 
+                  sub="Evolución de tu potencia aeróbica" 
+                />
+
+                {cardioTests.length > 0 ? (
+                  <>
+                    <div style={{ width: '100%', height: 180 }}>
+                      <ResponsiveContainer>
+                        <LineChart data={[...cardioTests].reverse()} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#E8E8E4" vertical={false} />
+                          <XAxis dataKey="fecha" tickFormatter={formatShortDate} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="#E8E8E4" />
+                          <YAxis tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="#E8E8E4" />
+                          <Tooltip content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const data = payload[0].payload;
+                              return (
+                                <div className="bg-white border border-[#E8E8E4] p-3 rounded-xl shadow-lg text-xs space-y-1 font-sans">
+                                  <p className="font-bold text-[#1C1C1E]">{formatDate(data.fecha)}</p>
+                                  <p className="text-green-600 font-bold">VO2Max: {data.valor} ml/kg/min</p>
+                                  <p className="text-[#6E6E73] font-semibold">Test: {data.tipo === 'cooper' ? `Cooper (${data.valorOriginal}m)` : `Beep Test (${data.valorOriginal} km/h)`}</p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }} />
+                          <Line type="monotone" dataKey="valor" stroke="#34C759" strokeWidth={2.5} dot={{ r: 4, fill: '#34C759', stroke: 'white', strokeWidth: 2 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {cardioTests.map(log => (
+                        <div key={log.id} className="flex justify-between items-center py-2 border-b border-[#E8E8E4] text-xs">
+                          <div>
+                            <span className="font-bold block text-[#1C1C1E]">{formatDate(log.fecha)}</span>
+                            <span className="text-[#6E6E73] capitalize">{log.tipo === 'cooper' ? `Test de Cooper: ${log.valorOriginal}m` : `Course-Navette: ${log.valorOriginal} km/h`}</span>
+                          </div>
+                          <span className="font-condensed font-black text-sm text-green-700 bg-green-50 px-2.5 py-1 rounded">
+                            {log.valor} ml/kg/min
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-[#E8E8E4] rounded-2xl text-[#6E6E73] text-xs p-4 text-center">
+                    <span>Sin registros de tests cardiovasculares.</span>
+                    <span className="text-[10px] text-[#8E8E93] mt-1">Pídele a tu Coach que te planifique un Test de Cooper o Beep Test.</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTestSubTab === 'composition' && (
+              <div className="bg-white border border-[#E8E8E4] rounded-2xl p-5 shadow-sm space-y-4">
+                <SectionHeader 
+                  title="Composición Corporal" 
+                  sub="Peso corporal y porcentaje de grasa" 
+                />
+
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {bodyMetrics.map(log => (
+                    <div key={log.id} className="flex justify-between items-center py-2 border-b border-[#E8E8E4] text-xs">
+                      <span className="font-bold text-[#1C1C1E]">{formatDate(log.fecha)}</span>
+                      <span className="font-condensed font-black text-sm text-[#1C1C1E]">
+                        {log.peso} kg {log.grasa ? `· ${log.grasa}% grasa` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

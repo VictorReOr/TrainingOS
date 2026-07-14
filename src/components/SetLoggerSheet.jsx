@@ -42,14 +42,49 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
     hasHistory
   } = useProgressiveOverload(exercise.id, exercise.name, exercise.reps || exercise.targetReps, sessionType || 'gym');
 
+  const [readiness, setReadiness] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem('trainingos_today_readiness');
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  });
+
+  useEffect(() => {
+    const handleReadinessUpdate = () => {
+      try {
+        const raw = sessionStorage.getItem('trainingos_today_readiness');
+        setReadiness(raw ? JSON.parse(raw) : null);
+      } catch {}
+    };
+    window.addEventListener('readiness_checkin_completed', handleReadinessUpdate);
+    return () => window.removeEventListener('readiness_checkin_completed', handleReadinessUpdate);
+  }, []);
+
+  const loadFactor = readiness ? readiness.factor : 1.0;
+  const seriesModifier = readiness ? readiness.modifier : 0;
+
+  const suggestedVal = useMemo(() => {
+    const base = isDeloadSuggested ? deloadLoad : prescribedLoad;
+    if (exercise.isTest) return base > 0 ? base : (parseFloat(exercise.loadRef) || 0);
+    return Math.round((base * loadFactor) / 1.25) * 1.25;
+  }, [prescribedLoad, isDeloadSuggested, deloadLoad, loadFactor, exercise.isTest, exercise.loadRef]);
+
   useEffect(() => {
     if (isVisible && !hasPrefilled.current) {
       hasPrefilled.current = true;
       const targetReps = exercise.reps || exercise.targetReps || '';
       
-      const suggestedVal = isDeloadSuggested ? deloadLoad : prescribedLoad;
       if (suggestedVal > 0) {
         logs.forEach((_, idx) => {
+          // Si es descarga por fatiga (seriesModifier === -99) y es la segunda mitad de series, no rellenar
+          if (seriesModifier === -99 && idx >= Math.ceil(logs.length / 2)) {
+            return;
+          }
+          // Si es fatiga leve (seriesModifier === -1) y es la última serie, no rellenar
+          if (seriesModifier === -1 && idx === logs.length - 1) {
+            return;
+          }
+
           if (!logs[idx].carga) {
             onLogChange(idx, 'carga', suggestedVal);
           }
@@ -62,7 +97,7 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
         }
       });
     }
-  }, [isVisible, prescribedLoad, isDeloadSuggested, deloadLoad, logs, onLogChange, exercise.reps, exercise.targetReps]);
+  }, [isVisible, suggestedVal, seriesModifier, logs, onLogChange, exercise.reps, exercise.targetReps]);
 
   const navigate = useNavigate();
   const { startRest, startCountdown, stopTimer, mode, status, timeMs, setMode, setTimeMs } = useTimer();
@@ -214,8 +249,55 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
         {/* SERIES */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
           
-          {/* SUGERENCIA INTELIGENTE DE SOBRECARGA */}
-          {prescribedLoad > 0 ? (
+          {/* SUGERENCIA DE TESTS O SOBRECARGA */}
+          {exercise.isTest ? (
+            <div className="bg-[#FFFDF0] border border-yellow-500/40 rounded-2xl p-4 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">🏆</span>
+                  <div>
+                    <h4 className="font-condensed font-black text-[#1C1C1E] text-base leading-none">
+                      Test Activo: {exercise.testType || 'AMRAP'}
+                    </h4>
+                    <p className="text-[9px] text-[#D4AF37] font-bold uppercase tracking-wider mt-1">
+                      Medición de Potencial de Fuerza
+                    </p>
+                  </div>
+                </div>
+                <span className="bg-[#FF6B00] text-[#1C1C1E] font-condensed font-black text-[9px] px-2.5 py-0.5 rounded-full uppercase tracking-wider leading-none">
+                  RPE 10 (Fallo)
+                </span>
+              </div>
+
+              <div className="flex items-baseline gap-2">
+                <span className="font-condensed font-black text-3xl text-[#1C1C1E]">
+                  {suggestedVal} kg
+                </span>
+                <span className="text-xs font-bold text-[#6E6E73]">
+                  {exercise.testType === 'AMRAP' 
+                    ? '× Máximas repeticiones posibles'
+                    : `× ${exercise.testType} reps máx.`}
+                </span>
+              </div>
+
+              <div className="text-[11px] text-[#6E6E73] leading-relaxed space-y-1">
+                <p>• Este test recalibrará tu 1RM estimado y desbloqueará tu techo de sobrecarga progresiva ($P_{max}$).</p>
+                <p className="text-[#FF6B00] font-bold">• Instrucción: Entrena con total concentración hasta el fallo técnico.</p>
+                {readiness && (
+                  <p className="text-amber-600 font-bold">• Disposición diaria de hoy: {Math.round(readiness.score * 100)}% ({readiness.status})</p>
+                )}
+              </div>
+
+              <button
+                onClick={() => {
+                  logs.forEach((_, idx) => onLogChange(idx, 'carga', suggestedVal));
+                }}
+                className="w-full py-2 bg-white border border-[#FF6B00] text-[#FF6B00] font-condensed font-black text-xs rounded-xl hover:bg-[#FF6B00] hover:text-white transition-all uppercase tracking-wider active:scale-[0.98]"
+              >
+                Aplicar peso de test
+              </button>
+            </div>
+          ) : prescribedLoad > 0 ? (
             <div className="bg-[#FFF3EC] border border-[#FF6B00]/30 rounded-2xl p-4 flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -238,7 +320,7 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
 
               <div className="flex items-baseline gap-2">
                 <span className="font-condensed font-black text-3xl text-[#1C1C1E]">
-                  {isDeloadSuggested ? deloadLoad : prescribedLoad} kg
+                  {suggestedVal} kg
                 </span>
                 <span className="text-xs font-bold text-[#6E6E73]">
                   × {exercise.reps || exercise.targetReps || '8'} reps @RPE {rpeTarget}
@@ -255,12 +337,21 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
                     {lastSession && <p>• Sesión anterior ({lastSession.date.slice(5, 10)}): {lastSession.load}kg × {lastSession.reps} reps (RPE {lastSession.rpe}).</p>}
                   </>
                 )}
+                {readiness && (
+                  <div className="bg-amber-50 border border-amber-200/50 rounded-lg p-2 mt-2 text-[10px] text-amber-800 space-y-0.5">
+                    <p className="font-bold">⚠️ Autorregulación Activa ({Math.round(readiness.score * 100)}% Readiness):</p>
+                    <p>{readiness.message}</p>
+                  </div>
+                )}
               </div>
 
               <button
                 onClick={() => {
-                  const val = isDeloadSuggested ? deloadLoad : prescribedLoad;
-                  logs.forEach((_, idx) => onLogChange(idx, 'carga', val));
+                  logs.forEach((_, idx) => {
+                    if (seriesModifier === -99 && idx >= Math.ceil(logs.length / 2)) return;
+                    if (seriesModifier === -1 && idx === logs.length - 1) return;
+                    onLogChange(idx, 'carga', suggestedVal);
+                  });
                 }}
                 className="w-full py-2 bg-white border border-[#FF6B00] text-[#FF6B00] font-condensed font-black text-xs rounded-xl hover:bg-[#FF6B00] hover:text-white transition-all uppercase tracking-wider active:scale-[0.98]"
               >

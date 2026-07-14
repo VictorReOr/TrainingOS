@@ -41,11 +41,16 @@ export default function ExerciseRow({ exercise, sessionType = 'gym', isDone, isA
           {exercise.orderNumber}
         </div>
         <div
-          className={`font-sans font-semibold text-sm leading-snug transition-all duration-200 ${
+          className={`font-sans font-semibold text-sm leading-snug transition-all duration-200 flex items-center gap-1.5 flex-wrap ${
             isDone ? 'text-[#6E6E73] line-through' : 'text-[#1C1C1E]'
           }`}
         >
-          {exercise.name}
+          <span>{exercise.name}</span>
+          {exercise.isTest && (
+            <span className="bg-[#FF6B00] text-[#1C1C1E] text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-widest inline-block leading-none">
+              🏆 TEST {exercise.testType || 'AMRAP'}
+            </span>
+          )}
         </div>
 
         {/* Pills — solo borde, sin relleno */}

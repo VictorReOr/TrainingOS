@@ -10,6 +10,8 @@ import { useTimer } from '../context/TimerContext';
 import { useSession } from '../context/SessionContext';
 import { usePR } from '../context/PRContext';
 import { saveLog } from '../services/sheets';
+import { useReadiness } from '../context/ReadinessContext';
+import ReadinessModal from '../components/ReadinessModal';
 
 const BLOCK_COLORS = {
   calentamiento: '#FFCC00',
@@ -43,6 +45,15 @@ export default function Session() {
   const [isSaving, setIsSaving]             = useState(false);
   const [toastMsg, setToastMsg]             = useState('');
 
+  const { todayCheckIn } = useReadiness();
+  const [showReadiness, setShowReadiness] = useState(false);
+
+  useEffect(() => {
+    if (!todayCheckIn && sessionData) {
+      setShowReadiness(true);
+    }
+  }, [todayCheckIn, sessionData]);
+
   // Se elimina la limpieza en unmount para evitar bug de React 18 StrictMode
   // useEffect(() => { return () => clearSession(); }, []);
 
@@ -58,6 +69,21 @@ export default function Session() {
         <p className="text-[#6E6E73] mt-2 mb-6">
           Ve a tu Planificador y pulsa "Empezar" en la sesión que te toque hoy.
         </p>
+
+        {!todayCheckIn ? (
+          <button
+            onClick={() => setShowReadiness(true)}
+            className="px-6 py-3 bg-[#FF6B00] text-white font-condensed font-black rounded-2xl shadow-[0_4px_12px_rgba(255,107,0,0.2)] hover:bg-[#E85D04] active:scale-95 transition-transform tracking-wide"
+          >
+            REALIZAR CHECK-IN DIARIO
+          </button>
+        ) : (
+          <div className="bg-[#EFFFEC] border border-green-500/20 text-green-700 px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-1.5">
+            <span>✓</span> Check-in de hoy completado
+          </div>
+        )}
+
+        {showReadiness && <ReadinessModal onClose={() => setShowReadiness(false)} />}
       </div>
     );
   }
@@ -300,6 +326,23 @@ export default function Session() {
         <p className="text-[#6E6E73] text-sm font-medium">
           Toca cada ejercicio para registrar tus series
         </p>
+
+        {/* Check-in status bar */}
+        <div className="mt-4 flex justify-between items-center bg-[#F5F5F0] border border-[#E8E8E4] rounded-2xl px-4 py-2.5 text-xs">
+          <div className="flex items-center gap-2 text-[#6E6E73] font-semibold">
+            <span>📋</span>
+            <span>Check-in de disposición:</span>
+            <span className={`font-black uppercase ${todayCheckIn ? 'text-green-600' : 'text-amber-500 animate-pulse'}`}>
+              {todayCheckIn ? '✓ Completado' : '⚠️ Pendiente'}
+            </span>
+          </div>
+          <button 
+            onClick={() => setShowReadiness(true)}
+            className="text-[#FF6B00] font-black uppercase hover:underline text-[11px] tracking-wider"
+          >
+            {todayCheckIn ? 'Ajustar' : 'Iniciar'}
+          </button>
+        </div>
       </div>
 
       {/* PROGRESS */}
@@ -445,6 +488,9 @@ export default function Session() {
 
       {/* TIMER SHEET */}
       {isTimerOpen && <TimerSheet onClose={() => setIsTimerOpen(false)} />}
+
+      {/* READINESS DAILY CHECK-IN */}
+      {showReadiness && <ReadinessModal onClose={() => setShowReadiness(false)} />}
     </div>
   );
 }
