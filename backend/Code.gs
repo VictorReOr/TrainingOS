@@ -277,6 +277,50 @@ function doPost(e) {
   }
 }
 
+// ─── Workouts sheet reader (getDisplayValues para columnas de texto libre) ─────
+/**
+ * Lee la hoja 'workouts' usando dos pasadas:
+ *   - getValues()        → columnas de identidad (pueden ser número/texto normal)
+ *   - getDisplayValues() → columnas de texto libre (series, repeticiones,
+ *                          tiempo_ejecucion, tiempo_descanso) que Google Sheets
+ *                          podría autoconvertir a Date si coinciden con un
+ *                          patrón de fecha (ej: "8-10" → 8 oct).
+ *
+ * getDisplayValues() siempre devuelve el string tal como aparece visualmente
+ * en la celda, inmune a la autoconversión de tipo.
+ */
+function _sheetDataWorkouts() {
+  var sh = _sheet('workouts');
+  var lastRow = sh.getLastRow();
+  var lastCol = sh.getLastColumn();
+
+  if (lastRow < 2 || lastCol < 1) return [];
+
+  // Cabeceras (fila 1)
+  var headers = sh.getRange(1, 1, 1, lastCol).getValues()[0];
+
+  // Columnas de texto libre susceptibles de autoconversión de fecha en Sheets.
+  // Ajustar si la hoja cambia de estructura.
+  var TEXT_FREE_COLS = ['series', 'repeticiones', 'tiempo_ejecucion', 'tiempo_descanso'];
+
+  // Dos lecturas sobre el mismo rango de datos (filas 2..N)
+  var valuesRaw   = sh.getRange(2, 1, lastRow - 1, lastCol).getValues();       // tipado
+  var displayRaw  = sh.getRange(2, 1, lastRow - 1, lastCol).getDisplayValues(); // siempre string
+
+  return valuesRaw.map(function(row, rowIdx) {
+    var obj = {};
+    headers.forEach(function(h, colIdx) {
+      if (TEXT_FREE_COLS.indexOf(h) !== -1) {
+        // Usar el valor visual para estas columnas
+        obj[h] = displayRaw[rowIdx][colIdx];
+      } else {
+        obj[h] = row[colIdx];
+      }
+    });
+    return obj;
+  });
+}
+
 // ─── doGet ────────────────────────────────────────────────────────────────────
 function doGet(e) {
   try {
@@ -341,7 +385,7 @@ function doGet(e) {
     }
 
     if (action === 'getWorkouts') {
-      var rows = _sheetData('workouts').filter(function(r) {
+      var rows = _sheetDataWorkouts().filter(function(r) {
         // Por ahora devolveremos todos, o filtrar por rutina_id si se pasa
         if (p.rutina_id && r.rutina_id !== p.rutina_id) return false;
         return true;

@@ -206,10 +206,77 @@ export async function getSeasons(atletaId) {
 // ==========================================
 // Workouts / Rutinas de Excel
 // ==========================================
+
+/**
+ * Red de seguridad defensiva contra la autoconversión de fecha de Google Sheets.
+ *
+ * Google Sheets puede interpretar rangos de reps como "8-10" como fechas
+ * (ej: 8 oct) y devolver un ISO string en vez del texto original.
+ * getDisplayValues() en el backend (Capa 1) es el fix principal;
+ * esta función es la segunda línea de defensa en el frontend.
+ *
+ * Si detecta una fecha ISO en un campo de texto libre:
+ *  - Loguea un warning claro para facilitar el diagnóstico.
+ *  - Devuelve null en vez de mostrar la fecha absurda en la UI.
+ *
+ * @param {*} value  — valor crudo del campo
+ * @param {string} fieldName — nombre del campo (para el log)
+ * @param {string} [ejercicio] — nombre del ejercicio (para el log)
+ * @returns {*} valor saneado
+ */
+function sanitizeRepsField(value, fieldName, ejercicio) {
+  if (typeof value !== 'string') return value;
+
+  // Detecta si el valor parece una fecha ISO (señal de corrupción por Sheets)
+  const looksLikeISODate = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(value);
+
+  if (looksLikeISODate) {
+    console.warn(
+      `[sheets] Campo "${fieldName}" corrompido detectado` +
+      (ejercicio ? ` en ejercicio "${ejercicio}"` : '') +
+      ` (posible autoconversión de fecha en Sheets): "${value}".` +
+      ` Revisar y corregir la celda de origen en la hoja de cálculo` +
+      ` (Formato → Número → Texto sin formato, o anteponer apóstrofe: '${fieldName}).`
+    );
+    return null; // Fallar de forma visible, no mostrar la fecha cruda al usuario
+  }
+
+  return value;
+}
+
+/**
+ * Sanitiza una fila cruda de la hoja 'workouts' aplicando
+ * sanitizeRepsField() a todas las columnas de texto libre vulnerables.
+ *
+ * @param {object} row — fila cruda devuelta por getWorkouts
+ * @returns {object} fila saneada
+ */
+function sanitizeWorkoutRow(row) {
+  const TEXT_FREE_FIELDS = ['series', 'repeticiones', 'tiempo_ejecucion', 'tiempo_descanso'];
+  const ejercicio = row.ejercicio || '';
+
+  const sanitized = { ...row };
+  TEXT_FREE_FIELDS.forEach(field => {
+    if (field in sanitized) {
+      sanitized[field] = sanitizeRepsField(sanitized[field], field, ejercicio);
+    }
+  });
+  return sanitized;
+}
+
 export async function fetchWorkouts(rutinaId = '') {
-  return _request('GET', 'getWorkouts', { rutina_id: rutinaId }, async () => ({
+  const result = await _request('GET', 'getWorkouts', { rutina_id: rutinaId }, async () => ({
     status: 'success', rows: [],
   }));
+
+  // Aplicar sanitización defensiva a cada fila antes de devolver los datos.
+  // Esto captura cualquier corrupción de fecha que el backend no haya podido
+  // evitar (p.ej. si la celda en Sheets ya estaba en tipo Date antes del fix).
+  if (Array.isArray(result.rows)) {
+    result.rows = result.rows.map(sanitizeWorkoutRow);
+  }
+
+  return result;
 }
 
 /**
