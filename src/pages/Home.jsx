@@ -1,13 +1,17 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SportSelector from '../components/SportSelector';
-import { Play, CalendarDays, TrendingUp, Timer, Trophy, Flame } from 'lucide-react';
+import { Play, CalendarDays, TrendingUp, Timer, Trophy, Flame, BarChart2 } from 'lucide-react';
 import { usePlanner } from '../context/PlannerContext';
 import { usePR } from '../context/PRContext';
 import { useAthlete } from '../context/AthleteContext';
 import { useFeedback } from '../context/FeedbackContext';
-import { useFatigue } from '../hooks/useFatigue';
 import { useSession } from '../context/SessionContext';
+import { usePerformanceEngine } from '../hooks/usePerformanceEngine';
+import { useReadiness } from '../context/ReadinessContext';
+import TrafficLightBadge from '../components/performance/TrafficLightBadge';
+import ColdStartBanner from '../components/performance/ColdStartBanner';
+import WellnessCheckIn from '../components/performance/WellnessCheckIn';
 
 // Day of week helper
 const getDayOfWeek = () => {
@@ -28,9 +32,18 @@ export default function Home() {
   const { prs }     = usePR();
   const { athlete } = useAthlete();
   const { unreadCount } = useFeedback();
-  const fatigue = useFatigue();
   const { loadSession } = useSession();
   const firstName = athlete?.name?.split(' ')[0] || '';
+  const [showCheckIn, setShowCheckIn] = useState(false);
+
+  const {
+    isEnabled, isColdStart, coldStartProgress, coldStartTotal,
+    globalTrafficLight
+  } = usePerformanceEngine();
+
+  const { todayCheckIn } = useReadiness();
+  const hasCheckedInToday = todayCheckIn !== null;
+  const showWellnessBanner = isEnabled && !hasCheckedInToday && new Date().getHours() >= 6;
 
   const streak = useMemo(() => {
     const today = new Date();
@@ -231,18 +244,45 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ── NIVEL DE FATIGA DOSSIER ── */}
-        <div className="bg-card border border-border rounded-xl p-4 stagger-3 flex items-start gap-4 shadow-none">
-          <div className="shrink-0 min-w-[80px] bg-ink text-signal-orange border border-border font-mono font-bold text-xs uppercase text-center px-3 py-1.5 rounded-lg">
-            {fatigue.level === 'SIN_DATOS' ? '----' : fatigue.level.slice(0, 4)}
+        {/* ── WELLNESS CHECK-IN BANNER ── */}
+        {showWellnessBanner && (
+          <div 
+            onClick={() => setShowCheckIn(true)}
+            className="bg-card border border-signal-orange/30 rounded-xl p-3.5 flex items-center justify-between cursor-pointer stagger-1 hover:border-signal-orange shadow-none"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-xl">☀️</span>
+              <div>
+                <h4 className="font-condensed font-black text-sm text-ink uppercase tracking-wide">¿Cómo has llegado hoy?</h4>
+                <p className="font-mono text-[9px] text-muted uppercase tracking-wider">Completa tu check-in diario de bienestar</p>
+              </div>
+            </div>
+            <span className="font-mono font-bold text-xs text-signal-orange uppercase">→</span>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="font-mono text-[9px] text-muted tracking-widest uppercase">Estado Neuromuscular</p>
-            <h4 className="font-condensed font-black text-base text-ink mt-0.5" style={{ color: fatigue.color }}>
-              {fatigue.label.toUpperCase()}
-            </h4>
-            <p className="text-xs text-muted mt-1 leading-normal">{fatigue.mensaje}</p>
-          </div>
+        )}
+
+        {/* ── PERFORMANCE ENGINE ESTADO / TRAFFIC LIGHT ── */}
+        <div className="bg-card border border-border rounded-xl p-4 stagger-3 shadow-none">
+          {isColdStart ? (
+            <ColdStartBanner current={coldStartProgress} total={coldStartTotal} />
+          ) : globalTrafficLight ? (
+            <div className="flex items-center justify-between">
+              <TrafficLightBadge
+                color={globalTrafficLight.color}
+                label={globalTrafficLight.label}
+                simpleMessage={globalTrafficLight.simpleMessage}
+                size="md"
+              />
+              <button
+                onClick={() => navigate('/performance')}
+                className="font-mono text-[9px] font-bold text-signal-orange uppercase tracking-wider hover:underline cursor-pointer"
+              >
+                Análisis →
+              </button>
+            </div>
+          ) : (
+            <p className="font-mono text-[9px] text-muted uppercase">Engine no activo</p>
+          )}
         </div>
 
         {/* ── ÚLTIMO PR ── */}
@@ -295,6 +335,24 @@ export default function Home() {
           </div>
         </div>
 
+        {/* ── BOTÓN ANÁLISIS COMPLETO PERFORMANCE ENGINE ── */}
+        <button
+          onClick={() => navigate('/performance')}
+          className="w-full bg-card border border-border rounded-xl p-4 text-left flex items-center justify-between active:scale-[0.98] transition-transform hover:border-signal-orange cursor-pointer shadow-none stagger-6"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-signal-orange/10 text-signal-orange flex items-center justify-center shrink-0">
+              <BarChart2 size={20} />
+            </div>
+            <div>
+              <p className="font-mono text-[8px] text-muted tracking-widest uppercase font-bold">PERFORMANCE ENGINE</p>
+              <h3 className="font-condensed font-black text-base text-ink uppercase tracking-wide">Ver Análisis Completo</h3>
+              <p className="font-mono text-[9px] text-muted mt-0.5 uppercase">Índices, recomendaciones y transfer TKD</p>
+            </div>
+          </div>
+          <span className="font-mono font-black text-signal-orange text-sm">→</span>
+        </button>
+
         {/* ── STATS RÁPIDAS (RESUMEN) ── */}
         <div className="bg-card border border-border rounded-xl p-5 stagger-7 shadow-none">
           <p className="font-mono text-[9px] text-muted tracking-widest uppercase mb-4">Resumen Histórico</p>
@@ -314,6 +372,11 @@ export default function Home() {
         </div>
 
       </div>
+
+      {/* Wellness modal */}
+      {showCheckIn && (
+        <WellnessCheckIn onDismiss={() => setShowCheckIn(false)} />
+      )}
     </div>
   );
 }

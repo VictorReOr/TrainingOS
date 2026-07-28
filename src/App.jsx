@@ -27,6 +27,7 @@ import ImportSession from './pages/ImportSession';
 import SplashScreen from './components/SplashScreen';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import PerformanceDashboard from './pages/PerformanceDashboard';
 
 const CoachRoute = ({ children }) => {
   const { isCoach } = useRole();
@@ -86,6 +87,7 @@ export default function App() {
                 <Route path="/coach/:id" element={<CoachRoute><AthleteDetail /></CoachRoute>} />
                 
                 <Route path="/import/:code?" element={<ImportSession />} />
+                <Route path="/performance" element={<PerformanceDashboard />} />
                 
                 <Route path="/onboarding" element={<Navigate to="/plan" replace />} />
                 <Route path="*" element={<Navigate to="/" replace />} />

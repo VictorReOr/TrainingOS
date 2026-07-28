@@ -12,7 +12,7 @@ import { fetchWorkouts } from '../../services/sheets';
 import { parseWorkouts } from '../../utils/workoutParser';
 import { DownloadCloud } from 'lucide-react';
 
-import { getFullSuggestion } from '../../utils/loadSuggestion';
+import { suggestLoad } from '../../utils/loadSuggestion';
 
 const TABS = [
   { id: 'plan', label: 'Plan', icon: <CalendarDays size={18} /> },
@@ -69,32 +69,34 @@ export default function AthleteDetail() {
 
   const overloadData = React.useMemo(() => {
     if (!athlete) return [];
-    const level = athlete.level || 'intermedio';
     return athleteExercises.map(ex => {
       const exercisePRs = (prs || []).filter(pr => pr.exerciseId === ex.id);
       const bestPR = exercisePRs.reduce((max, pr) => pr.valor > max.valor ? pr : max, null);
       const e1RM = bestPR ? bestPR.valor : 0;
 
-      const sugg = getFullSuggestion({
+      const sugg = suggestLoad({
         exerciseId: ex.id,
-        exerciseName: ex.name,
         targetReps: 8,
-        sessionType: 'gym',
         prs,
         sessionLogs,
-        athleteLevel: level,
-        pMaxOverride: athlete.pMaxOverrides?.[ex.id] || null
+        mesoType: null,
+        mesoWeek: null
       });
+
+      const isDeload = sugg?.progression?.includes('↓') || false;
+      const pct = sugg?.progression?.includes('↑↑') ? 3
+        : sugg?.progression?.includes('↑') ? 1.5
+        : 0;
 
       return {
         id: ex.id,
         name: ex.name,
         e1RM: Math.round(e1RM),
-        pct: sugg.weeklyImprovePct,
-        avgRPE: sugg.lastSession ? Math.round(sugg.lastSession.rpe * 10) / 10 : '-',
-        isDeload: sugg.isDeloadSuggested,
-        confidence: sugg.confidence,
-        pMax: sugg.breakdown ? Math.round(sugg.breakdown.pMax) : 0
+        pct,
+        avgRPE: '-',
+        isDeload,
+        confidence: sugg?.confidence || 'baja',
+        pMax: 0
       };
     });
   }, [athleteExercises, prs, sessionLogs, athlete]);

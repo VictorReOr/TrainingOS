@@ -268,6 +268,11 @@ const SessionDetailSheet = ({ log, onClose, handleRepeat }) => {
                     <div className="text-right flex-1 text-muted text-xs font-bold bg-bg px-2 py-0.5 rounded-md inline-block max-w-fit ml-auto">
                       RPE {serie.rpe || '-'}
                     </div>
+                    {serie.velocidad && (
+                      <div className="ml-2 text-base" title={serie.velocidad}>
+                        {serie.velocidad === 'rapida' ? '🚀' : serie.velocidad === 'media' ? '⚡' : '🐢'}
+                      </div>
+                    )}
                   </div>
                 ))}
                 {(!ex.seriesLog || ex.seriesLog.filter(s => s.done).length === 0) && (

@@ -3,7 +3,11 @@ import { X, Check, Timer, ArrowRight, Hourglass, Repeat } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTimer } from '../context/TimerContext';
 import { useCircuit } from '../context/CircuitContext';
-import { useProgressiveOverload } from '../hooks/useProgressiveOverload';
+import { usePR } from '../context/PRContext';
+import { usePlanner } from '../context/PlannerContext';
+import { usePerformanceEngine } from '../hooks/usePerformanceEngine';
+import TrafficLightBadge from './performance/TrafficLightBadge';
+import { suggestLoad, MESO_RPE_TARGETS } from '../utils/loadSuggestion';
 import { MOCK_SESSION, BLOCK_COLORS } from '../data/mockSession';
 
 const parseDurationToSeconds = (durStr) => {
@@ -17,21 +21,39 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
   const [showMiniTimer, setShowMiniTimer] = useState(false);
   const hasPrefilled = useRef(false);
 
-  // ── Sugerencia científica de sobrecarga ──
-  const {
-    prescribedLoad,
-    nextSessionLoad,
-    rpeTarget,
-    pct1RM,
-    e1RM,
-    confidence,
-    isDeloadSuggested,
-    deloadReason,
-    deloadLoad,
-    weeklyImprovePct,
-    lastSession,
-    hasHistory
-  } = useProgressiveOverload(exercise.id, exercise.name, exercise.reps || exercise.targetReps, sessionType || 'gym');
+  // ── Performance Engine decision ──
+  const { getDecisionForExercise, isColdStart } = usePerformanceEngine();
+  const peDecision = getDecisionForExercise(exercise.id);
+
+  // ── Nuevo motor de sugerencia ──
+  const { prs } = usePR();
+  const { activeMesocycle } = usePlanner();
+  const sessionLogs = JSON.parse(
+    localStorage.getItem('trainingos_session_logs') || '[]'
+  );
+
+  // Calcular semana dentro del mesociclo
+  const getMesoWeek = () => {
+    if (!activeMesocycle) return null;
+    const start = new Date(activeMesocycle.startDate);
+    const now = new Date();
+    const weeks = Math.floor(
+      (now - start) / (1000*60*60*24*7)
+    ) + 1;
+    return Math.min(weeks, activeMesocycle.weeks);
+  };
+
+  const mesoWeek = getMesoWeek();
+
+  // Calcular sugerencia dinámica
+  const suggestion = useMemo(() => suggestLoad({
+    exerciseId: exercise.id,
+    targetReps: exercise.reps || exercise.targetReps,
+    prs,
+    sessionLogs,
+    mesoType: activeMesocycle?.type || null,
+    mesoWeek
+  }), [exercise.id, exercise.reps, exercise.targetReps, prs, sessionLogs, activeMesocycle, mesoWeek]);
 
   const [readiness, setReadiness] = useState(() => {
     try {
@@ -55,10 +77,11 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
   const seriesModifier = readiness ? readiness.modifier : 0;
 
   const suggestedVal = useMemo(() => {
-    const base = isDeloadSuggested ? deloadLoad : prescribedLoad;
+    if (!suggestion) return 0;
+    const base = suggestion.suggested;
     if (exercise.isTest) return base > 0 ? base : (parseFloat(exercise.loadRef) || 0);
     return Math.round((base * loadFactor) / 1.25) * 1.25;
-  }, [prescribedLoad, isDeloadSuggested, deloadLoad, loadFactor, exercise.isTest, exercise.loadRef]);
+  }, [suggestion, loadFactor, exercise.isTest, exercise.loadRef]);
 
   useEffect(() => {
     if (isVisible && !hasPrefilled.current) {
@@ -154,6 +177,21 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
     navigate('/timer');
   };
 
+  // RPE target color helper
+  const getRpeTargetColor = (rpeTarget) => {
+    if (!rpeTarget) return 'text-[#FF6B00]';
+    if (rpeTarget.max < 7) return 'text-[#27ae60]';
+    if (rpeTarget.min > 8) return 'text-[#EF4444]';
+    return 'text-[#FF6B00]';
+  };
+
+  // Confidence badge helper
+  const getConfidenceBadge = (confidence) => {
+    if (confidence === 'alta') return { label: '🎯 Alta confianza', cls: 'text-[#27ae60] border-[#27ae60]/30 bg-[#27ae60]/10' };
+    if (confidence === 'media') return { label: '📊 Estimación', cls: 'text-[#FF6B00] border-[#FF6B00]/30 bg-[#FF6B00]/10' };
+    return { label: '⚠️ Pocos datos', cls: 'text-[#EF4444] border-[#EF4444]/30 bg-[#EF4444]/10' };
+  };
+
   return (
     <>
       {/* BACKDROP */}
@@ -230,6 +268,29 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
         {/* SERIES */}
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           
+          {/* SEMÁFORO PERFORMANCE ENGINE POR EJERCICIO */}
+          {peDecision && !isColdStart && (
+            <div className="bg-card border border-border rounded-xl p-3.5 flex items-center justify-between shadow-none">
+              <TrafficLightBadge
+                color={peDecision.trafficLight}
+                label={
+                  peDecision.suggestedLoadDelta > 0
+                    ? `+${peDecision.suggestedLoadDelta}kg`
+                    : peDecision.suggestedLoadDelta < 0
+                    ? `${peDecision.suggestedLoadDelta}kg`
+                    : 'Mantener'
+                }
+                simpleMessage={peDecision.reasoning}
+                size="sm"
+              />
+              {peDecision.reasoning && (
+                <span className="font-mono text-[9px] text-muted truncate max-w-[200px]">
+                  {peDecision.reasoning}
+                </span>
+              )}
+            </div>
+          )}
+
           {/* SUGERENCIA DE TESTS O SOBRECARGA */}
           {exercise.isTest ? (
             <div className="bg-card border border-corner-red/35 rounded-xl p-4 flex flex-col gap-3">
@@ -275,63 +336,76 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
                 Aplicar peso de test
               </button>
             </div>
-          ) : prescribedLoad > 0 ? (
+          ) : suggestion !== null ? (
             <div className="bg-card border border-signal-orange/20 rounded-xl p-4 flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="font-condensed font-black text-ink text-base leading-none uppercase tracking-wide">
-                    {isDeloadSuggested ? 'SEMANA DE DESCARGA' : 'SUGERENCIA DE CARGA'}
+                    🤖 TRAININGOS SUGIERE
                   </h4>
                   <p className="font-mono text-[8px] text-muted font-bold uppercase tracking-wider mt-1.5">
-                    Helms + Modelo Logístico ({confidence === 'high' ? 'Alta Confianza' : confidence === 'medium' ? 'Media Confianza' : 'Baja Confianza'})
+                    Prilepin + Mesociclo + RPE + Velocidad
                   </p>
                 </div>
-                {isDeloadSuggested && (
-                  <span className="border border-corner-red/40 text-corner-red font-mono font-bold text-[8px] px-2 py-0.5 rounded uppercase tracking-wider">
-                    DESCARGA
-                  </span>
-                )}
               </div>
 
-              <div className="flex items-baseline gap-1">
+              {/* Load range */}
+              <div className="flex items-baseline gap-2">
+                <span className="font-mono text-sm text-muted">{suggestion.min}kg</span>
+                <span className="font-mono text-xs text-muted">—</span>
                 <span className="font-display font-black text-4xl text-ink leading-none">
-                  {suggestedVal}
+                  {suggestion.suggested}
                 </span>
-                <span className="font-mono text-[9px] text-muted uppercase tracking-wider font-bold">
-                  KG × {exercise.reps || exercise.targetReps || '8'} reps @RPE {rpeTarget}
+                <span className="font-mono text-[9px] text-muted uppercase tracking-wider font-bold">kg</span>
+                <span className="font-mono text-xs text-muted">—</span>
+                <span className="font-mono text-sm text-muted">{suggestion.max}kg</span>
+              </div>
+
+              {/* RPE target */}
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[9px] text-muted uppercase tracking-wider font-bold">🎯 RPE objetivo:</span>
+                <span className={`font-mono font-black text-sm ${getRpeTargetColor(suggestion.rpeTarget)}`}>
+                  {suggestion.rpeTarget.min}-{suggestion.rpeTarget.max}
                 </span>
               </div>
 
-              <div className="font-mono text-[9px] text-muted leading-relaxed space-y-1 uppercase tracking-wider">
-                <p>• Equivale al <span className="font-bold text-ink">{pct1RM}%</span> de tu 1RM estimado ({e1RM}kg).</p>
-                {isDeloadSuggested ? (
-                  <p className="text-corner-red font-bold">• {deloadReason}</p>
-                ) : (
-                  <>
-                    {weeklyImprovePct > 0 && <p>• Mejora semanal proyectada: <span className="text-success-green font-bold">+{weeklyImprovePct}% DELTA</span>.</p>}
-                    {lastSession && <p>• Anterior ({lastSession.date.slice(5, 10)}): {lastSession.load}kg × {lastSession.reps} reps (RPE {lastSession.rpe}).</p>}
-                  </>
-                )}
-                {readiness && (
-                  <div className="bg-bg/40 border border-border rounded-lg p-2.5 mt-2 space-y-0.5 text-[9px]">
-                    <p className="font-bold text-corner-blue">⚠️ AUTORREGULACIÓN ({Math.round(readiness.score * 100)}%):</p>
-                    <p>{readiness.message.toUpperCase()}</p>
-                  </div>
-                )}
+              {/* Based on info */}
+              <p className="font-mono text-[9px] text-muted leading-relaxed tracking-wider">
+                📊 {suggestion.basedOn}
+              </p>
+
+              {/* Confidence badge + Apply button */}
+              <div className="flex items-center justify-between">
+                {(() => {
+                  const badge = getConfidenceBadge(suggestion.confidence);
+                  return (
+                    <span className={`font-mono font-bold text-[9px] px-2.5 py-1 rounded-lg border ${badge.cls}`}>
+                      {badge.label}
+                    </span>
+                  );
+                })()}
+                <button
+                  onClick={() => {
+                    logs.forEach((_, idx) => {
+                      if (seriesModifier === -99 && idx >= Math.ceil(logs.length / 2)) return;
+                      if (seriesModifier === -1 && idx === logs.length - 1) return;
+                      if (!logs[idx].carga) {
+                        onLogChange(idx, 'carga', suggestion.suggested);
+                      }
+                    });
+                  }}
+                  className="px-4 py-2 border border-signal-orange text-signal-orange font-mono font-bold text-[9px] uppercase tracking-wider rounded-lg hover:bg-signal-orange hover:text-ink transition-all cursor-pointer bg-card flex items-center gap-1"
+                >
+                  Usar <ArrowRight size={12} />
+                </button>
               </div>
 
-              <button
-                onClick={() => {
-                  logs.forEach((_, idx) => {
-                    if (seriesModifier === -99 && idx >= Math.ceil(logs.length / 2)) return;
-                    if (seriesModifier === -1 && idx === logs.length - 1) return;
-                    onLogChange(idx, 'carga', suggestedVal);
-                  });
-                }}
-                className="w-full py-2 border border-signal-orange text-signal-orange font-mono font-bold text-[9px] uppercase tracking-wider rounded-lg hover:bg-signal-orange hover:text-ink transition-all cursor-pointer bg-card"
-              >
-                Aplicar a todas las series
-              </button>
+              {readiness && (
+                <div className="bg-bg/40 border border-border rounded-lg p-2.5 space-y-0.5 text-[9px] font-mono uppercase tracking-wider">
+                  <p className="font-bold text-corner-blue">⚠️ AUTORREGULACIÓN ({Math.round(readiness.score * 100)}%):</p>
+                  <p className="text-muted">{readiness.message.toUpperCase()}</p>
+                </div>
+              )}
             </div>
           ) : (
             <div className="bg-bg/25 border border-border rounded-xl p-4 flex flex-col gap-1.5 shadow-none">
@@ -405,7 +479,7 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
               </div>
 
               {/* RPE (Casillas cuadradas) */}
-              <div className="px-4 pb-3 pl-16">
+              <div className="px-4 pb-2 pl-16">
                 <label className="text-[8px] text-muted font-mono font-bold uppercase tracking-widest mb-2 block">Esfuerzo RPE</label>
                 <div className="flex items-center gap-1.5">
                   {[6, 7, 8, 9, 10].map(val => (
@@ -419,6 +493,30 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
                       }`}
                     >
                       {val}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* VELOCIDAD PERCIBIDA */}
+              <div className="px-4 pb-3 pl-16">
+                <label className="text-[8px] text-muted font-mono font-bold uppercase tracking-widest mb-2 block">Velocidad</label>
+                <div className="flex items-center gap-1.5">
+                  {[
+                    { value: 'lenta',  emoji: '🐢', label: 'Lenta',  selectedCls: 'bg-[#FFF3EC] border-[#FF6B00] text-[#FF6B00]' },
+                    { value: 'media',  emoji: '⚡', label: 'Media',  selectedCls: 'bg-[#FFFBEC] border-[#f5a623] text-[#f5a623]' },
+                    { value: 'rapida', emoji: '🚀', label: 'Rápida', selectedCls: 'bg-[#F0FFF4] border-[#27ae60] text-[#27ae60]' },
+                  ].map(vel => (
+                    <button
+                      key={vel.value}
+                      onClick={() => onLogChange(index, 'velocidad', vel.value)}
+                      className={`flex-1 py-1.5 rounded-lg text-xs font-mono font-bold border transition-all cursor-pointer ${
+                        log.velocidad === vel.value
+                          ? vel.selectedCls
+                          : 'bg-[#F5F5F0] border-[#E8E8E4] text-[#6E6E73]'
+                      }`}
+                    >
+                      {vel.emoji} {vel.label}
                     </button>
                   ))}
                 </div>

@@ -14,7 +14,12 @@ const DEFAULT_ATHLETE = {
   activeSport: 'all', // 'all' | 'gym' | 'tkd' | 'cardio'
   primarySport: 'gym',
   level: 'intermedio', // 'novato' | 'intermedio' | 'avanzado'
-  onboardingCompleted: false
+  onboardingCompleted: false,
+  performanceEngine: {
+    enabled: true,        // Active by default for all athletes
+    disabledAt: null,     // ISO timestamp when coach disabled it
+    disabledReason: null  // 'manual' | 'injury' | other
+  }
 };
 
 const AthleteContext = createContext();
@@ -85,6 +90,17 @@ export function AthleteProvider({ children }) {
 
   const setLevel = (level) => updateProfile({ level });
 
+  const togglePerformanceEngine = (enabled, reason = 'manual') => {
+    setAthlete(prev => ({
+      ...prev,
+      performanceEngine: {
+        enabled,
+        disabledAt: enabled ? null : new Date().toISOString(),
+        disabledReason: enabled ? null : reason
+      }
+    }));
+  };
+
   // Computed label for the pill button
   const activeLabel = useMemo(() => {
     if (athlete.activeSport === 'all') {
@@ -112,6 +128,7 @@ export function AthleteProvider({ children }) {
       toggleSport,
       setPrimarySport,
       setLevel,
+      togglePerformanceEngine,
       viewMode,
       setViewMode
     }}>

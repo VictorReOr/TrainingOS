@@ -5,7 +5,8 @@ import { useAthlete } from '../context/AthleteContext';
 import { MESO_LABELS, SESSION_TYPES } from '../data/mockPlanner';
 import SportSelector from '../components/SportSelector';
 import SessionReadView from '../components/planner/SessionReadView';
-import { ChevronLeft, ChevronRight, Plus, X, DownloadCloud } from 'lucide-react';
+import WeekRepetitionModal from '../components/planner/WeekRepetitionModal';
+import { ChevronLeft, ChevronRight, Plus, X, DownloadCloud, Repeat } from 'lucide-react';
 import { fetchWorkouts } from '../services/sheets';
 import { parseWorkouts } from '../utils/workoutParser';
 import { useSession } from '../context/SessionContext';
@@ -98,6 +99,7 @@ export default function Plan() {
   const [importedRoutines, setImportedRoutines] = useState([]);
   const [loadingImport, setLoadingImport] = useState(false);
   const [importError, setImportError] = useState(null);
+  const [showRepetitionModal, setShowRepetitionModal] = useState(false);
 
   const filteredSessions = useMemo(() => {
     const base = {};
@@ -159,6 +161,114 @@ export default function Plan() {
     closeAddSheet();
   };
 
+const PRESET_ROUTINES = [
+  {
+    id: 'preset-hybrid-tkd',
+    name: 'Rutina Híbrida Taekwondo + Gimnasio',
+    sessions: {
+      lunes: {
+        id: 'sess-lunes-hybrid',
+        name: 'Potencia - Tren Superior',
+        sport: 'gym',
+        type: 'gym_potencia',
+        icon: '⚡',
+        duration: 75,
+        exercises: 6,
+        intensity: 'Alta',
+        intensityLevel: 4,
+        blocks: [
+          {
+            id: 'b1', name: 'Bloque A - Empuje Explosivo', type: 'fuerza',
+            exercises: [
+              { id: 'lib-str-1', name: 'Press Banca', series: 4, reps: '6', restSeconds: 120 },
+              { id: 'lib-str-3', name: 'Press Militar', series: 4, reps: '6', restSeconds: 120 }
+            ]
+          }
+        ]
+      },
+      martes: {
+        id: 'sess-martes-hybrid',
+        name: 'Técnica TKD + Poomsae',
+        sport: 'tkd',
+        type: 'tkd',
+        icon: '🥋',
+        duration: 90,
+        exercises: 5,
+        intensity: 'Media',
+        intensityLevel: 3
+      },
+      miercoles: {
+        id: 'sess-miercoles-hybrid',
+        name: 'Fuerza - Tren Inferior',
+        sport: 'gym',
+        type: 'gym_fuerza',
+        icon: '🏋️',
+        duration: 60,
+        exercises: 5,
+        intensity: 'Alta',
+        intensityLevel: 4,
+        blocks: [
+          {
+            id: 'b2', name: 'Bloque A - Pierna Dominante', type: 'fuerza',
+            exercises: [
+              { id: 'lib-str-2', name: 'Sentadilla Trasera', series: 4, reps: '5', restSeconds: 150 },
+              { id: 'lib-str-6', name: 'Peso Muerto Rumano', series: 3, reps: '8', restSeconds: 120 }
+            ]
+          }
+        ]
+      },
+      jueves: {
+        id: 'sess-jueves-hybrid',
+        name: 'Sparring + Competición TKD',
+        sport: 'tkd',
+        type: 'tkd_sparring',
+        icon: '🥊',
+        duration: 90,
+        exercises: 4,
+        intensity: 'Máxima',
+        intensityLevel: 5
+      },
+      viernes: {
+        id: 'sess-viernes-hybrid',
+        name: 'Hipertrofia - Full Body',
+        sport: 'gym',
+        type: 'gym_hipertrofia',
+        icon: '💪',
+        duration: 70,
+        exercises: 6,
+        intensity: 'Media',
+        intensityLevel: 3
+      }
+    }
+  },
+  {
+    id: 'preset-fuerza-4d',
+    name: 'Rutina Fuerza & Sobrecarga (4 Días)',
+    sessions: {
+      lunes: {
+        id: 'sess-fuerza-lu',
+        name: 'Fuerza Torso (Empuje/Tracción)',
+        sport: 'gym', type: 'gym_fuerza', icon: '🏋️', duration: 60, exercises: 5, intensity: 'Alta', intensityLevel: 4
+      },
+      martes: {
+        id: 'sess-fuerza-ma',
+        name: 'Fuerza Pierna & Cadera',
+        sport: 'gym', type: 'gym_fuerza', icon: '🏋️', duration: 60, exercises: 5, intensity: 'Alta', intensityLevel: 4
+      },
+      jueves: {
+        id: 'sess-fuerza-ju',
+        name: 'Hipertrofia Torso Accesorias',
+        sport: 'gym', type: 'gym_hipertrofia', icon: '💪', duration: 65, exercises: 6, intensity: 'Media', intensityLevel: 3
+      },
+      viernes: {
+        id: 'sess-fuerza-vi',
+        name: 'Potencia & Unilateral Pierna',
+        sport: 'gym', type: 'gym_potencia', icon: '⚡', duration: 60, exercises: 5, intensity: 'Alta', intensityLevel: 4
+      }
+    }
+  }
+];
+
   const handleOpenImport = async () => {
     setShowImportSheet(true);
     setLoadingImport(true);
@@ -166,10 +276,14 @@ export default function Plan() {
     try {
       const res = await fetchWorkouts();
       const parsed = parseWorkouts(res.rows || []);
-      setImportedRoutines(parsed);
+      if (parsed.length > 0) {
+        setImportedRoutines(parsed);
+      } else {
+        setImportedRoutines(PRESET_ROUTINES);
+      }
     } catch (err) {
-      console.error('Error cargando rutinas:', err);
-      setImportError(err.message);
+      console.warn('Google Sheets getWorkouts no activo, usando rutinas predefinidas:', err);
+      setImportedRoutines(PRESET_ROUTINES);
     } finally {
       setLoadingImport(false);
     }
@@ -210,6 +324,12 @@ export default function Plan() {
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <button 
+              onClick={() => setShowRepetitionModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card text-ink text-xs font-display font-black hover:border-signal-orange hover:text-signal-orange active:scale-95 transition-all cursor-pointer uppercase tracking-wider"
+            >
+              <Repeat size={13} strokeWidth={2.5} /> Repetir
+            </button>
             <button 
               onClick={handleOpenImport}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-signal-orange text-ink rounded-lg font-display font-black text-xs hover:bg-signal-orange/95 transition-colors border border-border cursor-pointer uppercase tracking-wider"
@@ -546,6 +666,14 @@ export default function Plan() {
           </div>
         </div>
       )}
+
+      {/* ── WEEK REPETITION MODAL ── */}
+      <WeekRepetitionModal
+        isOpen={showRepetitionModal}
+        onClose={() => setShowRepetitionModal(false)}
+        sourceMondayDate={currentWeekStart}
+        activeMesocycle={activeMesocycle}
+      />
     </div>
   );
 }

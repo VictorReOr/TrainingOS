@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSession } from '../context/SessionContext';
 import { useAthlete } from '../context/AthleteContext';
+import { usePlanner } from '../context/PlannerContext';
 import ProgressBar from '../components/ProgressBar';
 import ExerciseRow from '../components/ExerciseRow';
 import SetLoggerSheet from '../components/SetLoggerSheet';
 import TimerSheet from '../components/TimerSheet';
 import ReadinessModal from '../components/ReadinessModal';
 import FeedbackSection from '../components/FeedbackSection';
+import { MESO_RPE_TARGETS } from '../utils/loadSuggestion';
 import { CheckCircle2, Share2, CloudUpload } from 'lucide-react';
 
 const BLOCK_COLORS = {
@@ -29,11 +31,32 @@ export default function Session() {
     tiempoFormateado,
     isFinished,
     isSaving,
+    updateLogSet,
+    toggleLogSet,
     saveSession,
     resetSession,
   } = useSession();
 
   const { todayCheckIn } = useAthlete();
+  const { activeMesocycle } = usePlanner();
+
+  // Calcular semana dentro del mesociclo
+  const mesoWeek = useMemo(() => {
+    if (!activeMesocycle) return null;
+    const start = new Date(activeMesocycle.startDate);
+    const now = new Date();
+    const weeks = Math.floor(
+      (now - start) / (1000*60*60*24*7)
+    ) + 1;
+    return Math.min(weeks, activeMesocycle.weeks);
+  }, [activeMesocycle]);
+
+  const rpeTarget = useMemo(() => {
+    if (!activeMesocycle) return null;
+    const mesoConfig = MESO_RPE_TARGETS[activeMesocycle.type];
+    if (!mesoConfig) return null;
+    return mesoConfig.byWeek?.[mesoWeek] || mesoConfig.default;
+  }, [activeMesocycle, mesoWeek]);
 
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [isTimerOpen, setIsTimerOpen] = useState(false);
@@ -76,7 +99,7 @@ export default function Session() {
   const percentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   const isExerciseDone = (exerciseId) => {
-    const logs = exerciseLogs[exerciseId] || [];
+    const logs = exerciseLogs?.[exerciseId] || [];
     if (logs.length === 0) return false;
     return logs.every(log => log.done);
   };
@@ -85,12 +108,16 @@ export default function Session() {
     setSelectedExercise({ ...exercise, sessionType: blockGoal });
   };
 
-  const handleLogChange = () => {
-    // SessionContext handles this internally, trigger re-render
+  const handleLogChange = (setIndex, field, value) => {
+    if (selectedExercise) {
+      updateLogSet(selectedExercise.id, setIndex, field, value);
+    }
   };
 
-  const handleToggleSet = () => {
-    // SessionContext handles this internally, trigger re-render
+  const handleToggleSet = (setIndex) => {
+    if (selectedExercise) {
+      toggleLogSet(selectedExercise.id, setIndex);
+    }
   };
 
   const handleResetSession = () => {
@@ -153,6 +180,14 @@ export default function Session() {
         <p className="font-mono text-[9px] text-muted uppercase tracking-widest">
           Toca cada ejercicio para registrar tus series reales
         </p>
+
+        {/* RPE Objetivo del mesociclo */}
+        {activeMesocycle && rpeTarget && (
+          <p className="font-mono text-[9px] text-[#6E6E73] mt-2">
+            {activeMesocycle.name} · Semana {mesoWeek} · 🎯 RPE objetivo: {rpeTarget.min}-{rpeTarget.max}
+            {rpeTarget.label ? ` (${rpeTarget.label})` : ''}
+          </p>
+        )}
 
         {/* Check-in status bar */}
         <div className="mt-4 flex justify-between items-center bg-bg/25 border border-border rounded-xl px-4 py-2.5">

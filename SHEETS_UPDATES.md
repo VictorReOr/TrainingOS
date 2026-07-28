@@ -103,3 +103,42 @@ case 'markFeedbackRead':
 case 'getFeedback':
   return getFeedback(params.session_id, params.atleta_id);
 ```
+
+---
+
+## Velocidad Percibida — Nueva Columna en `logs`
+
+**Fecha:** 2026-07-18
+
+### Cambio en modelo de datos
+
+La hoja `logs` necesita una nueva columna:
+
+| Columna | Tipo | Valores |
+|---------|------|---------|
+| `velocidad_percibida` | `string \| null` | `lenta` / `media` / `rapida` / `null` |
+
+### Ubicación
+
+Dentro de cada serie del array `seriesLog` de cada ejercicio:
+
+```json
+{
+  "carga": 100,
+  "reps": 5,
+  "rpe": 8,
+  "velocidad": "rapida",
+  "done": true
+}
+```
+
+### Notas
+
+- Campo **completamente opcional** — `null` si el atleta no lo selecciona.
+- No bloquea el check de completar serie.
+- Se usa por el algoritmo de sugerencia de cargas para ajustar la progresión:
+  - `rapida` (🚀) → indica que la carga fue liviana, favorece progresión acelerada.
+  - `media` (⚡) → velocidad normal, comportamiento estándar.
+  - `lenta` (🐢) → indica esfuerzo máximo cercano al fallo, favorece cautela o reducción.
+- Se muestra como emoji en el historial de sesiones (Evolution.jsx).
+- La función `saveLog` en `sheets.js` ya envía el objeto completo de serie, no requiere cambios adicionales en el frontend.
