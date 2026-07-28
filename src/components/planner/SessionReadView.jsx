@@ -358,7 +358,7 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
   const [isVisible, setIsVisible] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showRetroLogger, setShowRetroLogger] = useState(false);
-  const [hasLog, setHasLog] = useState(() => hasLogForDate(session?.sessionId, dayDate));
+  const [hasLog, setHasLog] = useState(() => hasLogForDate(session?.sessionId || session?.id, dayDate));
 
   useEffect(() => {
     setTimeout(() => setIsVisible(true), 10);
@@ -369,20 +369,22 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
     setTimeout(onClose, 300);
   };
 
-  // Find the real session blocks — prefer live template, then mock, then demo
-  const template = sessionTemplates.find(t => t.id === session.sessionId);
+  const sId = session?.sessionId || session?.id;
+  const template = sessionTemplates.find(t => t.id === sId);
   let finalBlocks = [];
 
-  if (template && template.blocks) {
+  if (Array.isArray(session?.blocks) && session.blocks.length > 0) {
+    finalBlocks = session.blocks;
+  } else if (template && template.blocks) {
     finalBlocks = template.blocks;
-  } else if (MOCK_SESSION_DETAILS[session.sessionId]?.blocks) {
+  } else if (MOCK_SESSION_DETAILS[sId]?.blocks) {
     finalBlocks = [{
       id: 'blk-plan-1',
       name: session.name,
       type: session.type,
       icon: session.icon,
       duration: `${session.duration} min`,
-      exercises: MOCK_SESSION_DETAILS[session.sessionId].blocks.map((b, i) => ({
+      exercises: MOCK_SESSION_DETAILS[sId].blocks.map((b, i) => ({
         id: `ex-plan-${i}`,
         orderNumber: String(i + 1).padStart(2, '0'),
         name: b.name,
@@ -393,13 +395,13 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
         suggestedWeight: b.suggestedWeight || null,
       }))
     }];
-  } else if (session.sessionId === 'session-demo') {
+  } else if (sId === 'session-demo') {
     finalBlocks = MOCK_SESSION.blocks;
   }
 
   const handleExecute = () => {
     const sessionData = {
-      id: session.sessionId,
+      id: sId,
       name: session.name,
       dayBadge: `${dayLabel?.toUpperCase() || ''} · ${session.sport?.toUpperCase() || ''}`,
       blocks: finalBlocks,
@@ -503,7 +505,7 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
           {showRetroLogger ? (
             <RetroactiveLogger
               blocks={finalBlocks}
-              sessionId={session.sessionId}
+              sessionId={sId}
               sessionName={session.name}
               dayDate={dayDate}
               onSaved={() => {
@@ -574,7 +576,7 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
                   💬 Notas del entrenador
                 </h4>
                 <FeedbackSection
-                  sessionId={session.sessionId}
+                  sessionId={sId}
                   atletaId={import.meta.env.VITE_ATLETA_ID || 'v-atleta-1'}
                   readOnly={!isCoach}
                   darkMode={true}
