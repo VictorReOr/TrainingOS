@@ -152,6 +152,77 @@ export function PlannerProvider({ children }) {
     });
   };
 
+  /**
+   * Mueve una sesión de fromDateISO a toDateISO dentro de la misma semana.
+   *
+   * Guards (en orden):
+   *   1. already-logged — el día origen ya tiene un SessionLog registrado
+   *   2. occupied        — el día destino ya tiene sesión asignada
+   *   3. past            — el día destino es anterior a hoy
+   *
+   * @param {string} fromDateISO  Fecha origen  (YYYY-MM-DD)
+   * @param {string} toDateISO    Fecha destino (YYYY-MM-DD)
+   * @returns {{ success: boolean, reason?: string }}
+   *
+   * NOTA ARQUITECTÓNICA: Lee trainingos_session_logs directamente de localStorage
+   * porque la arquitectura es local-first con localStorage como SSOT compartida,
+   * igual que hacen usePerformanceEngine, useFatigue y useProgressiveOverload.
+   * Si el formato de fecha del SessionLog cambia en el futuro, actualizar la
+   * comparación log.fecha.startsWith(fromDateISO).
+   */
+  const moveSessionToDay = (fromDateISO, toDateISO) => {
+    // Guard 1: sesión origen ya ejecutada
+    try {
+      const rawLogs = localStorage.getItem('trainingos_session_logs');
+      const logs = rawLogs ? JSON.parse(rawLogs) : [];
+      if (Array.isArray(logs) && logs.some(l => l.fecha?.startsWith(fromDateISO))) {
+        console.log('[moveSessionToDay] GUARD: sesión ya ejecutada', fromDateISO);
+        return { success: false, reason: 'already-logged' };
+      }
+    } catch (e) {
+      console.warn('[moveSessionToDay] No se pudo leer session_logs:', e);
+    }
+
+    // Guard 2: día destino ya ocupado
+    if (weekAssignments[toDateISO]) {
+      console.log('[moveSessionToDay] GUARD: día ocupado', toDateISO, weekAssignments[toDateISO]);
+      return { success: false, reason: 'occupied' };
+    }
+
+    // Guard 3: día destino en el pasado
+    const pad = n => n.toString().padStart(2, '0');
+    const today = new Date();
+    const todayISO = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+    if (toDateISO < todayISO) {
+      console.log('[moveSessionToDay] GUARD: día pasado', toDateISO);
+      return { success: false, reason: 'past' };
+    }
+
+    // Precalcular el nuevo estado FUERA del updater (seguro en StrictMode)
+    const session = weekAssignments[fromDateISO];
+    const nextAssignments = { ...weekAssignments, [toDateISO]: session };
+    delete nextAssignments[fromDateISO];
+
+    // Logs de auditoría FUERA del updater
+    console.log('[moveSessionToDay] ANTES:', JSON.stringify(weekAssignments));
+    console.log('[moveSessionToDay] DESPUÉS:', JSON.stringify(nextAssignments));
+
+    // Setter puro — closure idempotente sobre valor precalculado
+    setWeekAssignments(() => nextAssignments);
+
+    // Evento global FUERA del updater (patrón: session_logs_updated, planner_week_repeated)
+    window.dispatchEvent(new Event('week_assignments_updated'));
+
+    // Sync background best-effort FUERA del updater (igual que assignSessionToDay)
+    _bgSync('assignSession', () => _assignSessionToDay({
+      dateISO: toDateISO,
+      sessionId: session?.id || session?.sessionId || '',
+      sessionData: session,
+    }));
+
+    return { success: true };
+  };
+
   // Week sessions for current week (dinámico basado en dateISO)
   const weekSessions = useMemo(() => {
     const formatISO = (d) => {
@@ -267,6 +338,7 @@ export function PlannerProvider({ children }) {
       weekAssignments,
       assignSessionToDay,
       removeSessionFromDay,
+      moveSessionToDay,
     }}>
       {children}
     </PlannerContext.Provider>

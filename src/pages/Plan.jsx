@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePlanner } from '../context/PlannerContext';
 import { useAthlete } from '../context/AthleteContext';
@@ -10,6 +10,7 @@ import { ChevronLeft, ChevronRight, Plus, X, DownloadCloud, Repeat } from 'lucid
 import { fetchWorkouts } from '../services/sheets';
 import { parseWorkouts } from '../utils/workoutParser';
 import { useSession } from '../context/SessionContext';
+import { useLongPress } from '../hooks/useLongPress';
 
 // ─── Constantes ──────────────────────────────────────────
 const DAYS_ES    = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
@@ -18,16 +19,16 @@ const DAYS_FULL  = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','
 
 const INTENSITY_CONFIG = {
   'Baja':   { border: 'var(--color-border)', text: 'var(--color-success-green)', label: 'BAJA'   },
-  'Media':  { border: 'var(--color-border)', text: 'var(--color-muted)', label: 'MEDIA'  },
+  'Media':  { border: 'var(--color-border)', text: 'var(--color-muted)',         label: 'MEDIA'  },
   'Alta':   { border: 'var(--color-border)', text: 'var(--color-signal-orange)', label: 'ALTA'   },
-  'Máxima': { border: 'var(--color-border)', text: 'var(--color-corner-red)', label: 'MÁXIMA' },
+  'Máxima': { border: 'var(--color-border)', text: 'var(--color-corner-red)',    label: 'MÁXIMA' },
 };
 
 const LOAD_CONFIG = [
   { max: 1, label: 'SUAVE',    color: 'var(--color-signal-orange)' },
-  { max: 3, label: 'MODERADA', color: 'var(--color-belt-gold)' },
+  { max: 3, label: 'MODERADA', color: 'var(--color-belt-gold)'     },
   { max: 5, label: 'INTENSA',  color: 'var(--color-signal-orange)' },
-  { max: 7, label: 'MÁXIMA',   color: 'var(--color-corner-red)' },
+  { max: 7, label: 'MÁXIMA',   color: 'var(--color-corner-red)'    },
 ];
 
 const SESSION_TEMPLATES = [
@@ -39,12 +40,12 @@ const SESSION_TEMPLATES = [
 ];
 
 // ─── Helpers ─────────────────────────────────────────────
-const parseDate   = (str)           => { const [y,m,d] = str.split('-').map(Number); return new Date(y,m-1,d); };
-const formatISO   = (d)             => { const pad = n => n.toString().padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
-const getDayDate  = (monday, i)     => { const d = new Date(monday); d.setDate(d.getDate() + i); return d; };
-const isToday     = (date)          => { const t = new Date(); return date.toDateString() === t.toDateString(); };
-const isPast      = (date)          => { const today = new Date(); today.setHours(0,0,0,0); const d = new Date(date); d.setHours(0,0,0,0); return d < today; };
-const isCurrentWeek = (monday)     => {
+const parseDate   = (str)       => { const [y,m,d] = str.split('-').map(Number); return new Date(y,m-1,d); };
+const formatISO   = (d)         => { const pad = n => n.toString().padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const getDayDate  = (monday, i) => { const d = new Date(monday); d.setDate(d.getDate() + i); return d; };
+const isToday     = (date)      => { const t = new Date(); return date.toDateString() === t.toDateString(); };
+const isPast      = (date)      => { const today = new Date(); today.setHours(0,0,0,0); const d = new Date(date); d.setHours(0,0,0,0); return d < today; };
+const isCurrentWeek = (monday)  => {
   const today = new Date(), d = today.getDay(), diff = d === 0 ? -6 : 1 - d;
   const currMonday = new Date(today); currMonday.setDate(today.getDate() + diff); currMonday.setHours(0,0,0,0);
   const m = new Date(monday); m.setHours(0,0,0,0);
@@ -81,25 +82,178 @@ const getWeekMetrics = (sessions) => {
   return { count, totalMin, loadLabel: loadCfg.label, loadColor: loadCfg.color };
 };
 
+// ─── PRESET_ROUTINES ─────────────────────────────────────
+const PRESET_ROUTINES = [
+  {
+    id: 'preset-hybrid-tkd',
+    name: 'Rutina Híbrida Taekwondo + Gimnasio',
+    sessions: {
+      lunes: {
+        id: 'sess-lunes-hybrid', name: 'Potencia - Tren Superior', sport: 'gym',
+        type: 'gym_potencia', icon: '⚡', duration: 75, exercises: 6, intensity: 'Alta', intensityLevel: 4,
+        blocks: [{ id: 'b1', name: 'Bloque A - Empuje Explosivo', type: 'fuerza', exercises: [
+          { id: 'lib-str-1', name: 'Press Banca',    series: 4, reps: '6', restSeconds: 120 },
+          { id: 'lib-str-3', name: 'Press Militar',  series: 4, reps: '6', restSeconds: 120 },
+        ]}],
+      },
+      martes:    { id: 'sess-martes-hybrid',    name: 'Técnica TKD + Poomsae',      sport: 'tkd', type: 'tkd',             icon: '🥋', duration: 90, exercises: 5, intensity: 'Media',  intensityLevel: 3 },
+      miercoles: {
+        id: 'sess-miercoles-hybrid', name: 'Fuerza - Tren Inferior', sport: 'gym',
+        type: 'gym_fuerza', icon: '🏋️', duration: 60, exercises: 5, intensity: 'Alta', intensityLevel: 4,
+        blocks: [{ id: 'b2', name: 'Bloque A - Pierna Dominante', type: 'fuerza', exercises: [
+          { id: 'lib-str-2', name: 'Sentadilla Trasera',  series: 4, reps: '5', restSeconds: 150 },
+          { id: 'lib-str-6', name: 'Peso Muerto Rumano',  series: 3, reps: '8', restSeconds: 120 },
+        ]}],
+      },
+      jueves:  { id: 'sess-jueves-hybrid',  name: 'Sparring + Competición TKD', sport: 'tkd', type: 'tkd_sparring',    icon: '🥊', duration: 90, exercises: 4, intensity: 'Máxima', intensityLevel: 5 },
+      viernes: { id: 'sess-viernes-hybrid', name: 'Hipertrofia - Full Body',     sport: 'gym', type: 'gym_hipertrofia', icon: '💪', duration: 70, exercises: 6, intensity: 'Media',  intensityLevel: 3 },
+    },
+  },
+  {
+    id: 'preset-fuerza-4d',
+    name: 'Rutina Fuerza & Sobrecarga (4 Días)',
+    sessions: {
+      lunes:   { id: 'sess-fuerza-lu', name: 'Fuerza Torso (Empuje/Tracción)', sport: 'gym', type: 'gym_fuerza',      icon: '🏋️', duration: 60, exercises: 5, intensity: 'Alta',  intensityLevel: 4 },
+      martes:  { id: 'sess-fuerza-ma', name: 'Fuerza Pierna & Cadera',         sport: 'gym', type: 'gym_fuerza',      icon: '🏋️', duration: 60, exercises: 5, intensity: 'Alta',  intensityLevel: 4 },
+      jueves:  { id: 'sess-fuerza-ju', name: 'Hipertrofia Torso Accesorias',   sport: 'gym', type: 'gym_hipertrofia', icon: '💪', duration: 65, exercises: 6, intensity: 'Media', intensityLevel: 3 },
+      viernes: { id: 'sess-fuerza-vi', name: 'Potencia & Unilateral Pierna',   sport: 'gym', type: 'gym_potencia',    icon: '⚡',  duration: 60, exercises: 5, intensity: 'Alta',  intensityLevel: 4 },
+    },
+  },
+];
+
+// ─── DayCard ─────────────────────────────────────────────
+// Componente para la tarjeta de sesión con long-press.
+// Definido en módulo scope (fuera de Plan) para poder usar useLongPress como hook.
+function DayCard({
+  dateISO, dayIndex, session, today, past,
+  intCfg, dateNum, stagger, cardClasses,
+  isMoveMode, moveSourceDate, onDayTap, onLongPressStart,
+}) {
+  const { handlers, progress } = useLongPress({
+    onLongPress: onLongPressStart(dateISO),
+    threshold: 2500,
+    moveCancelThreshold: 10,
+  });
+
+  const handleClick = () => {
+    if (isMoveMode) return; // En move-mode no se abre la sesión
+    onDayTap(dayIndex, session);
+  };
+
+  const isSource = isMoveMode && dateISO === moveSourceDate;
+
+  return (
+    <button className={`${stagger} ${cardClasses}`} onClick={handleClick} {...handlers}>
+      {/* Columna día */}
+      <div className={`flex flex-col items-center justify-center px-3 py-3 min-w-[58px] border-r border-border ${
+        isSource ? 'bg-signal-orange/5' : today ? 'bg-signal-orange/5' : 'bg-bg/10'
+      }`}>
+        {today && !isMoveMode && <span className="font-mono text-[8px] font-black text-signal-orange tracking-widest mb-0.5 uppercase">HOY</span>}
+        {isSource && <span className="font-mono text-[8px] font-black text-signal-orange tracking-widest mb-0.5 uppercase">MOVER</span>}
+        <span className={`font-mono text-[9px] font-bold tracking-wider uppercase ${isSource || today ? 'text-signal-orange' : 'text-muted'}`}>
+          {DAYS_SHORT[dayIndex]}
+        </span>
+        <span className="font-display font-black text-2xl leading-none text-ink mt-0.5">{dateNum}</span>
+        {today && !isMoveMode && <div className="w-1.5 h-1.5 rounded-full bg-signal-orange mt-1.5 animate-pulse" />}
+        {past && !today && !isMoveMode && <div className="w-1 h-1 rounded-full bg-border mt-1" />}
+      </div>
+
+      {/* Columna central */}
+      <div className="flex-1 px-4 py-3 flex flex-col justify-center gap-1 min-w-0 relative overflow-hidden">
+        <div className="flex items-center gap-2 min-w-0">
+          {session.icon && (
+            <div className="w-5 h-5 border border-border text-[9px] flex items-center justify-center shrink-0 rounded">
+              {session.icon}
+            </div>
+          )}
+          <span className="font-condensed font-black text-base leading-tight truncate text-ink uppercase tracking-wide">{session.name}</span>
+        </div>
+        <div className="flex items-center gap-2.5 font-mono text-[9px] text-muted uppercase tracking-wider font-semibold">
+          <span>⏱ {session.duration} MIN</span>
+          <span className="text-border">·</span>
+          <span>💪 {session.exercises} EJERC.</span>
+          {today && !isMoveMode && <span className="text-signal-orange font-bold ml-auto font-mono text-[9px] tracking-wider uppercase">INICIAR →</span>}
+          {isSource && <span className="text-signal-orange font-bold ml-auto font-mono text-[9px] tracking-wider uppercase">MANTENER…</span>}
+        </div>
+        {/* Barra de progreso del long-press */}
+        {!isMoveMode && progress > 0 && (
+          <div
+            className="absolute bottom-0 left-0 h-0.5 bg-signal-orange transition-all"
+            style={{ width: `${progress * 100}%` }}
+          />
+        )}
+      </div>
+
+      {/* Badge intensidad — se oculta cuando es la tarjeta origen */}
+      {!isSource && (
+        <div className="flex items-center px-3 shrink-0">
+          <span
+            className="font-mono text-[8px] font-black px-2 py-0.5 rounded border uppercase tracking-wider"
+            style={{ borderColor: intCfg?.border, color: intCfg?.text }}
+          >
+            {intCfg?.label}
+          </span>
+        </div>
+      )}
+    </button>
+  );
+}
+
 // ═══════════════════════════════════════════════════════
 export default function Plan() {
   const navigate = useNavigate();
-  const { currentWeekStart, navigateWeek, goToCurrentWeek, weekSessions, activeSeason, activeMesocycle, sessionTemplates, weekAssignments, assignSessionToDay, removeSessionFromDay } = usePlanner();
+  const {
+    currentWeekStart, navigateWeek, goToCurrentWeek,
+    weekSessions, activeSeason, activeMesocycle,
+    sessionTemplates, weekAssignments,
+    assignSessionToDay, removeSessionFromDay, moveSessionToDay,
+  } = usePlanner();
   const { activeSport } = useAthlete();
   const { loadSession } = useSession();
 
   const isCurrWeek = isCurrentWeek(currentWeekStart);
   const weekLabel  = getDisplayWeekLabel(currentWeekStart, activeMesocycle);
 
-  const [selectedSession, setSelectedSession] = useState(null);
-  const [addSheetDay, setAddSheetDay]         = useState(null);
-  const [addSheetVisible, setAddSheetVisible] = useState(false);
-
-  const [showImportSheet, setShowImportSheet] = useState(false);
+  const [selectedSession, setSelectedSession]   = useState(null);
+  const [addSheetDay, setAddSheetDay]           = useState(null);
+  const [addSheetVisible, setAddSheetVisible]   = useState(false);
+  const [showImportSheet, setShowImportSheet]   = useState(false);
   const [importedRoutines, setImportedRoutines] = useState([]);
-  const [loadingImport, setLoadingImport] = useState(false);
-  const [importError, setImportError] = useState(null);
+  const [loadingImport, setLoadingImport]       = useState(false);
+  const [importError, setImportError]           = useState(null);
   const [showRepetitionModal, setShowRepetitionModal] = useState(false);
+
+  // ── Move-mode state ──────────────────────────────────────
+  const [isMoveMode, setIsMoveMode]         = useState(false);
+  const [moveSourceDate, setMoveSourceDate] = useState(null);
+
+  const cancelMoveMode = useCallback(() => {
+    setIsMoveMode(false);
+    setMoveSourceDate(null);
+  }, []);
+
+  // Escape para cancelar + salir si otra operación actualiza las asignaciones
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') cancelMoveMode(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [cancelMoveMode]);
+
+  useEffect(() => {
+    // week_assignments_updated puede venir de repetir semana u otras acciones
+    const onUpdate = () => cancelMoveMode();
+    window.addEventListener('week_assignments_updated', onUpdate);
+    return () => window.removeEventListener('week_assignments_updated', onUpdate);
+  }, [cancelMoveMode]);
+
+  // Factory: devuelve el callback onLongPress capturando dateISO correcto
+  const makeLongPressHandlers = useCallback((dateISO) => {
+    return () => {
+      setMoveSourceDate(dateISO);
+      setIsMoveMode(true);
+      if (navigator.vibrate) navigator.vibrate(50);
+    };
+  }, []);
 
   const filteredSessions = useMemo(() => {
     const base = {};
@@ -108,7 +262,6 @@ export default function Plan() {
       const dateISO = formatISO(d);
       base[dayKey] = weekAssignments[dateISO] || weekSessions[dayKey] || null;
     });
-    
     if (activeSport === 'all') return base;
     const out = {};
     Object.entries(base).forEach(([day, s]) => {
@@ -129,12 +282,8 @@ export default function Plan() {
         dayBadge: DAYS_FULL[dayIndex],
         type: session.type || 'gym',
         blocks: session.blocks || [{
-          id: 'block-default',
-          name: session.name || 'Bloque Principal',
-          type: 'fuerza',
-          icon: '🏋️',
-          duration: `${session.duration || 45}m`,
-          exercises: []
+          id: 'block-default', name: session.name || 'Bloque Principal',
+          type: 'fuerza', icon: '🏋️', duration: `${session.duration || 45}m`, exercises: [],
         }],
       });
       navigate('/session');
@@ -161,114 +310,6 @@ export default function Plan() {
     closeAddSheet();
   };
 
-const PRESET_ROUTINES = [
-  {
-    id: 'preset-hybrid-tkd',
-    name: 'Rutina Híbrida Taekwondo + Gimnasio',
-    sessions: {
-      lunes: {
-        id: 'sess-lunes-hybrid',
-        name: 'Potencia - Tren Superior',
-        sport: 'gym',
-        type: 'gym_potencia',
-        icon: '⚡',
-        duration: 75,
-        exercises: 6,
-        intensity: 'Alta',
-        intensityLevel: 4,
-        blocks: [
-          {
-            id: 'b1', name: 'Bloque A - Empuje Explosivo', type: 'fuerza',
-            exercises: [
-              { id: 'lib-str-1', name: 'Press Banca', series: 4, reps: '6', restSeconds: 120 },
-              { id: 'lib-str-3', name: 'Press Militar', series: 4, reps: '6', restSeconds: 120 }
-            ]
-          }
-        ]
-      },
-      martes: {
-        id: 'sess-martes-hybrid',
-        name: 'Técnica TKD + Poomsae',
-        sport: 'tkd',
-        type: 'tkd',
-        icon: '🥋',
-        duration: 90,
-        exercises: 5,
-        intensity: 'Media',
-        intensityLevel: 3
-      },
-      miercoles: {
-        id: 'sess-miercoles-hybrid',
-        name: 'Fuerza - Tren Inferior',
-        sport: 'gym',
-        type: 'gym_fuerza',
-        icon: '🏋️',
-        duration: 60,
-        exercises: 5,
-        intensity: 'Alta',
-        intensityLevel: 4,
-        blocks: [
-          {
-            id: 'b2', name: 'Bloque A - Pierna Dominante', type: 'fuerza',
-            exercises: [
-              { id: 'lib-str-2', name: 'Sentadilla Trasera', series: 4, reps: '5', restSeconds: 150 },
-              { id: 'lib-str-6', name: 'Peso Muerto Rumano', series: 3, reps: '8', restSeconds: 120 }
-            ]
-          }
-        ]
-      },
-      jueves: {
-        id: 'sess-jueves-hybrid',
-        name: 'Sparring + Competición TKD',
-        sport: 'tkd',
-        type: 'tkd_sparring',
-        icon: '🥊',
-        duration: 90,
-        exercises: 4,
-        intensity: 'Máxima',
-        intensityLevel: 5
-      },
-      viernes: {
-        id: 'sess-viernes-hybrid',
-        name: 'Hipertrofia - Full Body',
-        sport: 'gym',
-        type: 'gym_hipertrofia',
-        icon: '💪',
-        duration: 70,
-        exercises: 6,
-        intensity: 'Media',
-        intensityLevel: 3
-      }
-    }
-  },
-  {
-    id: 'preset-fuerza-4d',
-    name: 'Rutina Fuerza & Sobrecarga (4 Días)',
-    sessions: {
-      lunes: {
-        id: 'sess-fuerza-lu',
-        name: 'Fuerza Torso (Empuje/Tracción)',
-        sport: 'gym', type: 'gym_fuerza', icon: '🏋️', duration: 60, exercises: 5, intensity: 'Alta', intensityLevel: 4
-      },
-      martes: {
-        id: 'sess-fuerza-ma',
-        name: 'Fuerza Pierna & Cadera',
-        sport: 'gym', type: 'gym_fuerza', icon: '🏋️', duration: 60, exercises: 5, intensity: 'Alta', intensityLevel: 4
-      },
-      jueves: {
-        id: 'sess-fuerza-ju',
-        name: 'Hipertrofia Torso Accesorias',
-        sport: 'gym', type: 'gym_hipertrofia', icon: '💪', duration: 65, exercises: 6, intensity: 'Media', intensityLevel: 3
-      },
-      viernes: {
-        id: 'sess-fuerza-vi',
-        name: 'Potencia & Unilateral Pierna',
-        sport: 'gym', type: 'gym_potencia', icon: '⚡', duration: 60, exercises: 5, intensity: 'Alta', intensityLevel: 4
-      }
-    }
-  }
-];
-
   const handleOpenImport = async () => {
     setShowImportSheet(true);
     setLoadingImport(true);
@@ -276,11 +317,7 @@ const PRESET_ROUTINES = [
     try {
       const res = await fetchWorkouts();
       const parsed = parseWorkouts(res.rows || []);
-      if (parsed.length > 0) {
-        setImportedRoutines(parsed);
-      } else {
-        setImportedRoutines(PRESET_ROUTINES);
-      }
+      setImportedRoutines(parsed.length > 0 ? parsed : PRESET_ROUTINES);
     } catch (err) {
       console.warn('Google Sheets getWorkouts no activo, usando rutinas predefinidas:', err);
       setImportedRoutines(PRESET_ROUTINES);
@@ -290,21 +327,18 @@ const PRESET_ROUTINES = [
   };
 
   const handleApplyRoutine = (routine) => {
-    // 1. Limpiar toda la semana actual para evitar días "fantasma" de rutinas previas
+    // 1. Limpiar semana actual para evitar días «fantasma»
     DAYS_ES.forEach((_, i) => {
       const dayDate = getDayDate(currentWeekStart, i);
-      const dateISO = formatISO(dayDate);
-      removeSessionFromDay(dateISO);
+      removeSessionFromDay(formatISO(dayDate));
     });
-
     // 2. Asignar los días de la nueva rutina
     Object.keys(routine.sessions).forEach(dayKey => {
       const dayIndex = DAYS_ES.indexOf(dayKey);
       if (dayIndex !== -1) {
         const dayDate = getDayDate(currentWeekStart, dayIndex);
-        const dateISO = formatISO(dayDate);
         const sess = routine.sessions[dayKey];
-        assignSessionToDay(dateISO, { ...sess, id: sess.id + '_' + Date.now() });
+        assignSessionToDay(formatISO(dayDate), { ...sess, id: sess.id + '_' + Date.now() });
       }
     });
     setShowImportSheet(false);
@@ -332,13 +366,13 @@ const PRESET_ROUTINES = [
             )}
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button 
+            <button
               onClick={() => setShowRepetitionModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card text-ink text-xs font-display font-black hover:border-signal-orange hover:text-signal-orange active:scale-95 transition-all cursor-pointer uppercase tracking-wider"
             >
               <Repeat size={13} strokeWidth={2.5} /> Repetir
             </button>
-            <button 
+            <button
               onClick={handleOpenImport}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-signal-orange text-ink rounded-lg font-display font-black text-xs hover:bg-signal-orange/95 transition-colors border border-border cursor-pointer uppercase tracking-wider"
             >
@@ -366,9 +400,7 @@ const PRESET_ROUTINES = [
           <div className="flex-1 flex items-center justify-center gap-2.5 min-w-0">
             <h1 className="font-display font-black text-3xl leading-none uppercase tracking-wide">{weekLabel}</h1>
             {activeMesocycle && (
-              <span
-                className="font-mono text-[9px] font-bold px-2 py-0.5 rounded border border-border shrink-0 text-muted uppercase tracking-wider"
-              >
+              <span className="font-mono text-[9px] font-bold px-2 py-0.5 rounded border border-border shrink-0 text-muted uppercase tracking-wider">
                 {MESO_LABELS[activeMesocycle.type] || activeMesocycle.type}
               </span>
             )}
@@ -390,7 +422,17 @@ const PRESET_ROUTINES = [
       </div>
 
       {/* ── GRID SEMANAL ───────────────────────────────── */}
-      <div className="flex-1 px-4 pt-3 space-y-3.5" style={{ paddingBottom: 'calc(8rem + var(--safe-bottom,0px))' }}>
+      {/* Overlay de cancelación (z-60): cubre todo menos el grid (z-61) */}
+      {isMoveMode && (
+        <div
+          className="fixed inset-0 z-[60] bg-black/20"
+          onClick={cancelMoveMode}
+        />
+      )}
+      <div
+        className={`flex-1 px-4 pt-3 space-y-3.5${isMoveMode ? ' relative z-[61]' : ''}`}
+        style={{ paddingBottom: 'calc(8rem + var(--safe-bottom,0px))' }}
+      >
         {DAYS_ES.map((dayKey, i) => {
           const session = filteredSessions[dayKey];
           const dayDate = getDayDate(currentWeekStart, i);
@@ -399,91 +441,111 @@ const PRESET_ROUTINES = [
           const intCfg  = session ? INTENSITY_CONFIG[session.intensity] : null;
           const dateNum = dayDate.getDate();
           const stagger = `stagger-${Math.min(i + 1, 7)}`;
+          const dateISO = formatISO(dayDate);
 
           if (session) {
+            // Clases de tarjeta — move-mode tiene prioridad total sobre today/past
+            let cardClasses = 'w-full flex items-stretch rounded-xl border transition-all text-left overflow-hidden cursor-pointer';
+            if (isMoveMode) {
+              if (dateISO === moveSourceDate) {
+                cardClasses += ' border-signal-orange border-2 animate-pulse bg-card opacity-100';
+              } else {
+                // Tarjeta ocupada = destino inválido en move-mode
+                cardClasses += ' opacity-50 pointer-events-none cursor-default border-border bg-card';
+              }
+            } else {
+              cardClasses += today
+                ? ' bg-card border-l-4 border-l-signal-orange border-border shadow-sm'
+                : past
+                ? ' bg-card/70 border-border opacity-60'
+                : ' bg-card border-border hover:border-muted shadow-sm active:scale-[0.98]';
+            }
+
             return (
-              <button
+              <DayCard
                 key={dayKey}
-                onClick={() => handleDayTap(i, session)}
-                className={`${stagger} w-full flex items-stretch rounded-xl border transition-all text-left overflow-hidden active:scale-[0.98] cursor-pointer ${
-                  today
-                    ? 'bg-card border-l-4 border-l-signal-orange border-border shadow-sm'
-                    : past
-                    ? 'bg-card/70 border-border opacity-60'
-                    : 'bg-card border-border hover:border-muted shadow-sm'
-                }`}
-              >
-                {/* Columna día */}
-                <div className={`flex flex-col items-center justify-center px-3 py-3 min-w-[58px] border-r border-border ${today ? 'bg-signal-orange/5' : 'bg-bg/10'}`}>
-                  {today && <span className="font-mono text-[8px] font-black text-signal-orange tracking-widest mb-0.5 uppercase">HOY</span>}
-                  <span className={`font-mono text-[9px] font-bold tracking-wider uppercase ${today ? 'text-signal-orange' : 'text-muted'}`}>
-                    {DAYS_SHORT[i]}
-                  </span>
-                  <span className="font-display font-black text-2xl leading-none text-ink mt-0.5">
-                    {dateNum}
-                  </span>
-                  {today && <div className="w-1.5 h-1.5 rounded-full bg-signal-orange mt-1.5 animate-pulse" />}
-                  {past && !today && <div className="w-1 h-1 rounded-full bg-border mt-1" />}
-                </div>
-
-                {/* Columna central */}
-                <div className="flex-1 px-4 py-3 flex flex-col justify-center gap-1 min-w-0">
-                  <div className="flex items-center gap-2 min-w-0">
-                    {session.icon && (
-                      <div className="w-5 h-5 border border-border text-[9px] flex items-center justify-center shrink-0 rounded">
-                        {session.icon}
-                      </div>
-                    )}
-                    <span className="font-condensed font-black text-base leading-tight truncate text-ink uppercase tracking-wide">{session.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2.5 font-mono text-[9px] text-muted uppercase tracking-wider font-semibold">
-                    <span>⏱ {session.duration} MIN</span>
-                    <span className="text-border">·</span>
-                    <span>💪 {session.exercises} EJERC.</span>
-                    {today && <span className="text-signal-orange font-bold ml-auto font-mono text-[9px] tracking-wider uppercase">INICIAR →</span>}
-                  </div>
-                </div>
-
-                {/* Badge intensidad — solo borde */}
-                <div className="flex items-center px-3 shrink-0">
-                  <span
-                    className="font-mono text-[8px] font-black px-2 py-0.5 rounded border uppercase tracking-wider"
-                    style={{ borderColor: intCfg.border, color: intCfg.text }}
-                  >
-                    {intCfg.label}
-                  </span>
-                </div>
-              </button>
+                dateISO={dateISO}
+                dayIndex={i}
+                session={session}
+                today={today}
+                past={past}
+                intCfg={intCfg}
+                dateNum={dateNum}
+                stagger={stagger}
+                cardClasses={cardClasses}
+                isMoveMode={isMoveMode}
+                moveSourceDate={moveSourceDate}
+                onDayTap={handleDayTap}
+                onLongPressStart={makeLongPressHandlers}
+              />
             );
           }
 
-          // ── DÍA VACÍO ──
+          // ── DÍA VACÍO ──────────────────────────────────
+          let emptyClasses = 'w-full flex items-stretch rounded-xl border border-dashed transition-all text-left overflow-hidden cursor-pointer';
+          if (isMoveMode) {
+            if (!isPast(dayDate)) {
+              // Destino válido: borde naranja dashed, fondo suave
+              emptyClasses += ' border-signal-orange bg-signal-orange/5 active:scale-[0.98]';
+            } else {
+              // Destino inválido: pasado
+              emptyClasses += ' opacity-50 pointer-events-none cursor-default';
+            }
+          } else {
+            emptyClasses += today
+              ? ' border-signal-orange bg-signal-orange/5'
+              : ' border-border bg-card/45 hover:bg-card hover:border-muted active:scale-[0.98]';
+          }
+
           return (
             <button
               key={dayKey}
-              onClick={() => handleEmptyDayTap(i)}
-              className={`${stagger} w-full flex items-stretch rounded-xl border border-dashed transition-all text-left overflow-hidden active:scale-[0.98] cursor-pointer ${
-                today ? 'border-signal-orange bg-signal-orange/5' : 'border-border bg-card/45 hover:bg-card hover:border-muted'
-              }`}
+              onClick={() => {
+                if (isMoveMode) {
+                  if (!isPast(dayDate)) {
+                    const result = moveSessionToDay(moveSourceDate, dateISO);
+                    if (result.success) cancelMoveMode();
+                  }
+                  return;
+                }
+                handleEmptyDayTap(i);
+              }}
+              className={emptyClasses}
             >
-              <div className={`flex flex-col items-center justify-center px-3 py-3 min-w-[58px] border-r border-dashed ${today ? 'border-signal-orange/30 bg-signal-orange/5' : 'border-border'}`}>
-                {today && <span className="font-mono text-[8px] font-black text-signal-orange tracking-widest mb-0.5">HOY</span>}
+              <div className={`flex flex-col items-center justify-center px-3 py-3 min-w-[58px] border-r border-dashed ${
+                isMoveMode && !isPast(dayDate)
+                  ? 'border-signal-orange/30'
+                  : today ? 'border-signal-orange/30 bg-signal-orange/5' : 'border-border'
+              }`}>
+                {today && !isMoveMode && <span className="font-mono text-[8px] font-black text-signal-orange tracking-widest mb-0.5">HOY</span>}
                 <span className="font-mono text-[9px] font-bold tracking-wider uppercase text-muted/50">{DAYS_SHORT[i]}</span>
-                <span className={`font-display font-black text-2xl leading-none ${today ? 'text-signal-orange/60' : 'text-muted/40'}`}>
+                <span className={`font-display font-black text-2xl leading-none ${
+                  isMoveMode && !isPast(dayDate)
+                    ? 'text-signal-orange/60'
+                    : today ? 'text-signal-orange/60' : 'text-muted/40'
+                }`}>
                   {dateNum}
                 </span>
               </div>
               <div className="flex-1 px-4 py-3 flex items-center justify-between">
                 <div>
-                  <span className="font-condensed font-black text-sm uppercase text-muted/70 tracking-wider">Descanso activo</span>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="font-mono text-[8px] text-muted/40 uppercase tracking-widest">recuperación</span>
+                  {isMoveMode && !isPast(dayDate) ? (
+                    <span className="font-condensed font-black text-sm uppercase text-signal-orange tracking-wider">Mover aquí</span>
+                  ) : (
+                    <>
+                      <span className="font-condensed font-black text-sm uppercase text-muted/70 tracking-wider">Descanso activo</span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className="font-mono text-[8px] text-muted/40 uppercase tracking-widest">recuperación</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+                {!isMoveMode && (
+                  <div className="flex items-center gap-1 border border-border rounded-lg px-2.5 py-1 text-muted/60 hover:border-signal-orange hover:text-signal-orange transition-colors font-mono text-[9px] tracking-wider uppercase font-bold bg-card">
+                    <Plus size={11} />
+                    <span>Añadir</span>
                   </div>
-                </div>
-                <div className="flex items-center gap-1 border border-border rounded-lg px-2.5 py-1 text-muted/60 hover:border-signal-orange hover:text-signal-orange transition-colors font-mono text-[9px] tracking-wider uppercase font-bold bg-card">
-                  <Plus size={11} />
-                  <span>Añadir</span>
-                </div>
+                )}
               </div>
             </button>
           );
@@ -501,9 +563,7 @@ const PRESET_ROUTINES = [
             SESIONES {metrics.totalMin > 0 ? `· ~${metrics.totalMin} MIN` : ''}
           </span>
         </div>
-        <span
-          className="font-mono text-[9px] font-black px-2.5 py-1 rounded border border-border text-ink uppercase tracking-wider"
-        >
+        <span className="font-mono text-[9px] font-black px-2.5 py-1 rounded border border-border text-ink uppercase tracking-wider">
           {metrics.loadLabel}
         </span>
       </div>
@@ -632,7 +692,7 @@ const PRESET_ROUTINES = [
                 <X size={18} />
               </button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-5 pb-8 space-y-4">
               {loadingImport ? (
                 <div className="text-center p-6 text-muted font-mono text-xs uppercase tracking-wider font-bold animate-pulse">Sincronizando con Google Sheets...</div>
@@ -650,7 +710,7 @@ const PRESET_ROUTINES = [
                   <div key={routine.id} className="bg-card border border-border rounded-xl overflow-hidden shadow-none">
                     <div className="px-4 py-3 bg-signal-orange/5 border-b border-border flex items-center justify-between">
                       <h4 className="font-condensed font-black text-lg text-ink uppercase tracking-wide truncate pr-2">{routine.name}</h4>
-                      <button 
+                      <button
                         onClick={() => handleApplyRoutine(routine)}
                         className="bg-signal-orange text-ink px-3 py-1 rounded-lg font-display font-black text-xs hover:bg-signal-orange/95 cursor-pointer border border-border tracking-wider uppercase"
                       >
