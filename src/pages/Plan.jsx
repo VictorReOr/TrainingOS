@@ -84,7 +84,7 @@ const getWeekMetrics = (sessions) => {
 // ═══════════════════════════════════════════════════════
 export default function Plan() {
   const navigate = useNavigate();
-  const { currentWeekStart, navigateWeek, goToCurrentWeek, weekSessions, activeSeason, activeMesocycle, sessionTemplates, weekAssignments, assignSessionToDay } = usePlanner();
+  const { currentWeekStart, navigateWeek, goToCurrentWeek, weekSessions, activeSeason, activeMesocycle, sessionTemplates, weekAssignments, assignSessionToDay, removeSessionFromDay } = usePlanner();
   const { activeSport } = useAthlete();
   const { loadSession } = useSession();
 
@@ -290,6 +290,14 @@ const PRESET_ROUTINES = [
   };
 
   const handleApplyRoutine = (routine) => {
+    // 1. Limpiar toda la semana actual para evitar días "fantasma" de rutinas previas
+    DAYS_ES.forEach((_, i) => {
+      const dayDate = getDayDate(currentWeekStart, i);
+      const dateISO = formatISO(dayDate);
+      removeSessionFromDay(dateISO);
+    });
+
+    // 2. Asignar los días de la nueva rutina
     Object.keys(routine.sessions).forEach(dayKey => {
       const dayIndex = DAYS_ES.indexOf(dayKey);
       if (dayIndex !== -1) {
