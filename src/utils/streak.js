@@ -30,14 +30,17 @@ export function computeTrainingStreak(scheduledSessions, sessionLogs, referenceD
     }
     
     const sId = session.id || session.sessionId;
+    const instanceId = session.instanceId;
     
-    // TODO: Gap encontrado en matching de sesiones reprogramadas vs plantillas repetidas.
-    // Si el usuario asigna la MISMA plantilla (ej. 'session-gym-1') a dos días distintos, 
-    // comparten el mismo ID base. Al completar una, ambas darán match aquí porque `log.sessionId`
-    // referenciará el ID de la plantilla, no una instancia única (instanceId).
-    // Para que el reprogramado (reschedule) funcione 100% robusto sin depender de la fecha, necesitamos que 
-    // `assignSessionToDay` genere un `instanceId` único y que `SessionLog` guarde ese `instanceId`.
-    const hasLog = sessionLogs.some(log => log.sessionId === sId);
+    // Prioridad de matching: usar instanceId si ambos (asignación y log) lo tienen, 
+    // para diferenciar repeticiones de la misma plantilla en días distintos.
+    // Fallback: si el log es antiguo (null/undefined), usar sessionId para retrocompatibilidad.
+    const hasLog = sessionLogs.some(log => {
+      if (instanceId && log.instanceId) {
+        return log.instanceId === instanceId;
+      }
+      return log.sessionId === sId;
+    });
     
     if (hasLog) {
       return { date: new Date(d), type: 'completed', sessionId: sId };

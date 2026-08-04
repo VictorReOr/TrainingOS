@@ -164,6 +164,7 @@ export function SessionProvider({ children }) {
         id: `session-log-${Date.now()}`,
         fecha: now,
         sessionId: activeSession.id,
+        instanceId: activeSession.instanceId || null,
         sessionName: activeSession.name || 'Sesión',
         durationMinutes: Math.ceil(elapsedSeconds / 60) || 45,
         rpe: rpeMedio,

@@ -135,12 +135,16 @@ export function PlannerProvider({ children }) {
   }, [weekAssignments]);
 
   const assignSessionToDay = (dateISO, sessionData) => {
-    setWeekAssignments(prev => ({ ...prev, [dateISO]: sessionData }));
+    const sessionId = sessionData.id || sessionData.sessionId || '';
+    const instanceId = sessionData.instanceId || `${sessionId}_${dateISO}`;
+    const sessionWithInstance = { ...sessionData, instanceId };
+
+    setWeekAssignments(prev => ({ ...prev, [dateISO]: sessionWithInstance }));
     // Prompt 2.4: sync a Sheets en background
     _bgSync('assignSession', () => _assignSessionToDay({
       dateISO,
-      sessionId: sessionData.id || sessionData.sessionId || '',
-      sessionData,
+      sessionId: sessionWithInstance.id || sessionWithInstance.sessionId || '',
+      sessionData: sessionWithInstance,
     }));
   };
 
