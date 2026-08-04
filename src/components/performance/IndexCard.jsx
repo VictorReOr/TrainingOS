@@ -19,32 +19,37 @@ export default function IndexCard({
 
   return (
     <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 flex flex-col gap-2 shadow-sm">
-      {/* Header row */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <span className="text-base">{icon}</span>
-          <span className="text-eyebrow text-[#6B7280]">
+      {/* Header row: Icon, Title & Trend */}
+      <div className="flex items-center justify-between min-w-0">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="text-base shrink-0">{icon}</span>
+          <span className="text-eyebrow text-[#6B7280] truncate">
             {title}
           </span>
         </div>
-        <div className="flex items-center gap-1">
-          {trendIcon && (
-            <span className="font-mono text-xs font-bold" style={{ color: barColor }}>
-              {trendIcon}
-            </span>
-          )}
-          <span className="font-mono font-bold text-xs text-[#6B7280] uppercase tracking-wider">
-            {label}
+        {trendIcon && (
+          <span className="font-mono text-xs font-bold shrink-0 ml-1" style={{ color: barColor }}>
+            {trendIcon}
           </span>
-        </div>
+        )}
       </div>
 
-      {/* Value */}
-      <div className="flex items-baseline gap-1.5">
-        <span className="text-display text-3xl leading-none" style={{ color: barColor }}>
-          {value ?? '--'}
-        </span>
-        <span className="text-meta uppercase">/100</span>
+      {/* Value & Status Label row */}
+      <div className="flex items-baseline justify-between gap-1">
+        <div className="flex items-baseline gap-1">
+          <span className="text-display text-3xl leading-none" style={{ color: barColor }}>
+            {value ?? '--'}
+          </span>
+          <span className="text-meta uppercase text-[9px]">/100</span>
+        </div>
+        {label && (
+          <span
+            className="font-mono text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
+            style={{ color: barColor, backgroundColor: `${barColor}15` }}
+          >
+            {label}
+          </span>
+        )}
       </div>
 
       {/* Progress bar */}
