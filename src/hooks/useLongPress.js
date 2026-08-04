@@ -49,6 +49,15 @@ export function useLongPress({
     setIsActive(true);
     setProgress(0);
 
+    // Capturar el puntero para no perder eventos si el dedo sale del elemento (Punto #6)
+    if (e.pointerId !== undefined && e.currentTarget?.setPointerCapture) {
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch (err) {
+        // Ignorar si el navegador no lo soporta en este estado
+      }
+    }
+
     // Intervalo de 50 ms para actualizar el progreso
     intervalRef.current = setInterval(() => {
       const elapsed = Date.now() - (startTimeRef.current ?? Date.now());
@@ -74,8 +83,19 @@ export function useLongPress({
     }
   }, [cancel, moveCancelThreshold]);
 
-  const onPointerUp     = useCallback(() => { cancel(); }, [cancel]);
-  const onPointerCancel = useCallback(() => { cancel(); }, [cancel]);
+  const onPointerUp = useCallback((e) => {
+    if (e?.pointerId !== undefined && e.currentTarget?.hasPointerCapture && e.currentTarget.hasPointerCapture(e.pointerId)) {
+      try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+    }
+    cancel();
+  }, [cancel]);
+
+  const onPointerCancel = useCallback((e) => {
+    if (e?.pointerId !== undefined && e.currentTarget?.hasPointerCapture && e.currentTarget.hasPointerCapture(e.pointerId)) {
+      try { e.currentTarget.releasePointerCapture(e.pointerId); } catch (err) {}
+    }
+    cancel();
+  }, [cancel]);
 
   return {
     handlers: {

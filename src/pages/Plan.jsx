@@ -129,7 +129,7 @@ function DayCard({
   intCfg, dateNum, stagger, cardClasses,
   isMoveMode, moveSourceDate, onDayTap, onLongPressStart,
 }) {
-  const { handlers, progress } = useLongPress({
+  const { handlers, progress, isActive } = useLongPress({
     onLongPress: onLongPressStart(dateISO),
     threshold: 2500,
     moveCancelThreshold: 10,
@@ -141,9 +141,19 @@ function DayCard({
   };
 
   const isSource = isMoveMode && dateISO === moveSourceDate;
+  
+  // Punto #5: Prevenir menú contextual y selección nativa durante el gesto o si es el origen
+  const preventGestures = isActive || isSource;
+  const cardStyle = preventGestures ? { WebkitTouchCallout: 'none', userSelect: 'none', touchAction: 'none' } : {};
 
   return (
-    <button className={`${stagger} ${cardClasses}`} onClick={handleClick} {...handlers}>
+    <button 
+      className={`${stagger} ${cardClasses}`} 
+      style={cardStyle}
+      onClick={handleClick} 
+      onContextMenu={(e) => { if (preventGestures) e.preventDefault(); }}
+      {...handlers}
+    >
       {/* Columna día */}
       <div className={`flex flex-col items-center justify-center px-3 py-3 min-w-[58px] border-r border-border ${
         isSource ? 'bg-signal-orange/5' : today ? 'bg-signal-orange/5' : 'bg-bg/10'
@@ -226,11 +236,18 @@ export default function Plan() {
   // ── Move-mode state ──────────────────────────────────────
   const [isMoveMode, setIsMoveMode]         = useState(false);
   const [moveSourceDate, setMoveSourceDate] = useState(null);
+  const [undoToast, setUndoToast]           = useState(null); // Punto #9: Toast de deshacer
 
   const cancelMoveMode = useCallback(() => {
     setIsMoveMode(false);
     setMoveSourceDate(null);
   }, []);
+
+  const handleUndoMove = () => {
+    if (!undoToast) return;
+    moveSessionToDay(undoToast.to, undoToast.from);
+    setUndoToast(null);
+  };
 
   // Escape para cancelar + salir si otra operación actualiza las asignaciones
   useEffect(() => {
@@ -504,7 +521,15 @@ export default function Plan() {
                 if (isMoveMode) {
                   if (!isPast(dayDate)) {
                     const result = moveSessionToDay(moveSourceDate, dateISO);
-                    if (result.success) cancelMoveMode();
+                    if (result.success) {
+                      cancelMoveMode();
+                      setUndoToast({
+                        message: 'Sesión movida',
+                        from: moveSourceDate,
+                        to: dateISO
+                      });
+                      setTimeout(() => setUndoToast(null), 4000);
+                    }
                   }
                   return;
                 }
@@ -576,6 +601,16 @@ export default function Plan() {
           dayLabel={selectedSession.dayLabel}
           onClose={() => setSelectedSession(null)}
         />
+      )}
+
+      {/* ── UNDO TOAST (Move Mode) ── */}
+      {undoToast && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 bg-ink text-bg px-4 py-2.5 rounded-full font-mono text-[10px] uppercase tracking-widest z-[100] shadow-xl whitespace-nowrap flex items-center gap-4 animate-slide-up">
+          <span>{undoToast.message}</span>
+          <button onClick={handleUndoMove} className="text-signal-orange font-black active:scale-95 cursor-pointer">
+            DESHACER
+          </button>
+        </div>
       )}
 
       {/* ── ADD SESSION SHEET ── */}
