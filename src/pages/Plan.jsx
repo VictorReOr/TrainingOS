@@ -236,7 +236,8 @@ export default function Plan() {
   // ── Move-mode state ──────────────────────────────────────
   const [isMoveMode, setIsMoveMode]         = useState(false);
   const [moveSourceDate, setMoveSourceDate] = useState(null);
-  const [undoToast, setUndoToast]           = useState(null); // Punto #9: Toast de deshacer
+  const [undoToast, setUndoToast]           = useState(null);
+  const undoToastTimerRef                   = useRef(null); // Para limpiar timeout de toasts anteriores
 
   const cancelMoveMode = useCallback(() => {
     setIsMoveMode(false);
@@ -528,7 +529,8 @@ export default function Plan() {
                         from: moveSourceDate,
                         to: dateISO
                       });
-                      setTimeout(() => setUndoToast(null), 4000);
+                      if (undoToastTimerRef.current) clearTimeout(undoToastTimerRef.current);
+                      undoToastTimerRef.current = setTimeout(() => setUndoToast(null), 4000);
                     }
                   }
                   return;
