@@ -8,12 +8,8 @@ import { useAthlete } from '../context/AthleteContext';
 import { useFeedback } from '../context/FeedbackContext';
 import { useSession } from '../context/SessionContext';
 import { usePerformanceEngine } from '../hooks/usePerformanceEngine';
+import { useTrainingStreak } from '../hooks/useTrainingStreak';
 import { useReadiness } from '../context/ReadinessContext';
-import TrafficLightBadge from '../components/performance/TrafficLightBadge';
-import ColdStartBanner from '../components/performance/ColdStartBanner';
-import WellnessCheckIn from '../components/performance/WellnessCheckIn';
-
-// Day of week helper
 const getDayOfWeek = () => {
   const days = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   return days[new Date().getDay()];
@@ -47,36 +43,9 @@ export default function Home() {
   const hasCheckedInToday = todayCheckIn !== null;
   const showWellnessBanner = isEnabled && !hasCheckedInToday && new Date().getHours() >= 6;
 
-  const streak = useMemo(() => {
-    const today = new Date();
-    const DAYS_KEYS = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
-    const SESSION_TYPE_COLORS = {
-      gym_fuerza:      'var(--color-corner-red)', 
-      gym_hipertrofia: 'var(--color-corner-red)',
-      gym:             'var(--color-corner-red)',
-      tkd:             'var(--color-corner-blue)', 
-      cardio:          'var(--color-success-green)', 
-      descanso:        'var(--color-border)', 
-    };
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(today);
-      d.setDate(today.getDate() - (6 - i));
-      const key = DAYS_KEYS[d.getDay()];
-      const sessions = weekSessions?.[key] || [];
-      const trained = sessions.length > 0;
-      const sessionType = sessions[0]?.type || null;
-      const isPast = d < new Date(today.toDateString());
-      return {
-        date: d,
-        label: ['LU','MA','MI','JU','VI','SÁ','DO'][d.getDay() === 0 ? 6 : d.getDay() - 1],
-        isToday: d.toDateString() === today.toDateString(),
-        trained,
-        isPast,
-        color: SESSION_TYPE_COLORS[sessionType] || 'var(--color-corner-red)',
-      };
-    });
-  }, [weekSessions]);
-  const trainedCount = streak.filter(d => d.trained).length;
+  const { currentStreak, days: streakDays } = useTrainingStreak();
+  const sessionsInWindow = streakDays.filter(d => d.type !== 'rest').length;
+  const completedInWindow = streakDays.filter(d => d.type === 'completed').length;
 
   // Best PR this week
   const latestPR = prs.length > 0 ? prs[0] : null;
@@ -247,41 +216,58 @@ export default function Home() {
             <div>
               <p className="font-mono text-[9px] text-muted tracking-widest uppercase">Racha de Entrenamiento</p>
               <p className="font-display font-black text-2xl text-ink leading-none mt-1 uppercase">
-                {trainedCount} <span className="text-xs font-mono font-normal text-muted tracking-normal">/ 7 días</span>
+                {completedInWindow} <span className="text-xs font-mono font-normal text-muted tracking-normal">/ {sessionsInWindow} SESIONES</span>
               </p>
             </div>
             <div className="flex items-center gap-1 text-belt-gold">
               <Flame size={18} fill="currentColor" stroke="none" />
-              <span className="font-display font-black text-xl leading-none">{trainedCount}</span>
+              <span className="font-display font-black text-xl leading-none">{currentStreak}</span>
             </div>
           </div>
           
           <div className="flex gap-1.5 justify-between">
-            {streak.map((day, i) => (
-              <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
-                <div
-                  className={`w-full h-8 rounded-lg flex items-center justify-center transition-all ${
-                    day.isToday
-                      ? 'border-[1.5px] border-signal-orange bg-signal-orange/10'
-                      : 'border border-border bg-bg/25'
-                  }`}
-                  style={
-                    day.trained
-                      ? { backgroundColor: day.color, opacity: day.isPast ? 0.6 : 1 }
-                      : {}
-                  }
-                >
-                  {day.trained && (
-                    <span className="font-mono text-xs font-black text-white">✓</span>
-                  )}
+            {streakDays.map((day, i) => {
+              const DAYS_KEYS = ['DO','LU','MA','MI','JU','VI','SÁ'];
+              const label = DAYS_KEYS[day.date.getDay()];
+              const isToday = day.date.toDateString() === new Date().toDateString();
+
+              let cellClass = "w-full h-8 rounded-lg flex items-center justify-center transition-all ";
+              let cellStyle = {};
+
+              if (isToday) {
+                cellClass += "border-[1.5px] border-signal-orange ";
+                if (day.type === 'completed') {
+                  cellStyle.backgroundColor = 'var(--color-success-green)';
+                } else {
+                  cellClass += "bg-signal-orange/10 ";
+                }
+              } else {
+                if (day.type === 'rest') {
+                  cellClass += "opacity-30 ";
+                } else if (day.type === 'completed') {
+                  cellStyle.backgroundColor = 'var(--color-success-green)';
+                } else if (day.type === 'pending') {
+                  cellClass += "border border-border bg-transparent ";
+                } else if (day.type === 'broken') {
+                  cellClass += "border border-corner-red bg-transparent ";
+                }
+              }
+
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1.5">
+                  <div className={cellClass} style={cellStyle}>
+                    {day.type === 'completed' && (
+                      <span className="font-mono text-xs font-black text-white">✓</span>
+                    )}
+                  </div>
+                  <span className={`text-[10px] font-mono font-bold tracking-wider ${
+                    isToday ? 'text-signal-orange' : 'text-muted'
+                  }`}>
+                    {label}
+                  </span>
                 </div>
-                <span className={`text-[10px] font-mono font-bold tracking-wider ${
-                  day.isToday ? 'text-signal-orange' : 'text-muted'
-                }`}>
-                  {day.label}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
