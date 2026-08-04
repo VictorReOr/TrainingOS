@@ -391,7 +391,7 @@ export default function Home() {
           <div className="grid grid-cols-3 gap-4 divide-x divide-border">
             {[
               { label: 'Récords',     value: prs.length,   unit: 'marcas'   },
-              { label: 'Esta semana', value: trainedCount,  unit: 'sesiones' },
+              { label: 'Esta semana', value: completedInWindow,  unit: 'sesiones' },
               { label: 'Hoy',         value: todaySession ? todaySession.duration : 0, unit: 'min' },
             ].map(({ label, value, unit }) => (
               <div key={label} className="text-center">
