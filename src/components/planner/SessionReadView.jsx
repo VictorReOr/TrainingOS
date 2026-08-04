@@ -353,12 +353,25 @@ function RetroactiveLogger({ blocks, sessionId, sessionName, dayDate, onSaved, o
 export default function SessionReadView({ session, dayDate, dayLabel, onClose }) {
   const navigate = useNavigate();
   const { loadSession } = useSession();
-  const { sessionTemplates } = usePlanner();
+  const { sessionTemplates, weekAssignments, assignSessionToDay } = usePlanner();
   const { isCoach } = useRole();
   const [isVisible, setIsVisible] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showRetroLogger, setShowRetroLogger] = useState(false);
   const [hasLog, setHasLog] = useState(() => hasLogForDate(session?.sessionId || session?.id, dayDate));
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState('');
+
+  const formatISO = (d) => { const pad = n => n.toString().padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+  const dateISO = formatISO(new Date(dayDate));
+  const currentSession = weekAssignments[dateISO] || session;
+
+  const handleSaveName = () => {
+    if (editedName.trim() && editedName !== currentSession.name) {
+      assignSessionToDay(dateISO, { ...currentSession, name: editedName.trim() });
+    }
+    setIsEditingName(false);
+  };
 
   useEffect(() => {
     setTimeout(() => setIsVisible(true), 10);
@@ -380,10 +393,10 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
   } else if (MOCK_SESSION_DETAILS[sId]?.blocks) {
     finalBlocks = [{
       id: 'blk-plan-1',
-      name: session.name,
-      type: session.type,
-      icon: session.icon,
-      duration: `${session.duration} min`,
+      name: currentSession.name,
+      type: currentSession.type,
+      icon: currentSession.icon,
+      duration: `${currentSession.duration} min`,
       exercises: MOCK_SESSION_DETAILS[sId].blocks.map((b, i) => ({
         id: `ex-plan-${i}`,
         orderNumber: String(i + 1).padStart(2, '0'),
@@ -402,25 +415,25 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
   const handleExecute = () => {
     const sessionData = {
       id: sId,
-      name: session.name,
-      dayBadge: `${dayLabel?.toUpperCase() || ''} · ${session.sport?.toUpperCase() || ''}`,
+      name: currentSession.name,
+      dayBadge: `${dayLabel?.toUpperCase() || ''} · ${currentSession.sport?.toUpperCase() || ''}`,
       blocks: finalBlocks,
     };
     loadSession(sessionData);
     navigate('/session');
   };
 
-  const intCfg = INTENSITY_COLORS[session.intensity] || INTENSITY_COLORS['Media'];
+  const intCfg = INTENSITY_COLORS[currentSession.intensity] || INTENSITY_COLORS['Media'];
   const isToday = isTodayDate(dayDate);
   const isPast = isPastDay(dayDate);
   // Button only appears when: date is today or past, and no log already recorded
   const canRegisterRetroactively = isPastOrToday(dayDate) && !hasLog;
 
   const exportPayload = {
-    id: session.sessionId,
-    name: session.name,
-    type: session.type,
-    icon: session.icon,
+    id: currentSession.sessionId,
+    name: currentSession.name,
+    type: currentSession.type,
+    icon: currentSession.icon,
     blocks: finalBlocks
   };
 
@@ -475,23 +488,48 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
 
           {/* Session title — text-white for contrast on dark bg */}
           <div className="flex items-start gap-3">
-            <span className="text-4xl">{session.icon}</span>
+            <span className="text-4xl">{currentSession.icon}</span>
             <div className="flex-1 min-w-0">
-              <h2 className="font-condensed font-black text-3xl text-white leading-tight">{session.name}</h2>
+              <div className="flex items-start gap-2">
+                {isEditingName ? (
+                  <input
+                    type="text"
+                    value={editedName}
+                    onChange={(e) => setEditedName(e.target.value)}
+                    onBlur={handleSaveName}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+                    className="font-condensed font-black text-3xl text-white leading-tight bg-transparent border-b-2 border-accent outline-none w-full"
+                    autoFocus
+                  />
+                ) : (
+                  <>
+                    <h2 className="font-condensed font-black text-3xl text-white leading-tight break-words">{currentSession.name}</h2>
+                    <button
+                      onClick={() => {
+                        setEditedName(currentSession.name);
+                        setIsEditingName(true);
+                      }}
+                      className="text-white/40 hover:text-white mt-1.5 cursor-pointer shrink-0"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    </button>
+                  </>
+                )}
+              </div>
               <div className="flex items-center gap-3 mt-2 flex-wrap">
                 <div className="flex items-center gap-1.5 text-sm text-white/50">
                   <Clock size={14} />
-                  <span>{session.duration} min</span>
+                  <span>{currentSession.duration} min</span>
                 </div>
                 <div className="flex items-center gap-1.5 text-sm text-white/50">
                   <Dumbbell size={14} />
-                  <span>{session.exercises} ejercicios</span>
+                  <span>{currentSession.exercises} ejercicios</span>
                 </div>
                 <span
                   className="text-[11px] font-black px-2.5 py-1 rounded-full"
                   style={{ backgroundColor: intCfg.bg, color: intCfg.text }}
                 >
-                  {session.intensity}
+                  {currentSession.intensity}
                 </span>
               </div>
             </div>
@@ -506,7 +544,7 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
             <RetroactiveLogger
               blocks={finalBlocks}
               sessionId={sId}
-              sessionName={session.name}
+              sessionName={currentSession.name}
               dayDate={dayDate}
               onSaved={() => {
                 setHasLog(true);
@@ -608,9 +646,9 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
             </button>
 
             {/* Editar */}
-            {session.sessionId && (
+            {currentSession.sessionId && (
               <button
-                onClick={() => { handleClose(); setTimeout(() => navigate(`/plan/session/${session.sessionId}/edit`), 310); }}
+                onClick={() => { handleClose(); setTimeout(() => navigate(`/plan/session/${currentSession.sessionId}/edit`), 310); }}
                 className="flex-1 py-3.5 rounded-2xl bg-white/5 border border-blue/30 font-bold text-blue text-sm active:scale-[0.98] transition-transform"
               >
                 ✏️ Editar

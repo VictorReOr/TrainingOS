@@ -28,13 +28,15 @@ const getGreetingBase = () => {
 
 export default function Home() {
   const navigate    = useNavigate();
-  const { weekSessions } = usePlanner();
+  const { weekSessions, weekAssignments, assignSessionToDay } = usePlanner();
   const { prs }     = usePR();
   const { athlete } = useAthlete();
   const { unreadCount } = useFeedback();
   const { loadSession } = useSession();
   const firstName = athlete?.name?.split(' ')[0] || '';
   const [showCheckIn, setShowCheckIn] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState('');
 
   const {
     isEnabled, isColdStart, coldStartProgress, coldStartTotal,
@@ -90,6 +92,20 @@ export default function Home() {
     { label: 'Timer',     sub: 'Circuito',  icon: <Timer       size={18} />, to: '/timer',     color: 'var(--color-ink)' },
   ];
 
+  const handleSaveName = () => {
+    if (editedName.trim() && editedName !== todaySession?.name) {
+      const pad = n => n.toString().padStart(2, '0');
+      const today = new Date();
+      const todayISO = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+      
+      const fullSession = weekAssignments?.[todayISO];
+      if (fullSession) {
+        assignSessionToDay(todayISO, { ...fullSession, name: editedName.trim() });
+      }
+    }
+    setIsEditingName(false);
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-bg text-ink">
 
@@ -133,10 +149,35 @@ export default function Home() {
                   FICHA N.{new Date().getDate() || '84'}
                 </span>
               </div>
-              <h2 className="font-display font-black text-3xl leading-tight text-ink uppercase tracking-wide">
-                {todaySession.name}
-              </h2>
-              <p className="font-mono text-[9px] font-bold text-muted tracking-widest uppercase mt-1">
+              <div className="flex items-center gap-2 mb-1">
+                {isEditingName ? (
+                  <input
+                    type="text"
+                    value={editedName}
+                    onChange={(e) => setEditedName(e.target.value)}
+                    onBlur={handleSaveName}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
+                    className="font-display font-black text-3xl leading-tight text-ink uppercase tracking-wide bg-transparent border-b-2 border-signal-orange outline-none w-full"
+                    autoFocus
+                  />
+                ) : (
+                  <>
+                    <h2 className="font-display font-black text-3xl leading-tight text-ink uppercase tracking-wide truncate">
+                      {todaySession.name}
+                    </h2>
+                    <button
+                      onClick={() => {
+                        setEditedName(todaySession.name);
+                        setIsEditingName(true);
+                      }}
+                      className="text-muted hover:text-signal-orange cursor-pointer p-1.5 shrink-0"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    </button>
+                  </>
+                )}
+              </div>
+              <p className="font-mono text-[9px] font-bold text-muted tracking-widest uppercase mt-0.5">
                 ⏱ {todaySession.duration} MIN · 💪 {todaySession.exercises} EJERCICIOS
               </p>
             </div>
