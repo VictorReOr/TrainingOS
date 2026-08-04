@@ -1,11 +1,32 @@
 import React from 'react';
 
+// ─── Colores por estado ─────────────────────────────────
 const COLOR_MAP = {
-  green:  { dot: '#27ae60', shadow: 'rgba(39,174,96,0.35)',  label: 'text-[#27ae60]' },
-  yellow: { dot: '#f5a623', shadow: 'rgba(245,166,35,0.35)', label: 'text-[#f5a623]' },
-  red:    { dot: '#e8412a', shadow: 'rgba(232,65,42,0.35)',  label: 'text-[#e8412a]' },
+  green:  { active: '#10B981', label: 'LISTO PARA ENTRENAR' },
+  yellow: { active: '#F59E0B', label: 'ENTRENA SUAVE'       },
+  red:    { active: '#EF4444', label: 'DESCANSO RECOMENDADO' },
 };
 
+const OFF = '#E5E5E5';       // Bloque apagado — gris sólido, opacidad 100%
+const SEGMENTS_ON = { green: 3, yellow: 2, red: 1 };
+const TOTAL_SEGMENTS = 3;
+
+// ─── Dimensiones por tamaño ─────────────────────────────
+const SIZE_CONFIG = {
+  sm: { w: 16, h: 6,  gap: 2, radius: 1, direction: 'row'    },
+  md: { w: 28, h: 8,  gap: 2, radius: 2, direction: 'row'    },
+  lg: { w: 40, h: 10, gap: 3, radius: 2, direction: 'row'    },
+};
+
+/**
+ * Indicador de 3 segmentos rectangulares tipo marcador electrónico deportivo.
+ *
+ * @param {'green'|'yellow'|'red'} color   Estado del semáforo
+ * @param {string}                 label   Label personalizado (override)
+ * @param {string}                 simpleMessage  Mensaje descriptivo debajo
+ * @param {'sm'|'md'|'lg'}         size    Tamaño del indicador
+ * @param {boolean}                showMessage  Mostrar simpleMessage
+ */
 export default function TrafficLightBadge({
   color = 'yellow',
   label = '',
@@ -13,59 +34,69 @@ export default function TrafficLightBadge({
   size = 'md',
   showMessage = true,
 }) {
-  const c = COLOR_MAP[color] ?? COLOR_MAP.yellow;
+  const cfg      = COLOR_MAP[color] ?? COLOR_MAP.yellow;
+  const onCount  = SEGMENTS_ON[color] ?? 2;
+  const sz       = SIZE_CONFIG[size] ?? SIZE_CONFIG.md;
+  const eyebrowLabel = label || cfg.label;
 
+  const segments = Array.from({ length: TOTAL_SEGMENTS }, (_, i) => (
+    <div
+      key={i}
+      style={{
+        width: sz.w,
+        height: sz.h,
+        borderRadius: sz.radius,
+        backgroundColor: i < onCount ? cfg.active : OFF,
+        transition: 'background-color 150ms ease-out',
+      }}
+    />
+  ));
+
+  // ── SM: inline horizontal, label a la derecha ──
   if (size === 'sm') {
     return (
-      <span className="inline-flex items-center gap-1.5">
-        <span
-          className="rounded-full shrink-0"
-          style={{ width: 8, height: 8, background: c.dot, boxShadow: `0 0 0 2px ${c.shadow}` }}
-        />
-        <span className="font-mono font-bold text-[10px] uppercase tracking-wider" style={{ color: c.dot }}>
-          {label}
+      <span className="inline-flex items-center gap-2">
+        <span className="inline-flex items-center" style={{ gap: sz.gap }}>
+          {segments}
+        </span>
+        <span className="text-eyebrow" style={{ color: cfg.active, fontSize: 10 }}>
+          {eyebrowLabel}
         </span>
       </span>
     );
   }
 
+  // ── LG: centrado vertical, label grande debajo ──
   if (size === 'lg') {
     return (
       <div className="flex flex-col items-center gap-3 py-4">
-        <span
-          className={`rounded-full ${color === 'green' ? 'pulse-green' : color === 'red' ? 'pulse-red' : ''}`}
-          style={{
-            width: 24, height: 24,
-            background: c.dot,
-            boxShadow: `0 0 0 4px ${c.shadow}, 0 0 20px ${c.shadow}`,
-            display: 'block'
-          }}
-        />
+        <div className="flex items-center" style={{ gap: sz.gap }}>
+          {segments}
+        </div>
         <div className="text-center">
-          <p className="font-condensed font-black text-xl uppercase tracking-widest" style={{ color: c.dot }}>
-            {label}
+          <p className="text-eyebrow" style={{ color: cfg.active, fontSize: 13 }}>
+            {eyebrowLabel}
           </p>
           {showMessage && simpleMessage && (
-            <p className="font-sans text-sm text-[#6B7280] mt-1">{simpleMessage}</p>
+            <p className="text-meta mt-1.5">{simpleMessage}</p>
           )}
         </div>
       </div>
     );
   }
 
-  // md (default)
+  // ── MD (default): horizontal, label a la derecha ──
   return (
-    <div className="flex items-start gap-2.5">
-      <span
-        className="rounded-full shrink-0 mt-0.5"
-        style={{ width: 12, height: 12, background: c.dot, boxShadow: `0 0 0 3px ${c.shadow}` }}
-      />
+    <div className="flex items-start gap-3">
+      <div className="flex items-center mt-1" style={{ gap: sz.gap }}>
+        {segments}
+      </div>
       <div>
-        <p className="font-condensed font-black text-sm uppercase tracking-wide" style={{ color: c.dot }}>
-          {label}
+        <p className="text-eyebrow" style={{ color: cfg.active }}>
+          {eyebrowLabel}
         </p>
         {showMessage && simpleMessage && (
-          <p className="font-sans text-xs text-[#6B7280] mt-0.5">{simpleMessage}</p>
+          <p className="text-meta mt-0.5">{simpleMessage}</p>
         )}
       </div>
     </div>

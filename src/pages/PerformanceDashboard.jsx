@@ -97,7 +97,7 @@ export default function PerformanceDashboard() {
             <h1 className="font-condensed font-black text-xl text-[#111827] uppercase tracking-widest">
               Performance Engine
             </h1>
-            <span className="font-mono text-[9px] text-[#6B7280] uppercase tracking-widest">
+            <span className="text-meta uppercase">
               v2.0 · Fase 2
             </span>
           </div>
@@ -113,7 +113,7 @@ export default function PerformanceDashboard() {
 
         {/* ── 1. SEMÁFORO GLOBAL ── */}
         <div className="bg-white border border-[#E5E7EB] rounded-2xl p-5 shadow-sm">
-          <p className="font-mono text-[9px] text-[#6B7280] uppercase tracking-widest mb-3">
+          <p className="text-eyebrow text-[#6B7280] mb-3">
             Estado Global
           </p>
           {globalTrafficLight ? (
@@ -147,7 +147,7 @@ export default function PerformanceDashboard() {
 
         {/* ── 3. LOS 6 ÍNDICES ── */}
         <div>
-          <p className="font-mono text-[9px] text-[#6B7280] uppercase tracking-widest mb-3 px-1">
+          <p className="text-eyebrow text-[#6B7280] mb-3 px-1">
             Índices de Rendimiento
           </p>
           <div className="grid grid-cols-2 gap-3">
@@ -159,10 +159,10 @@ export default function PerformanceDashboard() {
                     className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm flex flex-col gap-2 items-center justify-center opacity-50"
                   >
                     <span className="text-2xl">{card.icon}</span>
-                    <p className="font-mono text-[9px] text-[#6B7280] uppercase text-center">
+                    <p className="text-meta text-center">
                       No aplica
                     </p>
-                    <p className="font-mono text-[8px] text-[#6B7280] text-center">
+                    <p className="text-meta text-center" style={{ fontSize: 8 }}>
                       Solo TKD
                     </p>
                   </div>
@@ -178,13 +178,13 @@ export default function PerformanceDashboard() {
                   >
                     <div className="flex items-center gap-1.5">
                       <span>{card.icon}</span>
-                      <span className="font-condensed font-bold text-[10px] text-[#6B7280] uppercase tracking-widest">
+                      <span className="text-eyebrow text-[#6B7280]">
                         {card.title}
                       </span>
                     </div>
-                    <span className="font-condensed font-black text-3xl text-[#E5E7EB]">--</span>
+                    <span className="text-display text-3xl text-[#E5E7EB]">--</span>
                     <div className="h-2 bg-[#F3F4F6] rounded-full" />
-                    <p className="font-mono text-[9px] text-[#6B7280]">Sin datos</p>
+                    <p className="text-meta">Sin datos</p>
                   </div>
                 );
               }
@@ -208,7 +208,7 @@ export default function PerformanceDashboard() {
 
         {/* ── 4. RECOMENDACIONES ── */}
         <div>
-          <p className="font-mono text-[9px] text-[#6B7280] uppercase tracking-widest mb-3 px-1">
+          <p className="text-eyebrow text-[#6B7280] mb-3 px-1">
             Recomendaciones
           </p>
 
@@ -250,7 +250,7 @@ export default function PerformanceDashboard() {
 
         {/* ── 5. CHECK-IN DE HOY ── */}
         <div>
-          <p className="font-mono text-[9px] text-[#6B7280] uppercase tracking-widest mb-3 px-1">
+          <p className="text-eyebrow text-[#6B7280] mb-3 px-1">
             Bienestar de Hoy
           </p>
 
@@ -274,7 +274,7 @@ export default function PerformanceDashboard() {
                     <p className="font-mono font-black text-base text-[#111827] mt-1">
                       {item.val ?? '--'}
                     </p>
-                    <p className="font-mono text-[8px] text-[#6B7280] uppercase tracking-wider">
+                    <p className="text-meta uppercase">
                       {item.label}
                     </p>
                   </div>
@@ -307,29 +307,29 @@ export default function PerformanceDashboard() {
         {/* ── META INFO ── */}
         {output?.meta && (
           <div className="bg-white border border-[#E5E7EB] rounded-2xl p-4 shadow-sm">
-            <p className="font-mono text-[9px] text-[#6B7280] uppercase tracking-widest mb-2">
+            <p className="text-eyebrow text-[#6B7280] mb-2">
               Metadatos del motor
             </p>
             <div className="flex flex-col gap-1">
               <div className="flex justify-between">
-                <span className="font-mono text-[9px] text-[#6B7280] uppercase">Versión</span>
-                <span className="font-mono text-[9px] text-[#111827] font-bold">{output.meta.engineVersion}</span>
+                <span className="text-meta uppercase">Versión</span>
+                <span className="text-meta font-bold text-[#111827]">{output.meta.engineVersion}</span>
               </div>
               <div className="flex justify-between">
-                <span className="font-mono text-[9px] text-[#6B7280] uppercase">Completitud datos</span>
-                <span className="font-mono text-[9px] text-[#111827] font-bold">
+                <span className="text-meta uppercase">Completitud datos</span>
+                <span className="text-meta font-bold text-[#111827]">
                   {Math.round((output.meta.dataCompleteness ?? 0) * 100)}%
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="font-mono text-[9px] text-[#6B7280] uppercase">Cold Start</span>
-                <span className={`font-mono text-[9px] font-bold ${isColdStart ? 'text-[#f5a623]' : 'text-[#27ae60]'}`}>
+                <span className="text-meta uppercase">Cold Start</span>
+                <span className={`text-meta font-bold ${isColdStart ? 'text-[#f5a623]' : 'text-[#27ae60]'}`}>
                   {isColdStart ? `${coldStartProgress}/${coldStartTotal}` : 'Completado ✓'}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="font-mono text-[9px] text-[#6B7280] uppercase">Fase</span>
-                <span className="font-mono text-[9px] text-[#111827] font-bold">
+                <span className="text-meta uppercase">Fase</span>
+                <span className="text-meta font-bold text-[#111827]">
                   Fase {output.meta.phase}
                 </span>
               </div>

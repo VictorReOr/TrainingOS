@@ -23,7 +23,7 @@ export default function IndexCard({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <span className="text-base">{icon}</span>
-          <span className="font-condensed font-bold text-[10px] text-[#6B7280] uppercase tracking-widest">
+          <span className="text-eyebrow text-[#6B7280]">
             {title}
           </span>
         </div>
@@ -41,10 +41,10 @@ export default function IndexCard({
 
       {/* Value */}
       <div className="flex items-baseline gap-1.5">
-        <span className="font-condensed font-black text-3xl leading-none" style={{ color: barColor }}>
+        <span className="text-display text-3xl leading-none" style={{ color: barColor }}>
           {value ?? '--'}
         </span>
-        <span className="font-mono text-[9px] text-[#6B7280] uppercase tracking-wider">/100</span>
+        <span className="text-meta uppercase">/100</span>
       </div>
 
       {/* Progress bar */}
@@ -57,12 +57,12 @@ export default function IndexCard({
 
       {/* Detail */}
       {detail && (
-        <p className="font-sans text-[11px] text-[#6B7280] leading-snug line-clamp-2">{detail}</p>
+        <p className="text-meta leading-snug line-clamp-2">{detail}</p>
       )}
 
       {/* Confidence badge */}
       {confidence < 1 && (
-        <span className="font-mono text-[9px] text-[#6B7280] border border-[#E5E7EB] bg-[#F3F4F6] rounded px-1.5 py-0.5 self-start">
+        <span className="text-meta border border-[#E5E7EB] bg-[#F3F4F6] rounded px-1.5 py-0.5 self-start">
           📊 Confianza: {Math.round(confidence * 100)}%
         </span>
       )}

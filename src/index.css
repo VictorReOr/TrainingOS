@@ -103,12 +103,31 @@
   line-height: 1.5;
 }
 
-/* Texto pequeño / metadata */
+/* ── Nuevas utilidades tipográficas (Tarea 1) ────────── */
+
+/* Valores numéricos grandes de índices / marcadores */
+.text-display {
+  font-family: var(--font-condensed);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Etiquetas de categoría / sección (IBM Plex Mono uppercase) */
+.text-eyebrow {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  font-size: 11px;
+}
+
+/* Timestamps, metadatos, telemetría */
 .text-meta {
-  font-family: var(--font-sans);
+  font-family: var(--font-mono);
   font-weight: 400;
-  font-size: 0.8125rem;
-  line-height: 1.5;
+  letter-spacing: 0.06em;
+  font-size: 10px;
   color: var(--color-muted);
 }
 
