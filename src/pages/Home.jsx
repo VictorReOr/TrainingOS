@@ -10,6 +10,11 @@ import { useSession } from '../context/SessionContext';
 import { usePerformanceEngine } from '../hooks/usePerformanceEngine';
 import { useTrainingStreak } from '../hooks/useTrainingStreak';
 import { useReadiness } from '../context/ReadinessContext';
+import TrafficLightBadge from '../components/performance/TrafficLightBadge';
+import ColdStartBanner from '../components/performance/ColdStartBanner';
+import WellnessCheckIn from '../components/performance/WellnessCheckIn';
+
+// Day of week helper
 const getDayOfWeek = () => {
   const days = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
   return days[new Date().getDay()];
