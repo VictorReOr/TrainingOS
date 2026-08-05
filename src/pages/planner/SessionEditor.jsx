@@ -424,26 +424,26 @@ function AddBlockButton({ onAdd }) {
             className={`fixed inset-0 bg-black/60 z-[70] transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
           />
           <div
-            className="fixed bottom-0 left-0 w-full bg-[#1a1f2e] border-t border-white/10 rounded-t-3xl z-[70] transition-transform duration-300 ease-out"
+            className="fixed bottom-0 left-0 w-full bg-white border-t border-border shadow-2xl rounded-t-3xl z-[70] transition-transform duration-300 ease-out"
             style={{
               paddingBottom: 'calc(1.5rem + var(--safe-bottom,0px))',
               transform: isVisible ? 'translateY(0)' : 'translateY(100%)',
             }}
           >
             <div className="w-10 h-1.5 bg-border rounded-full mx-auto mt-3 mb-1" />
-            <div className="flex items-center justify-between px-5 py-3 border-b border-white/5">
-              <h3 className="font-condensed font-black text-xl">Selecciona el tipo de bloque</h3>
-              <button onClick={handleClose} className="p-1.5 bg-surface rounded-full text-muted"><X size={18} /></button>
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border/50">
+              <h3 className="font-condensed font-black text-xl text-text">Selecciona el tipo de bloque</h3>
+              <button onClick={handleClose} className="p-1.5 bg-bg text-muted hover:text-text rounded-full transition-colors"><X size={18} /></button>
             </div>
             <div className="px-4 pt-3 flex flex-col gap-2 max-h-[60vh] overflow-y-auto pb-4">
               {PREDEFINED_TYPES.map(type => (
                 <button
                   key={type.id}
                   onClick={() => handleSelect(type)}
-                  className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-surface border border-border hover:border-muted text-left active:scale-[0.98] transition-all"
+                  className="flex items-center gap-3 px-4 py-3.5 rounded-2xl bg-card border border-border hover:border-accent text-left active:scale-[0.98] transition-all shadow-sm"
                 >
                   <div className="w-4 h-4 rounded-full shrink-0" style={{ backgroundColor: type.color }} />
-                  <span className="font-bold text-[15px]">{type.name}</span>
+                  <span className="font-bold text-[15px] text-text">{type.name}</span>
                 </button>
               ))}
             </div>
@@ -477,55 +477,55 @@ function SaveOptionsSheet({ open, isEditMode, onClose, onSaveTemplate, onSaveAnd
         className={`fixed inset-0 bg-black/60 z-[80] transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
       />
       <div
-        className="fixed bottom-0 left-0 w-full bg-[#1a1f2e] rounded-t-3xl border-t border-white/10 z-[80] transition-transform duration-300 ease-out"
+        className="fixed bottom-0 left-0 w-full bg-white rounded-t-3xl border-t border-border shadow-2xl z-[80] transition-transform duration-300 ease-out"
         style={{
           paddingBottom: 'calc(1.5rem + var(--safe-bottom,0px))',
           transform: isVisible ? 'translateY(0)' : 'translateY(100%)',
         }}
       >
         <div className="w-10 h-1.5 bg-border rounded-full mx-auto mt-3 mb-1" />
-        <div className="flex items-center justify-between px-5 py-3 border-b border-white/5">
-          <h3 className="font-condensed font-black text-xl">¿Qué quieres hacer?</h3>
-          <button onClick={handleClose} className="p-1.5 bg-surface rounded-full text-muted"><X size={18} /></button>
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border/50">
+          <h3 className="font-condensed font-black text-xl text-text">¿Qué quieres hacer?</h3>
+          <button onClick={handleClose} className="p-1.5 bg-bg text-muted hover:text-text rounded-full transition-colors"><X size={18} /></button>
         </div>
         <div className="px-4 pt-3 pb-2 flex flex-col gap-2">
           <button
             onClick={onSaveTemplate}
-            className="flex items-start gap-4 px-4 py-4 bg-surface rounded-2xl border border-border hover:border-muted text-left active:scale-[0.98] transition-all"
+            className="flex items-start gap-4 px-4 py-4 bg-card rounded-2xl border border-border hover:border-accent text-left active:scale-[0.98] transition-all shadow-sm"
           >
             <span className="text-2xl shrink-0">💾</span>
             <div>
-              <p className="font-bold text-[15px]">Guardar como plantilla</p>
+              <p className="font-bold text-[15px] text-text">Guardar como plantilla</p>
               <p className="text-xs text-muted mt-0.5">Disponible para asignar a cualquier día del calendario</p>
             </div>
           </button>
           <button
             onClick={onSaveAndAssign}
-            className="flex items-start gap-4 px-4 py-4 bg-surface rounded-2xl border border-border hover:border-muted text-left active:scale-[0.98] transition-all"
+            className="flex items-start gap-4 px-4 py-4 bg-card rounded-2xl border border-border hover:border-accent text-left active:scale-[0.98] transition-all shadow-sm"
           >
             <span className="text-2xl shrink-0">📅</span>
             <div>
-              <p className="font-bold text-[15px]">Guardar y asignar a un día</p>
+              <p className="font-bold text-[15px] text-text">Guardar y asignar a un día</p>
               <p className="text-xs text-muted mt-0.5">Guarda la plantilla y la coloca directamente en el calendario</p>
             </div>
           </button>
           <button
             onClick={onPreview}
-            className="flex items-start gap-4 px-4 py-4 bg-surface rounded-2xl border border-border hover:border-muted text-left active:scale-[0.98] transition-all"
+            className="flex items-start gap-4 px-4 py-4 bg-card rounded-2xl border border-border hover:border-accent text-left active:scale-[0.98] transition-all shadow-sm"
           >
             <span className="text-2xl shrink-0">👁</span>
             <div>
-              <p className="font-bold text-[15px]">Vista previa</p>
-              <p className="text-xs text-muted mt-0.5">See how this session looks before saving</p>
+              <p className="font-bold text-[15px] text-text">Vista previa</p>
+              <p className="text-xs text-muted mt-0.5">Ve cómo queda la sesión antes de guardar</p>
             </div>
           </button>
           <button
             onClick={onExport}
-            className="flex items-start gap-4 px-4 py-4 bg-surface rounded-2xl border border-border hover:border-muted text-left active:scale-[0.98] transition-all"
+            className="flex items-start gap-4 px-4 py-4 bg-card rounded-2xl border border-border hover:border-accent text-left active:scale-[0.98] transition-all shadow-sm"
           >
             <span className="text-2xl shrink-0">📤</span>
             <div>
-              <p className="font-bold text-[15px]">Exportar sesión</p>
+              <p className="font-bold text-[15px] text-text">Exportar sesión</p>
               <p className="text-xs text-muted mt-0.5">Genera un código corto para compartir</p>
             </div>
           </button>
@@ -557,16 +557,16 @@ function DayPickerSheet({ weekOffset, onSetOffset, onClose, onSelect }) {
         className={`fixed inset-0 bg-black/60 z-[80] transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
       />
       <div
-        className="fixed bottom-0 left-0 w-full bg-[#1a1f2e] border-t border-white/10 rounded-t-3xl z-[80] transition-transform duration-300 ease-out"
+        className="fixed bottom-0 left-0 w-full bg-white border-t border-border shadow-2xl rounded-t-3xl z-[80] transition-transform duration-300 ease-out"
         style={{
           paddingBottom: 'calc(1.5rem + var(--safe-bottom,0px))',
           transform: isVisible ? 'translateY(0)' : 'translateY(100%)',
         }}
       >
         <div className="w-10 h-1.5 bg-border rounded-full mx-auto mt-3 mb-1" />
-        <div className="flex items-center justify-between px-5 py-3 border-b border-white/5">
-          <h3 className="font-condensed font-black text-xl">¿Qué día?</h3>
-          <button onClick={handleClose} className="p-1.5 bg-surface rounded-full text-muted"><X size={18} /></button>
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border/50">
+          <h3 className="font-condensed font-black text-xl text-text">¿Qué día?</h3>
+          <button onClick={handleClose} className="p-1.5 bg-bg text-muted hover:text-text rounded-full transition-colors"><X size={18} /></button>
         </div>
 
         {/* Week navigation */}
@@ -600,8 +600,8 @@ function DayPickerSheet({ weekOffset, onSetOffset, onClose, onSelect }) {
                 onClick={() => onSelect(date, DAYS_FULL[i])}
                 className={`flex flex-col items-center py-3 rounded-2xl border text-center transition-all active:scale-95 ${
                   today
-                    ? 'border-accent/50 bg-accent/10 text-accent'
-                    : 'border-border bg-surface text-text hover:border-muted'
+                    ? 'border-accent bg-accent/10 text-accent'
+                    : 'border-border bg-card text-text hover:border-accent'
                 }`}
               >
                 <span className="text-[10px] font-black tracking-wider text-muted">{DAYS_SHORT[i]}</span>

@@ -200,11 +200,11 @@ export default function MesocycleList() {
       {showCreate && (
         <>
           <div onClick={closeSheet} className={`fixed inset-0 bg-black/60 z-[70] transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`} />
-          <div className={`fixed bottom-0 left-0 w-full bg-[#1a1f2e] border-t border-white/10 rounded-t-3xl z-[70] transition-transform duration-300 ease-out pb-[calc(1.5rem+var(--safe-bottom,0px))] max-h-[90vh] overflow-y-auto ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}>
+          <div className={`fixed bottom-0 left-0 w-full bg-white border-t border-border shadow-2xl rounded-t-3xl z-[70] transition-transform duration-300 ease-out pb-[calc(1.5rem+var(--safe-bottom,0px))] max-h-[90vh] overflow-y-auto ${isVisible ? 'translate-y-0' : 'translate-y-full'}`}>
             <div className="w-10 h-1.5 bg-border rounded-full mx-auto mt-3 mb-4" />
-            <div className="flex items-center justify-between px-5 mb-5">
-              <h3 className="font-condensed font-black text-2xl">Nuevo Mesociclo</h3>
-              <button onClick={closeSheet} className="p-1.5 bg-surface text-muted rounded-full"><X size={18} /></button>
+            <div className="flex items-center justify-between px-5 mb-5 border-b border-border/50 pb-3">
+              <h3 className="font-condensed font-black text-2xl text-text">Nuevo Mesociclo</h3>
+              <button onClick={closeSheet} className="p-1.5 bg-bg text-muted hover:text-text rounded-full transition-colors"><X size={18} /></button>
             </div>
 
             <div className="px-5 flex flex-col gap-4 pb-4">
@@ -214,7 +214,7 @@ export default function MesocycleList() {
                 <input
                   type="text" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
                   placeholder="Bloque Fuerza 1"
-                  className="w-full bg-surface border border-border rounded-xl px-4 py-3 font-bold text-text placeholder:text-muted/50 outline-none focus:border-blue"
+                  className="w-full bg-bg border border-border rounded-xl px-4 py-3 font-bold text-text placeholder:text-muted/50 outline-none focus:border-accent"
                 />
               </div>
 
@@ -229,7 +229,7 @@ export default function MesocycleList() {
                       className={`py-2.5 px-3 rounded-xl border font-bold text-sm transition-all ${
                         form.type === opt.id
                           ? 'border-transparent text-white scale-[1.02]'
-                          : 'bg-surface border-border text-muted'
+                          : 'bg-card border-border text-muted hover:text-text'
                       }`}
                       style={form.type === opt.id ? { backgroundColor: opt.color } : {}}
                     >
@@ -245,15 +245,15 @@ export default function MesocycleList() {
                   <label className="text-xs font-bold text-muted uppercase tracking-wider mb-1.5 block">Inicio</label>
                   <input
                     type="date" value={form.startDate} onChange={e => setForm(p => ({ ...p, startDate: e.target.value }))}
-                    className="w-full bg-surface border border-border rounded-xl px-3 py-3 font-bold text-text outline-none focus:border-blue text-sm"
+                    className="w-full bg-bg border border-border rounded-xl px-3 py-3 font-bold text-text outline-none focus:border-accent text-sm"
                   />
                 </div>
                 <div>
                   <label className="text-xs font-bold text-muted uppercase tracking-wider mb-1.5 block">Semanas</label>
-                  <div className="flex items-center justify-between bg-surface border border-border rounded-xl px-3 py-2">
-                    <button onClick={() => setForm(p => ({ ...p, weeks: Math.max(1, p.weeks - 1) }))} className="w-8 h-8 flex items-center justify-center bg-bg rounded-full font-bold text-lg">−</button>
-                    <span className="font-condensed font-black text-2xl">{form.weeks}</span>
-                    <button onClick={() => setForm(p => ({ ...p, weeks: Math.min(24, p.weeks + 1) }))} className="w-8 h-8 flex items-center justify-center bg-bg rounded-full font-bold text-lg">+</button>
+                  <div className="flex items-center justify-between bg-bg border border-border rounded-xl px-3 py-2">
+                    <button onClick={() => setForm(p => ({ ...p, weeks: Math.max(1, p.weeks - 1) }))} className="w-8 h-8 flex items-center justify-center bg-card rounded-full font-bold text-lg text-text border border-border">−</button>
+                    <span className="font-condensed font-black text-2xl text-text">{form.weeks}</span>
+                    <button onClick={() => setForm(p => ({ ...p, weeks: Math.min(24, p.weeks + 1) }))} className="w-8 h-8 flex items-center justify-center bg-card rounded-full font-bold text-lg text-text border border-border">+</button>
                   </div>
                 </div>
               </div>
@@ -265,7 +265,7 @@ export default function MesocycleList() {
                   value={form.objective} onChange={e => setForm(p => ({ ...p, objective: e.target.value }))}
                   placeholder="¿Qué queremos conseguir en este bloque?"
                   rows={3}
-                  className="w-full bg-surface border border-border rounded-xl px-4 py-3 font-medium text-text placeholder:text-muted/50 outline-none focus:border-blue resize-none text-sm"
+                  className="w-full bg-bg border border-border rounded-xl px-4 py-3 font-medium text-text placeholder:text-muted/50 outline-none focus:border-accent resize-none text-sm"
                 />
               </div>
 

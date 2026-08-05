@@ -6,7 +6,7 @@ import { MESO_LABELS, SESSION_TYPES } from '../data/mockPlanner';
 import SportSelector from '../components/SportSelector';
 import SessionReadView from '../components/planner/SessionReadView';
 import WeekRepetitionModal from '../components/planner/WeekRepetitionModal';
-import { ChevronLeft, ChevronRight, Plus, X, DownloadCloud, Repeat } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, X, DownloadCloud, Repeat, Trash2 } from 'lucide-react';
 import { fetchWorkouts } from '../services/sheets';
 import { parseWorkouts } from '../utils/workoutParser';
 import { useSession } from '../context/SessionContext';
@@ -128,6 +128,7 @@ function DayCard({
   dateISO, dayIndex, session, today, past,
   intCfg, dateNum, stagger, cardClasses,
   isMoveMode, moveSourceDate, onDayTap, onLongPressStart,
+  onDeleteSession, onCancelMove,
 }) {
   const { handlers, progress, isActive } = useLongPress({
     onLongPress: onLongPressStart(dateISO),
@@ -142,24 +143,24 @@ function DayCard({
 
   const isSource = isMoveMode && dateISO === moveSourceDate;
   
-  // Punto #5: Prevenir menú contextual y selección nativa durante el gesto o si es el origen
+  // Prevenir menú contextual y selección nativa durante el gesto o si es el origen
   const preventGestures = isActive || isSource;
   const cardStyle = preventGestures ? { WebkitTouchCallout: 'none', userSelect: 'none', touchAction: 'none' } : {};
 
   return (
-    <button 
+    <div 
       className={`${stagger} ${cardClasses}`} 
       style={cardStyle}
       onClick={handleClick} 
       onContextMenu={(e) => { if (preventGestures) e.preventDefault(); }}
-      {...handlers}
+      {...(!isMoveMode ? handlers : {})}
     >
       {/* Columna día */}
       <div className={`flex flex-col items-center justify-center px-3 py-3 min-w-[58px] border-r border-border ${
-        isSource ? 'bg-signal-orange/5' : today ? 'bg-signal-orange/5' : 'bg-bg/10'
+        isSource ? 'bg-signal-orange/10' : today ? 'bg-signal-orange/5' : 'bg-bg/10'
       }`}>
         {today && !isMoveMode && <span className="font-mono text-[8px] font-black text-signal-orange tracking-widest mb-0.5 uppercase">HOY</span>}
-        {isSource && <span className="font-mono text-[8px] font-black text-signal-orange tracking-widest mb-0.5 uppercase">MOVER</span>}
+        {isSource && <span className="font-mono text-[8px] font-black text-signal-orange tracking-widest mb-0.5 uppercase">MOVIENDO</span>}
         <span className={`font-mono text-[9px] font-bold tracking-wider uppercase ${isSource || today ? 'text-signal-orange' : 'text-muted'}`}>
           {DAYS_SHORT[dayIndex]}
         </span>
@@ -183,7 +184,7 @@ function DayCard({
           <span className="text-border">·</span>
           <span>💪 {session.exercises} EJERC.</span>
           {today && !isMoveMode && <span className="text-signal-orange font-bold ml-auto font-mono text-[9px] tracking-wider uppercase">INICIAR →</span>}
-          {isSource && <span className="text-signal-orange font-bold ml-auto font-mono text-[9px] tracking-wider uppercase">MANTENER…</span>}
+          {isSource && <span className="text-signal-orange/70 font-bold ml-auto font-mono text-[8px] tracking-wider uppercase">SELECCIONADO</span>}
         </div>
         {/* Barra de progreso del long-press */}
         {!isMoveMode && progress > 0 && (
@@ -194,8 +195,31 @@ function DayCard({
         )}
       </div>
 
-      {/* Badge intensidad — se oculta cuando es la tarjeta origen */}
-      {!isSource && (
+      {/* Acciones Inline para la sesión origen o Badge de intensidad en modo normal */}
+      {isSource ? (
+        <div className="flex items-center gap-1.5 px-3 shrink-0" onClick={e => e.stopPropagation()}>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteSession(dateISO);
+            }}
+            title="Borrar entrenamiento"
+            className="p-2 bg-corner-red/10 border border-corner-red/30 text-corner-red rounded-lg hover:bg-corner-red/20 active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+          >
+            <Trash2 size={14} />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onCancelMove();
+            }}
+            title="Cancelar movimiento"
+            className="p-2 bg-bg border border-border text-muted rounded-lg hover:text-ink active:scale-95 transition-all cursor-pointer flex items-center justify-center"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      ) : (
         <div className="flex items-center px-3 shrink-0">
           <span
             className="font-mono text-[8px] font-black px-2 py-0.5 rounded border uppercase tracking-wider"
@@ -205,7 +229,7 @@ function DayCard({
           </span>
         </div>
       )}
-    </button>
+    </div>
   );
 }
 
@@ -293,21 +317,7 @@ export default function Plan() {
   const handleDayTap = (dayIndex, session) => {
     if (!session) return;
     const dayDate = getDayDate(currentWeekStart, dayIndex);
-    if (isToday(dayDate)) {
-      loadSession({
-        id: session.id || session.sessionId || `session-${dayIndex}`,
-        name: session.name || 'Sesión',
-        dayBadge: DAYS_FULL[dayIndex],
-        type: session.type || 'gym',
-        blocks: session.blocks || [{
-          id: 'block-default', name: session.name || 'Bloque Principal',
-          type: 'fuerza', icon: '🏋️', duration: `${session.duration || 45}m`, exercises: [],
-        }],
-      });
-      navigate('/session');
-    } else {
-      setSelectedSession({ session, dayDate, dayLabel: DAYS_FULL[dayIndex] });
-    }
+    setSelectedSession({ session, dayDate, dayLabel: DAYS_FULL[dayIndex] });
   };
 
   const handleEmptyDayTap = (dayIndex) => {
@@ -440,15 +450,15 @@ export default function Plan() {
       </div>
 
       {/* ── GRID SEMANAL ───────────────────────────────── */}
-      {/* Overlay de cancelación (z-60): cubre todo menos el grid (z-61) */}
+      {/* Overlay de cancelación (z-60): desenfoca y oscurece toda la app salvo z-[65]+ */}
       {isMoveMode && (
         <div
-          className="fixed inset-0 z-[60] bg-black/20"
+          className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-md transition-all duration-300 cursor-pointer"
           onClick={cancelMoveMode}
         />
       )}
       <div
-        className={`flex-1 px-4 pt-3 space-y-3.5${isMoveMode ? ' relative z-[61]' : ''}`}
+        className="flex-1 px-4 pt-3 space-y-3.5"
         style={{ paddingBottom: 'calc(8rem + var(--safe-bottom,0px))' }}
       >
         {DAYS_ES.map((dayKey, i) => {
@@ -462,14 +472,14 @@ export default function Plan() {
           const dateISO = formatISO(dayDate);
 
           if (session) {
-            // Clases de tarjeta — move-mode tiene prioridad total sobre today/past
+            // Clases de tarjeta — move-mode eleva origen a z-[65] por encima del backdrop z-[60]
             let cardClasses = 'w-full flex items-stretch rounded-xl border transition-all text-left overflow-hidden cursor-pointer';
             if (isMoveMode) {
               if (dateISO === moveSourceDate) {
-                cardClasses += ' border-signal-orange border-2 animate-pulse bg-card opacity-100';
+                cardClasses += ' relative z-[65] border-signal-orange border-2 bg-card opacity-100 shadow-2xl shadow-signal-orange/20 ring-2 ring-signal-orange/50';
               } else {
-                // Tarjeta ocupada = destino inválido en move-mode
-                cardClasses += ' opacity-50 pointer-events-none cursor-default border-border bg-card';
+                // Tarjeta ocupada = destino inválido (debajo de backdrop)
+                cardClasses += ' opacity-30 pointer-events-none cursor-default border-border bg-card/20';
               }
             } else {
               cardClasses += today
@@ -495,6 +505,16 @@ export default function Plan() {
                 moveSourceDate={moveSourceDate}
                 onDayTap={handleDayTap}
                 onLongPressStart={makeLongPressHandlers}
+                onDeleteSession={(iso) => {
+                  if (window.confirm('¿Seguro que quieres borrar este entrenamiento de la planificación?')) {
+                    removeSessionFromDay(iso);
+                    cancelMoveMode();
+                    setUndoToast({ message: 'Entrenamiento borrado', from: null, to: null });
+                    if (undoToastTimerRef.current) clearTimeout(undoToastTimerRef.current);
+                    undoToastTimerRef.current = setTimeout(() => setUndoToast(null), 4000);
+                  }
+                }}
+                onCancelMove={cancelMoveMode}
               />
             );
           }
@@ -503,11 +523,11 @@ export default function Plan() {
           let emptyClasses = 'w-full flex items-stretch rounded-xl border border-dashed transition-all text-left overflow-hidden cursor-pointer';
           if (isMoveMode) {
             if (!isPast(dayDate)) {
-              // Destino válido: borde naranja dashed, fondo suave
-              emptyClasses += ' border-signal-orange bg-signal-orange/5 active:scale-[0.98]';
+              // Destino válido: eleva a z-[65] sobre el backdrop z-[60] con borde naranja
+              emptyClasses += ' relative z-[65] border-2 border-signal-orange bg-card shadow-xl active:scale-[0.98]';
             } else {
               // Destino inválido: pasado
-              emptyClasses += ' opacity-50 pointer-events-none cursor-default';
+              emptyClasses += ' opacity-30 pointer-events-none cursor-default border-border bg-card/20';
             }
           } else {
             emptyClasses += today

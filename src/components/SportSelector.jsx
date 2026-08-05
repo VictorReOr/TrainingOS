@@ -49,7 +49,7 @@ export default function SportSelector() {
 
           {/* Sheet */}
           <div
-            className={`fixed bottom-0 left-0 w-full bg-[#1a1f2e] border-t border-white/10 rounded-t-3xl z-[80] transition-transform duration-300 ease-out pb-[calc(1.5rem+var(--safe-bottom,0px))] ${
+            className={`fixed bottom-0 left-0 w-full bg-white border-t border-border shadow-2xl rounded-t-3xl z-[80] transition-transform duration-300 ease-out pb-[calc(1.5rem+var(--safe-bottom,0px))] ${
               isVisible ? 'translate-y-0' : 'translate-y-full'
             }`}
           >
@@ -57,12 +57,12 @@ export default function SportSelector() {
             <div className="w-10 h-1.5 bg-border rounded-full mx-auto mt-3 mb-1" />
 
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-white/5">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border/50">
               <div>
                 <p className="font-condensed font-black text-xl text-text">{athlete.name}</p>
                 <p className="text-xs text-muted">Selecciona el deporte activo</p>
               </div>
-              <button onClick={handleClose} className="p-1.5 bg-surface text-muted rounded-full">
+              <button onClick={handleClose} className="p-1.5 bg-bg text-muted hover:text-text rounded-full transition-colors">
                 <X size={18} />
               </button>
             </div>
@@ -74,13 +74,13 @@ export default function SportSelector() {
                 onClick={() => handleSelect('all')}
                 className={`flex items-center gap-4 w-full px-4 py-3.5 rounded-2xl border transition-all ${
                   activeSport === 'all'
-                    ? 'bg-accent/10 border-accent/60 text-accent'
-                    : 'bg-surface border-border text-text hover:border-muted'
+                    ? 'bg-accent/10 border-accent text-accent'
+                    : 'bg-card border-border text-text hover:border-accent'
                 }`}
               >
                 <span className="text-2xl">{availableSports.map(s => s.icon).join('')}</span>
                 <div className="flex flex-col items-start">
-                  <span className="font-bold text-[15px]">Todos los deportes</span>
+                  <span className="font-bold text-[15px] text-text">Todos los deportes</span>
                   <span className="text-xs text-muted">{availableSports.map(s => s.label).join(' · ')}</span>
                 </div>
                 {activeSport === 'all' && (
@@ -97,12 +97,12 @@ export default function SportSelector() {
                   onClick={() => handleSelect(sport.id)}
                   className={`flex items-center gap-4 w-full px-4 py-3.5 rounded-2xl border transition-all ${
                     activeSport === sport.id
-                      ? 'bg-accent/10 border-accent/60 text-accent'
-                      : 'bg-surface border-border text-text hover:border-muted'
+                      ? 'bg-accent/10 border-accent text-accent'
+                      : 'bg-card border-border text-text hover:border-accent'
                   }`}
                 >
                   <span className="text-2xl">{sport.icon}</span>
-                  <span className="font-bold text-[15px]">{sport.label}</span>
+                  <span className="font-bold text-[15px] text-text">{sport.label}</span>
                   {activeSport === sport.id && (
                     <div className="ml-auto w-5 h-5 rounded-full bg-accent flex items-center justify-center">
                       <div className="w-2 h-2 rounded-full bg-white" />

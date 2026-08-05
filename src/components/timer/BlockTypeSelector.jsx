@@ -144,7 +144,7 @@ export default function BlockTypeSelector({ value, color, onChange }) {
 
           {/* Sheet */}
           <div
-            className={`fixed bottom-0 left-0 w-full bg-[#1a1f2e] border-t border-white/10 rounded-t-3xl z-[90] transition-transform duration-300 ease-out`}
+            className={`fixed bottom-0 left-0 w-full bg-white border-t border-border shadow-2xl rounded-t-3xl z-[90] transition-transform duration-300 ease-out`}
             style={{
               paddingBottom: 'calc(1.5rem + var(--safe-bottom, 0px))',
               transform: isVisible ? 'translateY(0)' : 'translateY(100%)',
@@ -154,23 +154,23 @@ export default function BlockTypeSelector({ value, color, onChange }) {
             <div className="w-10 h-1.5 bg-border rounded-full mx-auto mt-3 mb-1" />
 
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-white/5">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-border/50">
               <h3 className="font-condensed font-black text-xl text-text">Tipo de Bloque</h3>
-              <button onClick={handleClose} className="p-1.5 bg-surface text-muted rounded-full">
+              <button onClick={handleClose} className="p-1.5 bg-bg text-muted rounded-full hover:text-text transition-colors">
                 <X size={18} />
               </button>
             </div>
 
             {/* Type list */}
-            <div className="px-4 pt-3 flex flex-col gap-1.5 max-h-[60vh] overflow-y-auto">
+            <div className="px-4 pt-3 flex flex-col gap-2 max-h-[60vh] overflow-y-auto pb-4">
               {allTypes.map(type => (
                 <div key={type.id} className="flex items-center gap-2">
                   <button
                     onClick={() => handleSelect(type)}
-                    className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all text-left ${
+                    className={`flex-1 flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-all text-left ${
                       value === type.id
-                        ? 'border-white/20 bg-white/5'
-                        : 'border-border bg-surface hover:border-muted'
+                        ? 'border-accent bg-accent/10'
+                        : 'border-border bg-card hover:border-accent'
                     }`}
                   >
                     {/* Color dot */}
@@ -179,10 +179,10 @@ export default function BlockTypeSelector({ value, color, onChange }) {
                       style={{ backgroundColor: type.color }}
                     />
                     {/* Name */}
-                    <span className="font-bold text-[15px] flex-1">{type.name}</span>
+                    <span className="font-bold text-[15px] text-text flex-1">{type.name}</span>
                     {/* Custom badge */}
                     {type.custom && (
-                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-white/10 text-muted tracking-widest">
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-bg text-muted tracking-widest border border-border">
                         CUSTOM
                       </span>
                     )}
@@ -201,7 +201,7 @@ export default function BlockTypeSelector({ value, color, onChange }) {
                   {type.custom && (
                     <button
                       onClick={(e) => handleDeleteCustom(e, type.id)}
-                      className="w-10 h-10 rounded-xl bg-surface border border-border flex items-center justify-center text-muted hover:text-accent hover:border-accent/40 transition-colors shrink-0"
+                      className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center text-muted hover:text-accent hover:border-accent/40 transition-colors shrink-0"
                     >
                       <Trash2 size={15} />
                     </button>
@@ -211,8 +211,8 @@ export default function BlockTypeSelector({ value, color, onChange }) {
 
               {/* ── ADD CUSTOM FORM / BUTTON ── */}
               {showAddForm ? (
-                <div className="mt-2 p-4 bg-surface rounded-2xl border border-blue/40 flex flex-col gap-3">
-                  <p className="text-xs font-bold text-blue tracking-widest">NUEVO TIPO PERSONALIZADO</p>
+                <div className="mt-2 p-4 bg-bg rounded-2xl border border-accent/40 flex flex-col gap-3">
+                  <p className="text-xs font-bold text-accent tracking-widest">NUEVO TIPO PERSONALIZADO</p>
                   
                   {/* Name input */}
                   <input
@@ -222,7 +222,7 @@ export default function BlockTypeSelector({ value, color, onChange }) {
                     onChange={e => setNewName(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') handleAddCustom(); if (e.key === 'Escape') setShowAddForm(false); }}
                     placeholder="Ej: Asalto, Poomsae, Saco..."
-                    className="w-full bg-bg border border-border rounded-xl px-4 py-3 font-bold text-text placeholder:text-muted/50 outline-none focus:border-blue text-sm"
+                    className="w-full bg-card border border-border rounded-xl px-4 py-3 font-bold text-text placeholder:text-muted/50 outline-none focus:border-accent text-sm"
                   />
 
                   {/* Color picker */}
@@ -233,7 +233,7 @@ export default function BlockTypeSelector({ value, color, onChange }) {
                         <button
                           key={c}
                           onClick={() => setNewColor(c)}
-                          className={`w-9 h-9 rounded-full transition-transform ${newColor === c ? 'scale-110 ring-2 ring-white ring-offset-2 ring-offset-surface' : 'hover:scale-105'}`}
+                          className={`w-9 h-9 rounded-full transition-transform ${newColor === c ? 'scale-110 ring-2 ring-accent ring-offset-2 ring-offset-card' : 'hover:scale-105'}`}
                           style={{ backgroundColor: c }}
                         />
                       ))}
@@ -242,10 +242,10 @@ export default function BlockTypeSelector({ value, color, onChange }) {
 
                   {/* Preview */}
                   {newName.trim() && (
-                    <div className="flex items-center gap-2 px-3 py-2 bg-bg rounded-xl border border-border">
+                    <div className="flex items-center gap-2 px-3 py-2 bg-card rounded-xl border border-border">
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: newColor }} />
                       <span className="font-bold text-sm" style={{ color: newColor }}>{newName}</span>
-                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-white/10 text-muted tracking-widest ml-1">CUSTOM</span>
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-bg text-muted tracking-widest border border-border ml-1">CUSTOM</span>
                     </div>
                   )}
 
@@ -253,7 +253,7 @@ export default function BlockTypeSelector({ value, color, onChange }) {
                   <div className="flex gap-2">
                     <button
                       onClick={() => { setShowAddForm(false); setNewName(''); }}
-                      className="flex-1 py-3 rounded-xl bg-bg border border-border text-muted font-bold text-sm"
+                      className="flex-1 py-3 rounded-xl bg-card border border-border text-muted font-bold text-sm hover:text-text"
                     >
                       Cancelar
                     </button>
@@ -270,7 +270,7 @@ export default function BlockTypeSelector({ value, color, onChange }) {
               ) : (
                 <button
                   onClick={() => setShowAddForm(true)}
-                  className="flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-dashed border-border text-muted hover:border-blue hover:text-blue transition-colors mt-1"
+                  className="flex items-center gap-3 px-4 py-3.5 rounded-2xl border border-dashed border-border text-muted hover:border-accent hover:text-accent transition-colors mt-1"
                 >
                   <div className="w-4 h-4 rounded-full border-2 border-current flex items-center justify-center shrink-0">
                     <Plus size={10} strokeWidth={3} />

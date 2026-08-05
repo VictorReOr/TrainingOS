@@ -6,7 +6,7 @@ import { useRole } from '../../hooks/useRole';
 import { saveLog as _saveLog } from '../../services/sheets';
 import { MOCK_SESSION_DETAILS } from '../../data/mockPlanner';
 import { MOCK_SESSION } from '../../data/mockSession';
-import { X, Play, Clock, Dumbbell, UploadCloud, ClipboardEdit, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, Play, Clock, Dumbbell, UploadCloud, ClipboardEdit, Check, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import ExportSessionModal from '../ExportSessionModal';
 import FeedbackSection from '../FeedbackSection';
 
@@ -379,7 +379,7 @@ function RetroactiveLogger({ blocks, sessionId, sessionName, dayDate, onSaved, o
 export default function SessionReadView({ session, dayDate, dayLabel, onClose }) {
   const navigate = useNavigate();
   const { loadSession } = useSession();
-  const { sessionTemplates, weekAssignments, assignSessionToDay } = usePlanner();
+  const { sessionTemplates, weekAssignments, assignSessionToDay, removeSessionFromDay } = usePlanner();
   const { isCoach } = useRole();
   const [isVisible, setIsVisible] = useState(false);
   const [showExport, setShowExport] = useState(false);
@@ -397,6 +397,13 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
       assignSessionToDay(dateISO, { ...currentSession, name: editedName.trim() });
     }
     setIsEditingName(false);
+  };
+
+  const handleDeleteSession = () => {
+    if (window.confirm(`¿Seguro que quieres borrar el entrenamiento "${currentSession?.name || 'Sesión'}" del ${dayLabel || 'día'}?`)) {
+      removeSessionFromDay(dateISO);
+      handleClose();
+    }
   };
 
   useEffect(() => {
@@ -517,10 +524,16 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
         }}
       >
         {/* Handle + close */}
-        <div className="flex items-center justify-between px-5 pt-3 pb-2 shrink-0">
+        <div className="flex items-center justify-between px-5 pt-3 pb-2 shrink-0 relative">
+          <button
+            onClick={handleDeleteSession}
+            title="Borrar entrenamiento"
+            className="flex items-center gap-1.5 px-3 py-1 bg-corner-red/10 text-corner-red rounded-full border border-corner-red/20 hover:bg-corner-red/20 active:scale-95 transition-all text-xs font-mono font-bold uppercase tracking-wider cursor-pointer z-10"
+          >
+            <Trash2 size={14} /> Borrar
+          </button>
           <div className="w-10 h-1.5 bg-white/20 rounded-full mx-auto absolute left-1/2 -translate-x-1/2" />
-          <div className="flex-1" />
-          <button onClick={handleClose} className="p-1.5 bg-white/10 text-white/60 rounded-full border border-white/10">
+          <button onClick={handleClose} className="p-1.5 bg-white/10 text-white/60 rounded-full border border-white/10 hover:bg-white/20 transition-colors cursor-pointer z-10">
             <X size={18} />
           </button>
         </div>
@@ -763,11 +776,19 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
             {currentSession.sessionId && (
               <button
                 onClick={() => { handleClose(); setTimeout(() => navigate(`/plan/session/${currentSession.sessionId}/edit`), 310); }}
-                className="flex-1 py-3.5 rounded-2xl bg-white/5 border border-blue/30 font-bold text-blue text-sm active:scale-[0.98] transition-transform"
+                className="flex-1 py-3.5 rounded-2xl bg-white/5 border border-blue/30 font-bold text-blue text-sm active:scale-[0.98] transition-transform cursor-pointer"
               >
                 ✏️ Editar
               </button>
             )}
+
+            {/* Borrar */}
+            <button
+              onClick={handleDeleteSession}
+              className="flex-1 py-3.5 rounded-2xl bg-corner-red/10 border border-corner-red/30 font-bold text-corner-red text-sm flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform uppercase tracking-wide cursor-pointer hover:bg-corner-red/20"
+            >
+              <Trash2 size={16} /> Borrar
+            </button>
 
             {/* Registrar retroactivamente — only for past/today without log */}
             {canRegisterRetroactively && !showRetroLogger && (

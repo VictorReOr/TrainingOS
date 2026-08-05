@@ -154,6 +154,12 @@ export function PlannerProvider({ children }) {
       delete next[dateISO];
       return next;
     });
+    window.dispatchEvent(new Event('week_assignments_updated'));
+    _bgSync('assignSession', () => _assignSessionToDay({
+      dateISO,
+      sessionId: '',
+      sessionData: null,
+    }));
   };
 
   /**
