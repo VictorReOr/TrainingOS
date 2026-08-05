@@ -20,6 +20,13 @@ export function parseWorkouts(rows) {
     let rId = (row.rutina_id || '').toString().trim();
     let day = normDay(row.dia || '');
 
+    // Nombre de sesión manual proveniente de la hoja de cálculo
+    const sessionNameFromSheet = (row.sessionName || row.nombre_sesion || '').toString().trim();
+
+    // Captura de superserie
+    const rawSuperSerie = (row.superSerie || '').toString().trim();
+    const supersetCode = (rawSuperSerie && rawSuperSerie !== '-') ? rawSuperSerie : null;
+
     // Auto-detect: if rutina_id looks like a day name and dia is empty,
     // the user put the day in the rutina_id column
     if (!day && rId && DAY_NAMES.includes(normDay(rId))) {
@@ -53,7 +60,9 @@ export function parseWorkouts(rows) {
     if (!routine.sessions[day]) {
       routine.sessions[day] = {
         id: rId + '_' + day,
-        name: capitalize(day),
+        // Si la fila trae sessionName, usarlo directamente; si no, capitalize(day) como antes
+        name: sessionNameFromSheet || capitalize(day),
+        _hasManualName: !!sessionNameFromSheet, // flag interno: evita sobreescritura posterior
         type: 'gym',
         sport: 'gym',
         icon: '🏋️',
@@ -65,6 +74,16 @@ export function parseWorkouts(rows) {
       };
     }
     const session = routine.sessions[day];
+
+    // Si la sesión ya existía y llega otra fila con sessionName distinto y no vacío,
+    // se ignora (se mantiene el primero que llegó). Opción elegida: ignorar + warning,
+    // más simple que intentar resolver cuál es el "correcto".
+    if (sessionNameFromSheet && session._hasManualName && session.name !== sessionNameFromSheet) {
+      console.warn(
+        `[workoutParser] Inconsistencia en sessionName para la sesión '${day}' de la rutina '${rId}': ` +
+        `nombre actual='${session.name}', nombre ignorado='${sessionNameFromSheet}'. Se mantiene el primero.`
+      );
+    }
 
     // 3. Inicializar bloque si no existe
     let block = session.blocks.find(b => b.name === `Bloque ${blockLabel}`);
@@ -94,6 +113,8 @@ export function parseWorkouts(rows) {
       targetExecutionTime: parseInt(row.tiempo_ejecucion, 10) || 0,
       targetRestTime: parseInt(row.tiempo_descanso, 10) || 0,
       restSeconds: parseInt(row.tiempo_descanso, 10) || 0,
+      _rawSuperSerie: supersetCode,
+      supersetId: null,
       log: []
     };
     
@@ -135,11 +156,91 @@ export function parseWorkouts(rows) {
         .slice(0, 2)
         .map(([g]) => g);
       
-      if (topGroups.length > 0) {
+      // Solo sobreescribir con los grupos musculares si NO hay nombre manual desde la hoja
+      if (topGroups.length > 0 && !session._hasManualName) {
         session.name = topGroups.join(' + ');
       }
+
+      // ── VALIDACIÓN DE SUPERSERIES (por sesión) ──
+      const sessionSupersetMap = {};
+
+      session.blocks.forEach(block => {
+        block.exercises.forEach(ex => {
+          if (!ex._rawSuperSerie) return;
+          if (!sessionSupersetMap[ex._rawSuperSerie]) {
+            sessionSupersetMap[ex._rawSuperSerie] = [];
+          }
+          sessionSupersetMap[ex._rawSuperSerie].push({
+            blockId: block.id,
+            exerciseRef: ex,
+          });
+        });
+      });
+
+      Object.entries(sessionSupersetMap).forEach(([ssCode, entries]) => {
+        const blockIds = new Set(entries.map(e => e.blockId));
+        if (blockIds.size > 1) {
+          console.warn(`[workoutParser] Superserie '${ssCode}' inválida en sesión '${session.id}': aparece en bloques distintos [${[...blockIds]}]. Se ignora.`);
+          entries.forEach(e => { e.exerciseRef.supersetId = null; });
+        } else if (entries.length < 2) {
+          entries[0].exerciseRef.supersetId = null;
+        } else {
+          entries.forEach(e => { e.exerciseRef.supersetId = ssCode; });
+        }
+      });
+
+      // ── CONSTRUCCIÓN DE block.supersets ──
+      session.blocks.forEach(block => {
+        const ssGroups = {};
+        block.exercises.forEach(ex => {
+          if (!ex.supersetId) return;
+          if (!ssGroups[ex.supersetId]) ssGroups[ex.supersetId] = [];
+          ssGroups[ex.supersetId].push(ex.id);
+        });
+        block.supersets = Object.entries(ssGroups).map(([id, exerciseIds]) => ({
+          id,
+          exerciseIds,
+        }));
+      });
     });
   });
 
+  // --- Verificación de parseo (eliminar o comentar en producción) ---
+  const allSessions = Object.values(routinesMap).flatMap(r => Object.values(r.sessions));
+  const conNombreManual = allSessions.find(s => s._hasManualName);
+  const sinNombreManual = allSessions.find(s => !s._hasManualName);
+  if (conNombreManual) {
+    console.log('[workoutParser] ✅ Sesión con sessionName manual:', conNombreManual.name, '| _hasManualName:', conNombreManual._hasManualName);
+  }
+  if (sinNombreManual) {
+    console.log('[workoutParser] ✅ Sesión sin sessionName (fallback automático):', sinNombreManual.name, '| _hasManualName:', sinNombreManual._hasManualName);
+  }
+  const casoMixto = Object.values(routinesMap).find(r =>
+    Object.values(r.sessions).some(s => s._hasManualName) &&
+    Object.values(r.sessions).some(s => !s._hasManualName)
+  );
+  if (casoMixto) {
+    console.log('[workoutParser] ✅ Caso mixto — sessions de rutina "' + casoMixto.name + '":', JSON.stringify(Object.values(casoMixto.sessions).map(s => ({ id: s.id, name: s.name, _hasManualName: s._hasManualName })), null, 2));
+  }
+
+  const sessionConSuperset = allSessions.find(s => s.blocks.some(b => b.supersets && b.supersets.length > 0));
+  if (sessionConSuperset) {
+    console.log('[SUPERSET OK]', JSON.stringify(
+      sessionConSuperset.blocks.find(b => b.supersets.length > 0)
+    ));
+  }
+  // --- Fin verificación ---
+
+  // Limpiar flag interno para no exponer propiedades privadas a la UI
+  Object.values(routinesMap).forEach(routine =>
+    Object.values(routine.sessions).forEach(session => {
+      delete session._hasManualName;
+      session.blocks.forEach(block => {
+        block.exercises.forEach(ex => delete ex._rawSuperSerie);
+      });
+    })
+  );
+
   return Object.values(routinesMap);
 }
+

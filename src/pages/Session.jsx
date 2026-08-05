@@ -104,8 +104,52 @@ export default function Session() {
     return logs.every(log => log.done);
   };
 
-  const handleOpenExercise = (exercise, blockGoal) => {
-    setSelectedExercise({ ...exercise, sessionType: blockGoal });
+  const getCurrentBlock = () => {
+    if (!selectedExercise?._blockId) return null;
+    return sessionData.blocks.find(b => b.id === selectedExercise._blockId) || null;
+  };
+
+  const getNextSupersetExercise = () => {
+    const block = getCurrentBlock();
+    if (!block || !selectedExercise?.supersetId) return null;
+
+    const group = block.supersets?.find(s => s.id === selectedExercise.supersetId);
+    if (!group) return null;
+
+    const currentIdx = group.exerciseIds.indexOf(selectedExercise.id);
+    if (currentIdx === -1 || currentIdx === group.exerciseIds.length - 1) {
+      return null; // no encontrado, o es el último → sin encadenamiento
+    }
+
+    const nextId = group.exerciseIds[currentIdx + 1];
+    return block.exercises.find(e => e.id === nextId) || null;
+  };
+
+  const getSupersetInfo = () => {
+    const block = getCurrentBlock();
+    if (!block || !selectedExercise?.supersetId) return null;
+
+    const group = block.supersets?.find(s => s.id === selectedExercise.supersetId);
+    if (!group) return null;
+
+    const currentIdx = group.exerciseIds.indexOf(selectedExercise.id);
+    const isLast = currentIdx === group.exerciseIds.length - 1;
+    const nextExercise = isLast ? null : getNextSupersetExercise();
+
+    return {
+      position: currentIdx + 1,
+      total: group.exerciseIds.length,
+      isLast,
+      nextExerciseName: nextExercise?.name || null,
+    };
+  };
+
+  const handleOpenExercise = (exercise, block) => {
+    setSelectedExercise({ 
+      ...exercise, 
+      sessionType: block.goal || sessionData.type || 'gym',
+      _blockId: block.id,
+    });
   };
 
   const handleLogChange = (setIndex, field, value) => {
@@ -117,6 +161,20 @@ export default function Session() {
   const handleToggleSet = (setIndex) => {
     if (selectedExercise) {
       toggleLogSet(selectedExercise.id, setIndex);
+    }
+  };
+
+  const handleSupersetNext = () => {
+    const nextExercise = getNextSupersetExercise();
+    const block = getCurrentBlock();
+    if (nextExercise && block) {
+      setSelectedExercise({
+        ...nextExercise,
+        sessionType: block.goal || sessionData.type || 'gym',
+        _blockId: block.id,
+      });
+    } else {
+      setSelectedExercise(null);
     }
   };
 
@@ -247,7 +305,7 @@ export default function Session() {
                   sessionType={block.goal || sessionData.type || 'gym'}
                   isDone={isExerciseDone(exercise.id)}
                   isActive={selectedExercise?.id === exercise.id}
-                  onToggle={() => handleOpenExercise(exercise, block.goal || sessionData.type || 'gym')}
+                  onToggle={() => handleOpenExercise(exercise, block)}
                 />
               ))}
             </div>
@@ -335,6 +393,8 @@ export default function Session() {
           onLogChange={handleLogChange}
           onToggleSet={handleToggleSet}
           onClose={() => setSelectedExercise(null)}
+          onSupersetNext={handleSupersetNext}
+          supersetInfo={getSupersetInfo()}
         />
       )}
 

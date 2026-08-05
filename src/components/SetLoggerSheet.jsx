@@ -16,7 +16,7 @@ const parseDurationToSeconds = (durStr) => {
   return match ? parseInt(match[1]) * 60 : 60;
 };
 
-export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChange, onToggleSet, onClose, onOpenTimerGlobal }) {
+export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChange, onToggleSet, onClose, onOpenTimerGlobal, onSupersetNext, supersetInfo }) {
   const [isVisible, setIsVisible] = useState(false);
   const [showMiniTimer, setShowMiniTimer] = useState(false);
   const hasPrefilled = useRef(false);
@@ -235,6 +235,19 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
               </button>
             </div>
           </div>
+
+          {supersetInfo && (
+            <div className="mt-3 bg-signal-orange/10 border border-signal-orange/25 rounded-xl px-3.5 py-2.5 flex items-center justify-between">
+              <span className="font-mono text-[9px] font-black text-signal-orange uppercase tracking-widest">
+                ⚡ SUPERSERIE {supersetInfo.position}/{supersetInfo.total}
+              </span>
+              {supersetInfo.nextExerciseName && (
+                <span className="font-mono text-[9px] text-muted uppercase tracking-wider truncate max-w-[45%]">
+                  Siguiente: {supersetInfo.nextExerciseName}
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Auto Timer Toggle */}
           {exercise.duration && (
@@ -531,10 +544,23 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
         {/* CTA */}
         <div className="px-5 pt-2 bg-card">
           <button
-            onClick={handleClose}
+            onClick={() => {
+              if (supersetInfo && !supersetInfo.isLast && onSupersetNext) {
+                // No dispara descanso, no cierra el sheet normalmente: avanza 
+                // directamente al siguiente ejercicio del grupo
+                setIsVisible(false);
+                setTimeout(() => onSupersetNext(), 300);
+              } else {
+                handleClose();
+              }
+            }}
             className="w-full py-3.5 bg-signal-orange text-ink font-display font-black text-xl rounded-xl tracking-wider hover:bg-signal-orange/95 cursor-pointer uppercase"
           >
-            Guardar y Cerrar
+            {supersetInfo && !supersetInfo.isLast
+              ? '⚡ Siguiente Ejercicio →'
+              : supersetInfo && supersetInfo.isLast
+              ? 'Guardar y Continuar'
+              : 'Guardar y Cerrar'}
           </button>
         </div>
       </div>

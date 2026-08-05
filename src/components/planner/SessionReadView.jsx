@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '../../context/SessionContext';
 import { usePlanner } from '../../context/PlannerContext';
@@ -11,6 +11,32 @@ import ExportSessionModal from '../ExportSessionModal';
 import FeedbackSection from '../FeedbackSection';
 
 const LS_SESSION_LOGS = 'trainingos_session_logs';
+
+const SUPERSET_COLOR_CYCLE = ['signal-orange', 'belt-gold', 'corner-red'];
+
+const SUPERSET_STYLES = {
+  'signal-orange': {
+    border: 'border-l-signal-orange',
+    bg: 'bg-signal-orange/5',
+    badgeText: 'text-signal-orange',
+    badgeBorder: 'border-signal-orange/25',
+    badgeBg: 'bg-signal-orange/10',
+  },
+  'belt-gold': {
+    border: 'border-l-belt-gold',
+    bg: 'bg-belt-gold/5',
+    badgeText: 'text-belt-gold',
+    badgeBorder: 'border-belt-gold/25',
+    badgeBg: 'bg-belt-gold/10',
+  },
+  'corner-red': {
+    border: 'border-l-corner-red',
+    bg: 'bg-corner-red/5',
+    badgeText: 'text-corner-red',
+    badgeBorder: 'border-corner-red/25',
+    badgeBg: 'bg-corner-red/10',
+  },
+};
 
 const INTENSITY_COLORS = {
   'Baja':   { bg: 'rgba(39,174,96,0.15)',   text: '#27ae60' },
@@ -412,6 +438,42 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
     finalBlocks = MOCK_SESSION.blocks;
   }
 
+  const supersetColorMap = useMemo(() => {
+    const map = {};
+    let colorIndex = 0;
+    finalBlocks.forEach(block => {
+      (block.supersets || []).forEach(group => {
+        if (!map[group.id]) {
+          map[group.id] = SUPERSET_COLOR_CYCLE[colorIndex % SUPERSET_COLOR_CYCLE.length];
+          colorIndex++;
+        }
+      });
+    });
+    return map;
+  }, [finalBlocks]);
+
+  const groupExercisesForRender = (exercises) => {
+    const groups = [];
+    let i = 0;
+    while (i < exercises.length) {
+      const ex = exercises[i];
+      if (ex.supersetId) {
+        const group = [ex];
+        let j = i + 1;
+        while (j < exercises.length && exercises[j].supersetId === ex.supersetId) {
+          group.push(exercises[j]);
+          j++;
+        }
+        groups.push({ type: 'superset', supersetId: ex.supersetId, exercises: group });
+        i = j;
+      } else {
+        groups.push({ type: 'single', exercises: [ex] });
+        i++;
+      }
+    }
+    return groups;
+  };
+
   const handleExecute = () => {
     const sessionData = {
       id: sId,
@@ -568,36 +630,88 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
                       <span className="text-xl w-6 text-center">{block.icon || '💪'}</span>
                       <span className="font-bold text-sm text-white/80 flex-1">{block.name}</span>
                     </div>
-                    {block.exercises && block.exercises.map((ex, ei) => (
-                      <div key={ex.id || ei} className="px-4 py-2.5 border-b border-white/5 last:border-0">
-                        <div className="flex justify-between items-center">
-                          <span className="font-bold text-sm text-white">{ex.name}</span>
-                          <div className="flex items-center gap-1.5 text-xs text-white/50">
-                            <span className="font-bold text-white/80">{ex.series}</span>×
-                            <span className="font-bold text-white/80">{ex.reps}</span>
-                            {ex.suggestedWeight?.min && ex.suggestedWeight?.max && (
-                              <>
-                                <span className="text-white/20">·</span>
-                                <span className="text-accent font-bold">💡 {ex.suggestedWeight.min}-{ex.suggestedWeight.max}kg</span>
-                              </>
-                            )}
-                            {ex.prescribedLoad && (
-                              <>
-                                <span className="text-white/20">·</span>
-                                <span className="text-white/60">{ex.prescribedLoad}kg</span>
-                              </>
-                            )}
-                            {ex.restSeconds > 0 && (
-                              <>
-                                <span className="text-white/20">·</span>
-                                <span>{ex.restSeconds}s desc.</span>
-                              </>
-                            )}
+                    {groupExercisesForRender(block.exercises || []).map((grp, gi) => {
+                      if (grp.type === 'single') {
+                        const ex = grp.exercises[0];
+                        return (
+                          <div key={ex.id || gi} className="px-4 py-2.5 border-b border-white/5 last:border-0">
+                            <div className="flex justify-between items-center">
+                              <span className="font-bold text-sm text-white">{ex.name}</span>
+                              <div className="flex items-center gap-1.5 text-xs text-white/50">
+                                <span className="font-bold text-white/80">{ex.series}</span>×
+                                <span className="font-bold text-white/80">{ex.reps}</span>
+                                {ex.suggestedWeight?.min && ex.suggestedWeight?.max && (
+                                  <>
+                                    <span className="text-white/20">·</span>
+                                    <span className="text-accent font-bold">💡 {ex.suggestedWeight.min}-{ex.suggestedWeight.max}kg</span>
+                                  </>
+                                )}
+                                {ex.prescribedLoad && (
+                                  <>
+                                    <span className="text-white/20">·</span>
+                                    <span className="text-white/60">{ex.prescribedLoad}kg</span>
+                                  </>
+                                )}
+                                {ex.restSeconds > 0 && (
+                                  <>
+                                    <span className="text-white/20">·</span>
+                                    <span>{ex.restSeconds}s desc.</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            {ex.notes && <p className="text-xs text-white/40 italic mt-1 bg-white/5 p-2 rounded">💡 {ex.notes}</p>}
                           </div>
+                        );
+                      }
+
+                      // grp.type === 'superset'
+                      const colorKey = supersetColorMap[grp.supersetId] || 'signal-orange';
+                      const styles = SUPERSET_STYLES[colorKey] || SUPERSET_STYLES['signal-orange'];
+
+                      return (
+                        <div
+                          key={grp.supersetId + '-' + gi}
+                          className={`border-l-[3px] ${styles.border} ${styles.bg} mb-0.5`}
+                        >
+                          <div className="px-4 pt-2 pb-1">
+                            <span className={`font-mono text-[8px] font-bold ${styles.badgeText} border ${styles.badgeBorder} ${styles.badgeBg} px-1.5 py-0.5 rounded tracking-widest`}>
+                              {grp.supersetId}
+                            </span>
+                          </div>
+                          {grp.exercises.map((ex, ei) => (
+                            <div key={ex.id || ei} className="px-4 py-2 border-t border-white/3 first:border-t-0">
+                              <div className="flex justify-between items-center">
+                                <span className="font-bold text-sm text-white">{ex.name}</span>
+                                <div className="flex items-center gap-1.5 text-xs text-white/50">
+                                  <span className="font-bold text-white/80">{ex.series}</span>×
+                                  <span className="font-bold text-white/80">{ex.reps}</span>
+                                  {ex.suggestedWeight?.min && ex.suggestedWeight?.max && (
+                                    <>
+                                      <span className="text-white/20">·</span>
+                                      <span className="text-accent font-bold">💡 {ex.suggestedWeight.min}-{ex.suggestedWeight.max}kg</span>
+                                    </>
+                                  )}
+                                  {ex.prescribedLoad && (
+                                    <>
+                                      <span className="text-white/20">·</span>
+                                      <span className="text-white/60">{ex.prescribedLoad}kg</span>
+                                    </>
+                                  )}
+                                  {ex.restSeconds > 0 && (
+                                    <>
+                                      <span className="text-white/20">·</span>
+                                      <span>{ex.restSeconds}s desc.</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                              {ex.notes && <p className="text-xs text-white/40 italic mt-1 bg-white/5 p-2 rounded">💡 {ex.notes}</p>}
+                            </div>
+                          ))}
                         </div>
-                        {ex.notes && <p className="text-xs text-white/40 italic mt-1 bg-white/5 p-2 rounded">💡 {ex.notes}</p>}
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ))
               ) : (

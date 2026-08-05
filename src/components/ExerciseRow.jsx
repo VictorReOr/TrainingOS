@@ -51,6 +51,11 @@ export default function ExerciseRow({ exercise, sessionType = 'gym', isDone, isA
               TEST {exercise.testType || 'AMRAP'}
             </span>
           )}
+          {exercise.supersetId && (
+            <span className="font-mono text-[8px] font-bold text-signal-orange border border-signal-orange/40 bg-signal-orange/10 px-1.5 py-0.5 rounded tracking-widest inline-block leading-none uppercase">
+              {exercise.supersetId}
+            </span>
+          )}
         </div>
 
         {/* Pills — solo borde técnico */}
