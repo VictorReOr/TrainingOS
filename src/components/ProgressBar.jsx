@@ -28,7 +28,7 @@ export default function ProgressBar({ percentage, onReset }) {
               isComplete ? 'text-[#FF6B00]' : 'text-[#1C1C1E]'
             }`}
           >
-            {percentage}%
+            {Math.round(percentage)}%
           </span>
           <button
             onClick={onReset}
