@@ -121,47 +121,71 @@ export function parseWorkouts(rows) {
     block.exercises.push(exercise);
   });
 
+/**
+ * Calcula la duración estimada en segundos de un ejercicio basándose en:
+ * 1. Tiempos explícitos en las columnas del Excel (targetExecutionTime, targetRestTime).
+ * 2. Formatos de tiempo en el texto de repeticiones ("10 min", "5 min", "45s") como tiempo total.
+ * 3. Repeticiones tradicionales (~4s por repetición + 15s de preparación/colocación previa por serie).
+ * 4. Descansos entre series (sets - 1 descansos) y 90s de tiempo de transición/cambio de estación.
+ */
+function calculateExerciseSeconds(ex, isIntermediateInSuperset = false) {
+  const sets = parseInt(ex.series || ex.targetSets, 10) || 1;
+  const repsStr = (ex.reps || ex.targetReps || '').toString().trim().toLowerCase();
+
+  let explicitExec = ex.targetExecutionTime || 0;
+  let explicitRest = ex.targetRestTime || ex.restSeconds || 0;
+
+  // Tiempo de preparación / colocación previa por serie (15s)
+  const setupTimePerSet = 15;
+
+  // Caso A: Tiempo de ejecución explícito introducido en la columna del Excel
+  if (explicitExec > 0) {
+    const restIntervals = Math.max(0, sets - 1);
+    const rest = isIntermediateInSuperset ? 0 : (explicitRest || 60);
+    return (sets * (explicitExec + setupTimePerSet)) + (restIntervals * rest);
+  }
+
+  // Caso B: Formatos de tiempo dentro del texto de repeticiones ("10 min", "5 min", "45s")
+  const minMatch = repsStr.match(/(\d+(?:[\.,]\d+)?)\s*(?:min|minutos|mins|')(?!\w)/i);
+  const secMatch = repsStr.match(/(\d+(?:[\.,]\d+)?)\s*(?:s|seg|segundos)(?!\w)/i);
+
+  if (minMatch) {
+    const totalMinutes = parseFloat(minMatch[1].replace(',', '.'));
+    const totalSec = Math.round(totalMinutes * 60);
+    const rest = isIntermediateInSuperset ? 0 : explicitRest;
+    return totalSec + (Math.max(0, sets - 1) * rest);
+  }
+
+  if (secMatch) {
+    const secVal = Math.round(parseFloat(secMatch[1].replace(',', '.')));
+    const rest = isIntermediateInSuperset ? 0 : (explicitRest || 45);
+    return (sets * (secVal + setupTimePerSet)) + (Math.max(0, sets - 1) * rest);
+  }
+
+  // Caso C: Repeticiones basadas en número o distancia (ej. "8", "10-12", "30m/lado", "al fallo")
+  let repCount = 8;
+  const numMatch = repsStr.match(/(\d+)/);
+  if (numMatch) {
+    repCount = parseInt(numMatch[1], 10);
+  }
+
+  // Si son metros (ej. "30m/lado"), estimar ~45s de trabajo activo
+  const isDistance = /m\/|metro|mt/i.test(repsStr);
+  const execPerSet = isDistance ? Math.min(repCount * 1.5, 50) : Math.min(repCount * 4, 50);
+
+  const rest = isIntermediateInSuperset ? 0 : (explicitRest || 60);
+
+  const totalExec = sets * (execPerSet + setupTimePerSet);
+  const totalRest = Math.max(0, sets - 1) * rest;
+
+  return totalExec + totalRest;
+}
+
   // Calcular métricas de las sesiones (duración estimada + conteo ejercicios)
   Object.values(routinesMap).forEach(routine => {
     Object.values(routine.sessions).forEach(session => {
-      // Contar ejercicios totales
-      let exerciseCount = 0;
-      let totalSeconds = 0;
-      session.blocks.forEach(block => {
-        exerciseCount += block.exercises.length;
-        block.exercises.forEach(ex => {
-          // Si hay tiempos, calcular duración real
-          if (ex.targetExecutionTime || ex.targetRestTime) {
-            totalSeconds += ex.targetSets * (ex.targetExecutionTime + ex.targetRestTime);
-          } else {
-            // Estimar ~90s por serie (ejecución + descanso) si no hay datos
-            totalSeconds += ex.targetSets * 90;
-          }
-        });
-      });
-      session.exercises = exerciseCount;
-      session.duration = Math.round(totalSeconds / 60) || 45;
 
-      // Determinar grupo muscular principal para el nombre
-      const groups = {};
-      session.blocks.forEach(b => {
-        b.exercises.forEach(ex => {
-          if (ex.muscleGroup) {
-            groups[ex.muscleGroup] = (groups[ex.muscleGroup] || 0) + 1;
-          }
-        });
-      });
-      const topGroups = Object.entries(groups)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 2)
-        .map(([g]) => g);
-      
-      // Solo sobreescribir con los grupos musculares si NO hay nombre manual desde la hoja
-      if (topGroups.length > 0 && !session._hasManualName) {
-        session.name = topGroups.join(' + ');
-      }
-
-      // ── VALIDACIÓN DE SUPERSERIES (por sesión) ──
+      // ── 1. VALIDACIÓN DE SUPERSERIES (por sesión) ──
       const sessionSupersetMap = {};
 
       session.blocks.forEach(block => {
@@ -189,7 +213,7 @@ export function parseWorkouts(rows) {
         }
       });
 
-      // ── CONSTRUCCIÓN DE block.supersets ──
+      // ── 2. CONSTRUCCIÓN DE block.supersets ──
       session.blocks.forEach(block => {
         const ssGroups = {};
         block.exercises.forEach(ex => {
@@ -202,6 +226,53 @@ export function parseWorkouts(rows) {
           exerciseIds,
         }));
       });
+
+      // ── 3. CÁLCULO DE DURACIÓN Y EJERCICIOS ──
+      let exerciseCount = 0;
+      let totalSeconds = 0;
+      session.blocks.forEach(block => {
+        exerciseCount += block.exercises.length;
+        block.exercises.forEach(ex => {
+          // Determinar si es un ejercicio intermedio dentro de una superserie (ej. A1 de A1+A2)
+          let isIntermediate = false;
+          if (ex.supersetId) {
+            const supersetExs = block.exercises.filter(e => e.supersetId === ex.supersetId);
+            const lastExInSuperset = supersetExs[supersetExs.length - 1];
+            if (lastExInSuperset && lastExInSuperset.id !== ex.id) {
+              isIntermediate = true;
+            }
+          }
+
+          totalSeconds += calculateExerciseSeconds(ex, isIntermediate);
+
+          // Transición y cambio de estación de 90s (1.5 min) solo si NO es un ejercicio intermedio de superserie
+          if (!isIntermediate) {
+            totalSeconds += 90;
+          }
+        });
+      });
+
+      session.exercises = exerciseCount;
+      session.duration = Math.round(totalSeconds / 60) || 45;
+
+      // Determinar grupo muscular principal para el nombre
+      const groups = {};
+      session.blocks.forEach(b => {
+        b.exercises.forEach(ex => {
+          if (ex.muscleGroup) {
+            groups[ex.muscleGroup] = (groups[ex.muscleGroup] || 0) + 1;
+          }
+        });
+      });
+      const topGroups = Object.entries(groups)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 2)
+        .map(([g]) => g);
+      
+      // Solo sobreescribir con los grupos musculares si NO hay nombre manual desde la hoja
+      if (topGroups.length > 0 && !session._hasManualName) {
+        session.name = topGroups.join(' + ');
+      }
     });
   });
 
