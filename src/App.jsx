@@ -23,6 +23,8 @@ import Profile from './pages/Profile';
 import { useRole } from './hooks/useRole';
 import CoachDashboard from './pages/coach/CoachDashboard';
 import AthleteDetail from './pages/coach/AthleteDetail';
+import MyRoutines from './pages/coach/MyRoutines';
+import ExerciseReview from './pages/coach/ExerciseReview';
 import ImportSession from './pages/ImportSession';
 import SplashScreen from './components/SplashScreen';
 import Login from './pages/Login';
@@ -30,8 +32,8 @@ import Register from './pages/Register';
 import PerformanceDashboard from './pages/PerformanceDashboard';
 
 const CoachRoute = ({ children }) => {
-  const { isCoach } = useRole();
-  return isCoach ? children : <Navigate to="/" replace />;
+  const { isCoach, isBoth } = useRole();
+  return (isCoach || isBoth) ? children : <Navigate to="/" replace />;
 };
 
 export default function App() {
@@ -84,7 +86,9 @@ export default function App() {
                 <Route path="/profile" element={<Profile />} />
                 
                 <Route path="/coach" element={<CoachRoute><CoachDashboard /></CoachRoute>} />
+                <Route path="/coach/routines" element={<CoachRoute><MyRoutines /></CoachRoute>} />
                 <Route path="/coach/:id" element={<CoachRoute><AthleteDetail /></CoachRoute>} />
+                <Route path="/exercises/review" element={<CoachRoute><ExerciseReview /></CoachRoute>} />
                 
                 <Route path="/import/:code?" element={<ImportSession />} />
                 <Route path="/performance" element={<PerformanceDashboard />} />

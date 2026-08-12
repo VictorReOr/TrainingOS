@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, ChevronRight, X } from 'lucide-react';
+import { Users, Plus, ChevronRight, X, Dumbbell } from 'lucide-react';
 import { useCoach } from '../../context/CoachContext';
 
 export default function CoachDashboard() {
@@ -42,12 +42,22 @@ export default function CoachDashboard() {
             Mis Atletas
           </h1>
         </div>
-        <button 
-          onClick={() => setShowAddSheet(true)}
-          className="w-10 h-10 bg-[#1C1C1E] text-white rounded-full flex items-center justify-center active:scale-95 transition-transform"
-        >
-          <Plus size={20} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={() => navigate('/coach/routines')}
+            className="flex items-center gap-1.5 px-3 py-2 bg-[#F5F5F0] text-[#1C1C1E] border border-[#E8E8E4] rounded-xl font-condensed font-bold text-xs uppercase hover:border-[#FF6B00] transition-all cursor-pointer active:scale-95"
+            title="Mis Rutinas"
+          >
+            <Dumbbell size={16} className="text-[#FF6B00]" /> Mis Rutinas
+          </button>
+          <button 
+            onClick={() => setShowAddSheet(true)}
+            className="w-10 h-10 bg-[#1C1C1E] text-white rounded-full flex items-center justify-center active:scale-95 transition-transform cursor-pointer"
+            title="Nuevo Atleta"
+          >
+            <Plus size={20} />
+          </button>
+        </div>
       </div>
 
       <div className="p-4 space-y-3">

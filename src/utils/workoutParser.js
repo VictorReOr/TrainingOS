@@ -1,3 +1,6 @@
+import { EXERCISE_LIBRARY } from '../data/exerciseLibrary';
+import { matchExerciseId } from './exerciseMatcher';
+
 /**
  * Parsea un array de filas planas procedentes del Excel (workouts) 
  * y las agrupa en Rutinas -> Sesiones (días) -> Bloques (letras) -> Ejercicios.
@@ -100,9 +103,39 @@ export function parseWorkouts(rows) {
     // 4. Crear y añadir ejercicio
     const sets = parseInt(row.series, 10) || 1;
     const reps = (row.repeticiones || '1').toString();
+    const rawExerciseName = row.ejercicio || 'Ejercicio Desconocido';
+    
+    // Resolución de ID estable
+    const matchedId = matchExerciseId(rawExerciseName, EXERCISE_LIBRARY);
+    let finalId;
+    let fallbackFields = {};
+
+    if (matchedId) {
+      finalId = matchedId;
+      console.log(`[EXERCISE_MATCH] "${rawExerciseName}" → ${finalId} (MATCH)`);
+    } else {
+      const normalizedName = rawExerciseName
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '');
+      finalId = `custom-${normalizedName}`;
+      fallbackFields = {
+        pattern: null,
+        systemicCost: 5,
+        sportTransfer: 5,
+        priority: 'accessory',
+        _needsReview: true
+      };
+      console.log(`[EXERCISE_MATCH] "${rawExerciseName}" → ${finalId} (FALLBACK)`);
+    }
+
     const exercise = {
-      id: `ex_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
-      name: row.ejercicio || 'Ejercicio Desconocido',
+      id: finalId,
+      name: rawExerciseName,
       muscleGroup: row.grupo_muscular || '',
       orderNumber: row.grupo_muscular || '',
       type: row.tipo || 'fuerza',
@@ -115,7 +148,8 @@ export function parseWorkouts(rows) {
       restSeconds: parseInt(row.tiempo_descanso, 10) || 0,
       _rawSuperSerie: supersetCode,
       supersetId: null,
-      log: []
+      log: [],
+      ...fallbackFields
     };
     
     block.exercises.push(exercise);

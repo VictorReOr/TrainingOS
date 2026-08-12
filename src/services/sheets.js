@@ -9,18 +9,63 @@ import { auth } from '../config/firebase';
 
 const API_URL = import.meta.env.VITE_SHEETS_API_URL;
 
-function getAtletaId() {
-  if (auth.currentUser) return auth.currentUser.uid;
+export function getAtletaId() {
+  try {
+    const syncId = localStorage.getItem('trainingos_athlete_id_sync');
+    if (syncId && syncId.trim()) return syncId.trim();
+  } catch (e) {}
+  if (auth.currentUser?.uid) return auth.currentUser.uid;
   try {
     const raw = localStorage.getItem('trainingos_user_meta');
-    if (raw) return JSON.parse(raw).uid;
+    if (raw) {
+      const meta = JSON.parse(raw);
+      if (meta?.uid) return meta.uid;
+    }
   } catch (e) {}
-  return import.meta.env.VITE_ATLETA_ID || 'v-atleta-1';
+  return 'v-atleta-1';
 }
 
 // ─── Base request ─────────────────────────────────────────────────────────────
 async function _delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function _singleFetch(method, action, data) {
+  const timeoutMs = method === 'GET' ? 15000 : 8000;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    let res;
+    const currentId = getAtletaId();
+
+    if (method === 'GET') {
+      const params = new URLSearchParams({ action, atleta_id: currentId, ...data });
+      res = await fetch(`${API_URL}?${params.toString()}`, { signal: controller.signal });
+    } else {
+      res = await fetch(API_URL, {
+        method:  'POST',
+        body:    JSON.stringify({ action, atletaId: currentId, ...data }),
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        signal:  controller.signal,
+      });
+    }
+
+    const json = await res.json();
+    if (json.status === 'error') throw new Error(json.message || 'Error del servidor');
+    console.log(`[Sheets] ${method} ${action} → ok`, json);
+    return json;
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      const sec = timeoutMs / 1000;
+      const abortErr = new Error(`[Sheets] Timeout en ${action} (${sec}s)`);
+      abortErr.name = 'AbortError';
+      throw abortErr;
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 /**
@@ -47,35 +92,24 @@ async function _request(method, action, data = {}, mockFn = null) {
     return mockFn ? await mockFn() : { rows: [] };
   }
 
-  const controller = new AbortController();
-  const timeout    = setTimeout(() => controller.abort(), 8000);
-
   try {
-    let res;
-    const currentId = getAtletaId();
-
-    if (method === 'GET') {
-      const params = new URLSearchParams({ action, atleta_id: currentId, ...data });
-      res = await fetch(`${API_URL}?${params.toString()}`, { signal: controller.signal });
-    } else {
-      res = await fetch(API_URL, {
-        method:  'POST',
-        body:    JSON.stringify({ action, atletaId: currentId, ...data }),
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        signal:  controller.signal,
-      });
-    }
-
-    const json = await res.json();
-    if (json.status === 'error') throw new Error(json.message || 'Error del servidor');
-    console.log(`[Sheets] ${method} ${action} → ok`, json);
-    return json;
-
+    return await _singleFetch(method, action, data);
   } catch (err) {
-    if (err.name === 'AbortError') throw new Error(`[Sheets] Timeout en ${action} (8s)`);
+    if (method === 'GET' && err.name === 'AbortError') {
+      console.warn(`[Sheets] Timeout en primer intento para ${action}, reintentando...`);
+      try {
+        return await _singleFetch(method, action, data);
+      } catch (retryErr) {
+        if (retryErr.name === 'AbortError') {
+          throw new Error(`[Sheets] Timeout en ${action} tras 2 intentos (15s c/u)`);
+        }
+        throw retryErr;
+      }
+    }
+    if (err.name === 'AbortError') {
+      throw new Error(`[Sheets] Timeout en ${action} (8s)`);
+    }
     throw new Error(`[Sheets] ${action}: ${err.message}`);
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
@@ -264,10 +298,117 @@ function sanitizeWorkoutRow(row) {
   return sanitized;
 }
 
+/**
+ * Guarda (reemplazando duplicados por rutinaId+coachId) las filas de una rutina.
+ * @param {string} rutinaId
+ * @param {Array<object>} rows — filas planas (mismo formato que consume parseWorkouts)
+ */
+export async function saveWorkouts(rutinaId, rows) {
+  const coachId = getAtletaId();
+  return _request('POST', 'saveWorkouts', { rutinaId, coachId, rows }, async () => {
+    // Mock: persistir en localStorage bajo una clave propia para no chocar con trainingos_session_templates
+    try {
+      const key = 'trainingos_local_workouts';
+      const all = JSON.parse(localStorage.getItem(key) || '{}');
+      all[`${coachId}_${rutinaId}`] = rows;
+      localStorage.setItem(key, JSON.stringify(all));
+    } catch (e) {}
+    return { status: 'success', saved: rows.length };
+  });
+}
+
+/**
+ * Asigna una rutina a uno o varios atletas.
+ * @param {string} rutinaId
+ * @param {string[]} atletaIds
+ */
+export async function assignRoutine(rutinaId, atletaIds) {
+  const coachId = getAtletaId();
+  return _request('POST', 'assignRoutine', { rutinaId, coachId, atletaIds }, async () => {
+    try {
+      const key = 'trainingos_routine_assignments';
+      const all = JSON.parse(localStorage.getItem(key) || '[]');
+      const newIds = [];
+      atletaIds.forEach(aid => {
+        const id = `mock-assign-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+        all.push({
+          id,
+          rutina_id: rutinaId,
+          coach_id: coachId,
+          atleta_id: aid,
+          active: false,
+          assigned_at: new Date().toISOString()
+        });
+        newIds.push(id);
+      });
+      localStorage.setItem(key, JSON.stringify(all));
+      return { status: 'success', ids: newIds };
+    } catch (e) {
+      return { status: 'success', ids: atletaIds.map(() => `mock-assign-${Date.now()}`) };
+    }
+  });
+}
+
+/**
+ * Activa una rutina asignada (desactiva cualquier otra activa del mismo atleta).
+ * @param {string} assignmentId
+ * @param {string} [atletaId]
+ */
+export async function activateRoutine(assignmentId, atletaId) {
+  const currentId = atletaId || getAtletaId();
+  return _request('POST', 'activateRoutine', { assignmentId, atletaId: currentId }, async () => {
+    try {
+      const key = 'trainingos_routine_assignments';
+      const all = JSON.parse(localStorage.getItem(key) || '[]');
+      const updated = all.map(item => {
+        if (item.atleta_id === currentId) {
+          return { ...item, active: item.id === assignmentId };
+        }
+        return item;
+      });
+      localStorage.setItem(key, JSON.stringify(updated));
+    } catch (e) {}
+    return { status: 'success', activated: assignmentId };
+  });
+}
+
+/**
+ * Recupera todas las rutinas asignadas al atleta actual (activas e inactivas).
+ */
+export async function getRoutineAssignments(atletaId) {
+  const currentId = atletaId || getAtletaId();
+  return _request('GET', 'getRoutineAssignments', { atleta_id: currentId }, async () => {
+    try {
+      const key = 'trainingos_routine_assignments';
+      const all = JSON.parse(localStorage.getItem(key) || '[]');
+      const rows = all.filter(item => item.atleta_id === currentId);
+      return { status: 'success', rows };
+    } catch (e) {
+      return { status: 'success', rows: [] };
+    }
+  });
+}
+
 export async function fetchWorkouts(rutinaId = '') {
-  const result = await _request('GET', 'getWorkouts', { rutina_id: rutinaId }, async () => ({
-    status: 'success', rows: [],
-  }));
+  const coachId = getAtletaId();
+  const result = await _request('GET', 'getWorkouts', { rutina_id: rutinaId, coach_id: coachId }, async () => {
+    try {
+      const key = 'trainingos_local_workouts';
+      const all = JSON.parse(localStorage.getItem(key) || '{}');
+      let rows = [];
+      Object.entries(all).forEach(([k, workoutRows]) => {
+        // k es formato `${coachId}_${rutinaId}`
+        if (Array.isArray(workoutRows)) {
+          if (!rutinaId || k.endsWith(`_${rutinaId}`)) {
+            rows = rows.concat(workoutRows);
+          }
+        }
+      });
+      return { status: 'success', rows };
+    } catch (e) {
+      return { status: 'success', rows: [] };
+    }
+  });
 
   // Aplicar sanitización defensiva a cada fila antes de devolver los datos.
   // Esto captura cualquier corrupción de fecha que el backend no haya podido

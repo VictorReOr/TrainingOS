@@ -7,17 +7,23 @@ import { usePR } from '../context/PRContext';
 import { useFeedback } from '../context/FeedbackContext';
 import { useAuth } from '../context/AuthContext';
 import { useRole } from '../hooks/useRole';
-import { ChevronLeft, Pencil, Star, Plus, ShieldCheck, RefreshCw, Bell, Users, DownloadCloud, MessageCircle, LogOut } from 'lucide-react';
-import { getSeasons, getSessions } from '../services/sheets';
+import { ChevronLeft, Pencil, Star, Plus, ShieldCheck, RefreshCw, Bell, Users, DownloadCloud, MessageCircle, LogOut, CheckCircle2, PlayCircle } from 'lucide-react';
+import { getSeasons, getSessions, getRoutineAssignments, activateRoutine, fetchWorkouts } from '../services/sheets';
+import { parseWorkouts } from '../utils/workoutParser';
 
 export default function Profile() {
   const navigate = useNavigate();
   const { athlete, toggleSport, addSport, setPrimarySport, updateProfile, viewMode, setViewMode } = useAthlete();
+  const { currentWeekStart, assignSessionToDay, removeSessionFromDay } = usePlanner();
   const { sessionLogs } = useEvolutionData();
   const { prs } = usePR();
   const { unreadCount, sessionsWithUnread } = useFeedback();
   const { logout, currentUser } = useAuth();
   const { isBoth } = useRole();
+
+  const [assignedRoutines, setAssignedRoutines] = useState([]);
+  const [loadingAssignments, setLoadingAssignments] = useState(true);
+  const [activatingId, setActivatingId] = useState(null);
 
   // Edit Name State
   const [isEditingName, setIsEditingName] = useState(false);
@@ -88,6 +94,72 @@ export default function Profile() {
     setDemoMode(newVal);
     localStorage.setItem('trainingos_demo_mode', newVal ? 'true' : 'false');
     window.location.reload();
+  };
+
+  React.useEffect(() => {
+    loadAssignedRoutines();
+  }, []);
+
+  const loadAssignedRoutines = async () => {
+    setLoadingAssignments(true);
+    try {
+      const resAssignments = await getRoutineAssignments();
+      const rows = resAssignments.rows || [];
+      if (rows.length > 0) {
+        const resWorkouts = await fetchWorkouts();
+        const allRoutines = parseWorkouts(resWorkouts.rows || []);
+        const mapped = rows.map(asgn => {
+          const found = allRoutines.find(r => r.id === asgn.rutina_id);
+          return {
+            assignment: asgn,
+            routine: found || { id: asgn.rutina_id, name: `Rutina ${asgn.rutina_id}`, sessions: {} }
+          };
+        });
+        setAssignedRoutines(mapped);
+      } else {
+        setAssignedRoutines([]);
+      }
+    } catch (err) {
+      console.warn('[Profile] Error cargando asignaciones de rutina:', err);
+    } finally {
+      setLoadingAssignments(false);
+    }
+  };
+
+  const handleActivateAssignment = async (assignmentId) => {
+    setActivatingId(assignmentId);
+    try {
+      await activateRoutine(assignmentId);
+      await loadAssignedRoutines();
+    } catch (err) {
+      alert(`Error al activar la rutina: ${err.message || 'Error de red'}`);
+    } finally {
+      setActivatingId(null);
+    }
+  };
+
+  const handleApplyAssignedRoutineToCalendar = (routine) => {
+    const DAYS_ES = ['lunes','martes','miercoles','jueves','viernes','sabado','domingo'];
+    const getDayDate = (monday, i) => { const d = new Date(monday); d.setDate(d.getDate() + i); return d; };
+    const formatISO = (d) => { const pad = n => n.toString().padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+
+    // 1. Limpiar semana actual
+    DAYS_ES.forEach((_, i) => {
+      const dayDate = getDayDate(currentWeekStart, i);
+      removeSessionFromDay(formatISO(dayDate));
+    });
+
+    // 2. Asignar días de la rutina activa
+    Object.keys(routine.sessions || {}).forEach(dayKey => {
+      const dayIndex = DAYS_ES.indexOf(dayKey);
+      if (dayIndex !== -1) {
+        const dayDate = getDayDate(currentWeekStart, dayIndex);
+        const sess = routine.sessions[dayKey];
+        assignSessionToDay(formatISO(dayDate), { ...sess, id: sess.id + '_' + Date.now() });
+      }
+    });
+
+    navigate('/plan');
   };
 
   const handleSync = async () => {
@@ -345,12 +417,70 @@ export default function Profile() {
                <h3 className="font-condensed font-black text-lg uppercase tracking-wide">Mis Atletas</h3>
                <Users size={18} className="text-signal-orange" />
              </div>
-             <p className="font-sans text-xs text-muted mb-4">Aún no gestionas atletas o se implementará en el módulo de Coach.</p>
+             <p className="font-sans text-xs text-muted mb-4">Gestiona y asigna rutinas a tus atletas supervisados.</p>
              <button onClick={() => navigate('/coach')} className="w-full bg-white/10 hover:bg-white/20 text-white font-condensed font-black py-3 rounded-xl transition-all cursor-pointer tracking-wider text-sm">
                GESTIONAR ATLETAS
              </button>
           </div>
         )}
+
+        {/* RUTINAS ASIGNADAS (VISTA DE ATLETA) */}
+        <div className="bg-card border border-border rounded-xl p-5 shadow-none space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-condensed font-black text-lg uppercase tracking-wide text-ink">Rutinas Asignadas</h3>
+              <p className="font-mono text-[9px] text-muted uppercase tracking-wider mt-0.5">Rutinas de entrenamiento enviadas por tu coach</p>
+            </div>
+            <CheckCircle2 size={20} className="text-signal-orange" />
+          </div>
+
+          {loadingAssignments ? (
+            <div className="text-center p-4 font-mono text-xs text-muted uppercase tracking-wider animate-pulse">Cargando rutinas asignadas...</div>
+          ) : assignedRoutines.length === 0 ? (
+            <div className="bg-bg/25 border border-dashed border-border rounded-xl p-4 text-center text-muted font-mono text-xs uppercase tracking-wider">
+              No tienes rutinas asignadas actualmente.
+            </div>
+          ) : (
+            assignedRoutines.map(({ assignment, routine }) => {
+              const isActive = assignment.active === true || assignment.active === 'true' || assignment.active === 1;
+              return (
+                <div key={assignment.id} className={`border rounded-xl p-4 transition-all ${isActive ? 'bg-signal-orange/5 border-signal-orange' : 'bg-bg/25 border-border'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="font-condensed font-black text-lg text-ink uppercase tracking-wide truncate">{routine.name}</h4>
+                    {isActive ? (
+                      <span className="font-mono text-[9px] font-black px-2 py-0.5 rounded bg-signal-orange text-ink uppercase tracking-wider border border-signal-orange flex items-center gap-1">
+                        <CheckCircle2 size={12} /> ACTIVA
+                      </span>
+                    ) : (
+                      <span className="font-mono text-[9px] font-bold px-2 py-0.5 rounded bg-bg text-muted uppercase tracking-wider border border-border">
+                        INACTIVA
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
+                    {isActive ? (
+                      <button
+                        onClick={() => handleApplyAssignedRoutineToCalendar(routine)}
+                        className="w-full bg-signal-orange text-ink px-4 py-2.5 rounded-lg font-condensed font-black text-xs uppercase tracking-wider hover:bg-signal-orange/95 cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1.5"
+                      >
+                        <PlayCircle size={16} /> Cargar en mi Calendario
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleActivateAssignment(assignment.id)}
+                        disabled={activatingId === assignment.id}
+                        className="w-full bg-card border border-border hover:border-signal-orange text-ink px-4 py-2.5 rounded-lg font-condensed font-black text-xs uppercase tracking-wider cursor-pointer active:scale-95 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                      >
+                        {activatingId === assignment.id ? 'Activando...' : 'Activar esta Rutina'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
 
         {/* CONFIGURACIÓN */}
         <div className="bg-card border border-border rounded-xl p-5 shadow-none">

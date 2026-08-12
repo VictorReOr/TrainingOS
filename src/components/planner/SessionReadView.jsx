@@ -272,7 +272,7 @@ function RetroactiveLogger({ blocks, sessionId, sessionName, dayDate, onSaved, o
       <div>
         <p className="font-condensed font-black text-xl text-white leading-tight">{ex.name}</p>
         <p className="font-mono text-[9px] text-white/40 uppercase tracking-widest mt-0.5">
-          {ex.series || ex.sets || 3} series · {ex.reps || ex.targetReps || '—'} reps
+          {ex.series || ex.sets || 3} series · {(ex.reps ?? ex.targetReps) ?? '—'} reps
         </p>
       </div>
 

@@ -7,8 +7,9 @@ import SportSelector from '../components/SportSelector';
 import SessionReadView from '../components/planner/SessionReadView';
 import WeekRepetitionModal from '../components/planner/WeekRepetitionModal';
 import { ChevronLeft, ChevronRight, Plus, X, DownloadCloud, Repeat, Trash2 } from 'lucide-react';
-import { fetchWorkouts } from '../services/sheets';
+import { fetchWorkouts, saveWorkouts, assignRoutine, activateRoutine, getAtletaId } from '../services/sheets';
 import { parseWorkouts } from '../utils/workoutParser';
+import { fileToRows, downloadWorkoutTemplate } from '../utils/fileToRows';
 import { useSession } from '../context/SessionContext';
 import { useLongPress } from '../hooks/useLongPress';
 
@@ -242,7 +243,7 @@ export default function Plan() {
     sessionTemplates, weekAssignments,
     assignSessionToDay, removeSessionFromDay, moveSessionToDay,
   } = usePlanner();
-  const { activeSport } = useAthlete();
+  const { activeSport, athlete } = useAthlete();
   const { loadSession } = useSession();
 
   const isCurrWeek = isCurrentWeek(currentWeekStart);
@@ -252,6 +253,9 @@ export default function Plan() {
   const [addSheetDay, setAddSheetDay]           = useState(null);
   const [addSheetVisible, setAddSheetVisible]   = useState(false);
   const [showImportSheet, setShowImportSheet]   = useState(false);
+  const [importTab, setImportTab]               = useState('file'); // 'file' | 'sheets'
+  const [rawFileRows, setRawFileRows]           = useState([]);
+  const fileInputRef                            = useRef(null);
   const [importedRoutines, setImportedRoutines] = useState([]);
   const [loadingImport, setLoadingImport]       = useState(false);
   const [importError, setImportError]           = useState(null);
@@ -338,8 +342,26 @@ export default function Plan() {
     closeAddSheet();
   };
 
-  const handleOpenImport = async () => {
+  const handleOpenImport = () => {
     setShowImportSheet(true);
+    setImportTab('file');
+    setImportedRoutines([]);
+    setRawFileRows([]);
+    setImportError(null);
+    setLoadingImport(false);
+  };
+
+  const handleTabSwitch = (tab) => {
+    setImportTab(tab);
+    setImportedRoutines([]);
+    setImportError(null);
+    setLoadingImport(false);
+    if (tab === 'sheets') {
+      fetchFromSheets();
+    }
+  };
+
+  const fetchFromSheets = async () => {
     setLoadingImport(true);
     setImportError(null);
     try {
@@ -351,6 +373,30 @@ export default function Plan() {
       setImportedRoutines(PRESET_ROUTINES);
     } finally {
       setLoadingImport(false);
+    }
+  };
+
+  const handleFileSelect = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setLoadingImport(true);
+    setImportError(null);
+    try {
+      const rows = await fileToRows(file);
+      setRawFileRows(rows);
+      const parsed = parseWorkouts(rows);
+      if (parsed.length === 0) {
+        setImportError('No se encontraron rutinas válidas en el archivo seleccionado.');
+        setImportedRoutines([]);
+      } else {
+        setImportedRoutines(parsed);
+      }
+    } catch (err) {
+      console.error('Error al leer archivo local:', err);
+      setImportError(`No se pudo leer el archivo: ${err.message || 'formato inválido'}`);
+    } finally {
+      setLoadingImport(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -369,7 +415,38 @@ export default function Plan() {
         assignSessionToDay(formatISO(dayDate), { ...sess, id: sess.id + '_' + Date.now() });
       }
     });
+
+    // 3. Cierre inmediato del modal (no bloqueante)
     setShowImportSheet(false);
+
+    // 4. Sincronización silenciosa no bloqueante en segundo plano si proviene de archivo local
+    if (rawFileRows && rawFileRows.length > 0) {
+      const routineId = routine.id;
+      const rawRowsForRoutine = rawFileRows.filter(
+        r => (r.rutina_id || '').toString().trim() === routineId || (!r.rutina_id && routineId === 'Mi Rutina')
+      );
+      const rowsToSave = rawRowsForRoutine.length > 0 ? rawRowsForRoutine : rawFileRows;
+
+      saveWorkouts(routineId, rowsToSave)
+        .then(() => {
+          // Auto-asignación en modo híbrido o atleta
+          const currentUserId = getAtletaId();
+          if (currentUserId && (athlete?.role === 'both' || athlete?.role === 'athlete')) {
+            assignRoutine(routineId, [currentUserId])
+              .then(res => {
+                if (res && res.ids && res.ids.length > 0) {
+                  activateRoutine(res.ids[0], currentUserId).catch(err =>
+                    console.warn('[Plan] Error al activar la asignación automática:', err)
+                  );
+                }
+              })
+              .catch(err => console.warn('[Plan] Error en auto-asignación de rutina:', err));
+          }
+        })
+        .catch(err => {
+          console.warn('[Plan] No se pudo sincronizar la rutina con Google Sheets:', err);
+        });
+    }
   };
 
   return (
@@ -734,33 +811,89 @@ export default function Plan() {
         </>
       )}
 
-      {/* ── IMPORT FROM EXCEL BOTTOM SHEET ── */}
+      {/* ── IMPORT FROM EXCEL / FILE BOTTOM SHEET ── */}
       {showImportSheet && (
         <div className="fixed inset-0 z-[80] flex flex-col justify-end">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowImportSheet(false)} />
           <div className="bg-bg rounded-t-2xl w-full max-h-[85vh] flex flex-col relative animate-slide-up border-t border-border">
             <div className="w-12 h-1 bg-border rounded-full mx-auto my-3 shrink-0" />
-            <div className="px-5 pb-4 shrink-0 border-b border-border bg-card rounded-t-2xl flex justify-between items-center">
-              <div>
-                <h3 className="font-condensed font-black text-xl text-ink uppercase tracking-wide">Importar Semana</h3>
-                <p className="font-mono text-[9px] text-muted uppercase tracking-wider mt-0.5">Selecciona una rutina de tu hoja de Excel.</p>
+            <div className="px-5 pb-3 shrink-0 border-b border-border bg-card rounded-t-2xl">
+              <div className="flex justify-between items-center mb-3">
+                <div>
+                  <h3 className="font-condensed font-black text-xl text-ink uppercase tracking-wide">Importar Rutina</h3>
+                  <p className="font-mono text-[9px] text-muted uppercase tracking-wider mt-0.5">
+                    {importTab === 'file' ? 'Carga un archivo Excel o CSV con tu rutina.' : 'Obtén rutinas desde tu hoja de Google Sheets.'}
+                  </p>
+                </div>
+                <button onClick={() => setShowImportSheet(false)} className="p-2 bg-bg/50 text-muted rounded-full hover:bg-bg transition-colors cursor-pointer">
+                  <X size={18} />
+                </button>
               </div>
-              <button onClick={() => setShowImportSheet(false)} className="p-2 bg-bg/50 text-muted rounded-full hover:bg-bg transition-colors cursor-pointer">
-                <X size={18} />
-              </button>
+
+              {/* Selector de pestañas */}
+              <div className="grid grid-cols-2 gap-2 bg-bg p-1 rounded-xl border border-border">
+                <button
+                  onClick={() => handleTabSwitch('file')}
+                  className={`py-2 text-xs font-condensed font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                    importTab === 'file' ? 'bg-signal-orange text-ink shadow-sm' : 'text-muted hover:text-ink'
+                  }`}
+                >
+                  📁 Subir archivo
+                </button>
+                <button
+                  onClick={() => handleTabSwitch('sheets')}
+                  className={`py-2 text-xs font-condensed font-bold uppercase tracking-wider rounded-lg transition-all cursor-pointer ${
+                    importTab === 'sheets' ? 'bg-signal-orange text-ink shadow-sm' : 'text-muted hover:text-ink'
+                  }`}
+                >
+                  🌐 Google Sheets
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-5 pb-8 space-y-4">
+              {importTab === 'file' && (
+                <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+                  <input
+                    type="file"
+                    accept=".xlsx,.csv"
+                    ref={fileInputRef}
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex-1 min-w-[140px] flex items-center justify-center gap-2 bg-signal-orange text-ink px-4 py-2.5 rounded-lg font-condensed font-black text-xs uppercase tracking-wider hover:bg-signal-orange/90 active:scale-[0.98] transition-all cursor-pointer border border-border"
+                    >
+                      <Plus size={16} /> Seleccionar archivo (.xlsx / .csv)
+                    </button>
+                    <button
+                      onClick={downloadWorkoutTemplate}
+                      className="flex items-center justify-center gap-1.5 bg-bg/50 text-muted hover:text-ink px-3 py-2.5 rounded-lg font-mono text-[10px] uppercase font-bold tracking-wider hover:bg-bg transition-all cursor-pointer border border-border shrink-0"
+                    >
+                      <DownloadCloud size={14} /> Plantilla
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {loadingImport ? (
-                <div className="text-center p-6 text-muted font-mono text-xs uppercase tracking-wider font-bold animate-pulse">Sincronizando con Google Sheets...</div>
+                <div className="text-center p-6 text-muted font-mono text-xs uppercase tracking-wider font-bold animate-pulse">
+                  {importTab === 'file' ? 'Procesando archivo...' : 'Sincronizando con Google Sheets...'}
+                </div>
               ) : importError ? (
                 <div className="bg-card border border-corner-red/20 rounded-xl p-6 text-center text-corner-red">
-                  <p className="font-bold font-condensed text-base uppercase mb-1">Error al conectar con Google Sheets:</p>
+                  <p className="font-bold font-condensed text-base uppercase mb-1">
+                    {importTab === 'file' ? 'Error al procesar archivo:' : 'Error al conectar con Google Sheets:'}
+                  </p>
                   <p className="text-sm font-mono text-[11px]">{importError}</p>
                 </div>
               ) : importedRoutines.length === 0 ? (
                 <div className="bg-card border-2 border-dashed border-border rounded-xl p-6 text-center text-muted font-mono text-xs uppercase tracking-wider">
-                  No se encontraron rutinas en la pestaña 'workouts'.
+                  {importTab === 'file'
+                    ? 'Selecciona un archivo .xlsx o .csv para previsualizar las rutinas.'
+                    : "No se encontraron rutinas en la pestaña 'workouts'."}
                 </div>
               ) : (
                 importedRoutines.map(routine => (

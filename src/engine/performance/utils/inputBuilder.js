@@ -128,14 +128,23 @@ function buildExerciseHistory(sessionLogs) {
         const libEx = EXERCISE_LIBRARY.find(
           e => e.id === exId || e.name === ejercicio.nombre
         );
-        const metadata = libEx
-          ? getExerciseMetadata(libEx)
-          : {
+        
+        let metadata;
+        if (libEx) {
+          metadata = getExerciseMetadata(libEx);
+        } else {
+          const fallbackMetadata = getExerciseMetadata({ id: exId });
+          if (fallbackMetadata._source === 'coach_override') {
+            metadata = fallbackMetadata;
+          } else {
+            metadata = {
               pattern:       'knee_dominant',
               systemicCost:  5,
               sportTransfer: 5,
               priority:      'accessory'
             };
+          }
+        }
 
         byExercise[exId] = {
           exerciseId:    exId,

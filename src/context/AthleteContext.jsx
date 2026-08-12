@@ -1,4 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { getAtletaId } from '../services/sheets';
+import { auth } from '../config/firebase';
+import { useAuth } from './AuthContext';
 
 const LS_KEY = 'trainingos_athlete_profile';
 
@@ -25,6 +28,8 @@ const DEFAULT_ATHLETE = {
 const AthleteContext = createContext();
 
 export function AthleteProvider({ children }) {
+  const { currentUser } = useAuth();
+
   const [athlete, setAthlete] = useState(() => {
     try {
       const raw = localStorage.getItem(LS_KEY);
@@ -32,6 +37,9 @@ export function AthleteProvider({ children }) {
       const userMeta = userMetaRaw ? JSON.parse(userMetaRaw) : null;
 
       let parsed = raw ? JSON.parse(raw) : { ...DEFAULT_ATHLETE };
+      
+      // Unified UID Single Source of Truth
+      parsed.id = getAtletaId();
 
       // Si tenemos meta del usuario por haber hecho login/registro
       if (userMeta) {
@@ -48,6 +56,17 @@ export function AthleteProvider({ children }) {
   });
 
   const [viewMode, setViewMode] = useState(athlete.role === 'coach' ? 'coach' : 'athlete');
+
+  // Re-sync athlete.id whenever currentUser resolves asynchronously
+  useEffect(() => {
+    const resolvedId = currentUser?.uid || getAtletaId();
+    if (resolvedId && athlete.id !== resolvedId) {
+      setAthlete(prev => ({
+        ...prev,
+        id: resolvedId
+      }));
+    }
+  }, [currentUser?.uid]);
 
   // Persist on change
   useEffect(() => {

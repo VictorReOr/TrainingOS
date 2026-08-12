@@ -59,7 +59,8 @@ function initSheets() {
     'week_assignments':  ['id','atleta_id','fecha_iso','session_id','session_json','created_at'],
     'prs':               ['id','exercise_id','exercise_name','atleta_id','fecha','valor','carga_real','reps_reales','unidad','created_at'],
     'timer_templates':   ['id','atleta_id','nombre','blocks_json','created_at'],
-    'workouts':          ['rutina_id','dia','bloque','grupo_muscular','tipo','ejercicio','series','repeticiones','tiempo_ejecucion','tiempo_descanso'],
+    'workouts':          ['rutina_id','coach_id','sessionName','dia','bloque','grupo_muscular','tipo','ejercicio','series','repeticiones','tiempo_ejecucion','tiempo_descanso','superSerie'],
+    'routine_assignments': ['id','rutina_id','coach_id','atleta_id','active','assigned_at'],
     'wellness_logs':     ['id','atleta_id','fecha','sleep','stress','doms','fatigue'],
     'performance_tests': ['id','atleta_id','fecha','tipo','valor','valor_original','unidad'],
     'body_metrics':      ['id','atleta_id','fecha','peso','grasa','medidaCintura','medidaBrazo','medidaMuslo']
@@ -270,6 +271,66 @@ function doPost(e) {
       return _ok({ id: id });
     }
 
+    if (action === 'saveWorkouts') {
+      var coachId = payload.coachId || 'unknown';
+      var rutinaId = payload.rutinaId || '';
+      if (!rutinaId) return _err('Falta rutinaId');
+
+      // 1. Eliminar filas existentes de esta rutina+coach (comportamiento "reemplazar")
+      var sh = _sheet('workouts');
+      var data = sh.getDataRange().getValues();
+      var headers = data[0];
+      var rutinaIdCol = headers.indexOf('rutina_id');
+      var coachIdCol  = headers.indexOf('coach_id');
+      for (var i = data.length - 1; i >= 1; i--) {
+        if (data[i][rutinaIdCol] === rutinaId && data[i][coachIdCol] === coachId) {
+          sh.deleteRow(i + 1);
+        }
+      }
+
+      // 2. Insertar filas nuevas
+      var rows = payload.rows || [];
+      rows.forEach(function(r) {
+        _appendRow('workouts', Object.assign({}, r, { rutina_id: rutinaId, coach_id: coachId }));
+      });
+
+      return _ok({ saved: rows.length });
+    }
+
+    if (action === 'assignRoutine') {
+      var rutinaId  = payload.rutinaId || '';
+      var coachId   = payload.coachId  || 'unknown';
+      var atletaIds = payload.atletaIds || []; // array, permite asignar a varios de una vez
+      var results = [];
+      atletaIds.forEach(function(aid) {
+        var id = Utilities.getUuid();
+        _appendRow('routine_assignments', {
+          id: id, rutina_id: rutinaId, coach_id: coachId,
+          atleta_id: aid, active: false, assigned_at: now,
+        });
+        results.push(id);
+      });
+      return _ok({ ids: results });
+    }
+
+    if (action === 'activateRoutine') {
+      var assignmentId = payload.assignmentId || '';
+      var atletaId = payload.atletaId || '';
+      var sh = _sheet('routine_assignments');
+      var data = sh.getDataRange().getValues();
+      var headers = data[0];
+      var idCol = headers.indexOf('id');
+      var atletaCol = headers.indexOf('atleta_id');
+      var activeCol = headers.indexOf('active');
+      for (var i = 1; i < data.length; i++) {
+        if (data[i][atletaCol] === atletaId) {
+          var shouldBeActive = (data[i][idCol] === assignmentId);
+          sh.getRange(i + 1, activeCol + 1).setValue(shouldBeActive);
+        }
+      }
+      return _ok({ activated: assignmentId });
+    }
+
     return _err('Acción POST desconocida: ' + action);
 
   } catch(err) {
@@ -385,10 +446,48 @@ function doGet(e) {
     }
 
     if (action === 'getWorkouts') {
-      var rows = _sheetDataWorkouts().filter(function(r) {
-        // Por ahora devolveremos todos, o filtrar por rutina_id si se pasa
-        if (p.rutina_id && r.rutina_id !== p.rutina_id) return false;
-        return true;
+      var coachIdParam  = p.coach_id  ? String(p.coach_id).trim()  : '';
+      var rutinaIdParam = p.rutina_id ? String(p.rutina_id).trim() : '';
+
+      // Logs de depuración 2026-08-11
+      // Logger.log('=== DEBUG getWorkouts ===');
+      // Logger.log('coachId recibido del frontend: [' + coachIdParam + ']');
+      // Logger.log('rutina_id filtro (si aplica): [' + rutinaIdParam + ']');
+
+      var allRows = _sheetDataWorkouts();
+
+      // Logger.log('Total filas en hoja workouts: ' + allRows.length);
+
+      var rows = allRows.filter(function(r) {
+        var rowRutinaId = String(r.rutina_id || '').trim();
+        var rowCoachId  = String(r.coach_id  || '').trim();
+
+        if (rutinaIdParam) {
+          // Si se pide una rutina concreta, esa es la condición principal.
+          if (rowRutinaId !== rutinaIdParam) return false;
+          // coach_id, si viene, es un filtro adicional opcional (no bloqueante
+          // si no coincide, para no romper el caso self-coaching con ids
+          // legacy desalineados).
+          return true;
+        }
+
+        if (coachIdParam) {
+          return rowCoachId === coachIdParam;
+        }
+
+        // Sin ningún filtro útil, no devolver todo el dataset a ciegas.
+        return false;
+      });
+
+      // Logger.log('Filas resultantes tras el filtro: ' + rows.length);
+      // Logger.log('=== FIN DEBUG getWorkouts ===');
+
+      return _ok({ rows: rows });
+    }
+
+    if (action === 'getRoutineAssignments') {
+      var rows = _sheetData('routine_assignments').filter(function(r) {
+        return r.atleta_id === atleta;
       });
       return _ok({ rows: rows });
     }
