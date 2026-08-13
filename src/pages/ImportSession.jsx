@@ -150,7 +150,8 @@ export default function ImportSession() {
 
   const handleExecuteNow = () => {
     if (!previewData) return;
-    loadSession({ ...previewData, id: `session-import-${Date.now()}` });
+    const importId = `session-import-${Date.now()}`;
+    loadSession({ ...previewData, id: importId, instanceId: importId });
     navigate('/session');
   };
 

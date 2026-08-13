@@ -8,21 +8,10 @@
 import { auth } from '../config/firebase';
 
 const API_URL = import.meta.env.VITE_SHEETS_API_URL;
+console.log('[DEBUG] API_URL activa:', API_URL);
 
 export function getAtletaId() {
-  try {
-    const syncId = localStorage.getItem('trainingos_athlete_id_sync');
-    if (syncId && syncId.trim()) return syncId.trim();
-  } catch (e) {}
-  if (auth.currentUser?.uid) return auth.currentUser.uid;
-  try {
-    const raw = localStorage.getItem('trainingos_user_meta');
-    if (raw) {
-      const meta = JSON.parse(raw);
-      if (meta?.uid) return meta.uid;
-    }
-  } catch (e) {}
-  return 'v-atleta-1';
+  return auth.currentUser?.uid || null;
 }
 
 // ─── Base request ─────────────────────────────────────────────────────────────
@@ -30,6 +19,34 @@ async function _delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+// ─── Cola de concurrencia GET ────────────────────────────────────────────────
+// Apps Script serializa ejecuciones del mismo usuario/script. Múltiples GET
+// simultáneos (getLogs, getPRs, getWeekAssignments, getRoutineAssignments)
+// al montar /profile provocan que las últimas queden encoladas del lado de
+// Google y superen el timeout del cliente. Limitamos a 2 GET en vuelo.
+const MAX_CONCURRENT_GET = 2;
+let _activeGets = 0;
+const _getQueue = [];
+
+function _acquireGetSlot(action) {
+  if (_activeGets < MAX_CONCURRENT_GET) {
+    _activeGets++;
+    return Promise.resolve();
+  }
+  return new Promise(resolve => _getQueue.push({ resolve, action }));
+}
+
+function _releaseGetSlot(action) {
+  if (_getQueue.length > 0) {
+    const next = _getQueue.shift();
+    // Slot se transfiere al siguiente — no decrementamos _activeGets
+    next.resolve();
+  } else {
+    _activeGets--;
+  }
+}
+
+// ─── Fetch unitario (sin modificaciones) ─────────────────────────────────────
 async function _singleFetch(method, action, data) {
   const timeoutMs = method === 'GET' ? 15000 : 8000;
   const controller = new AbortController();
@@ -39,13 +56,18 @@ async function _singleFetch(method, action, data) {
     let res;
     const currentId = getAtletaId();
 
+    // Obtener ID Token de Firebase para verificación server-side
+    const idToken = auth.currentUser ? await auth.currentUser.getIdToken() : null;
+
     if (method === 'GET') {
       const params = new URLSearchParams({ action, atleta_id: currentId, ...data });
+      // Inyectar token como query param para verificación server-side
+      if (idToken) params.set('id_token', idToken);
       res = await fetch(`${API_URL}?${params.toString()}`, { signal: controller.signal });
     } else {
       res = await fetch(API_URL, {
         method:  'POST',
-        body:    JSON.stringify({ action, atletaId: currentId, ...data }),
+        body:    JSON.stringify({ action, atletaId: currentId, idToken, ...data }),
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         signal:  controller.signal,
       });
@@ -92,22 +114,48 @@ async function _request(method, action, data = {}, mockFn = null) {
     return mockFn ? await mockFn() : { rows: [] };
   }
 
+  // ── GET: cola de concurrencia (máx MAX_CONCURRENT_GET en vuelo) ──
+  if (method === 'GET') {
+    await _acquireGetSlot(action);
+    try {
+      // Intento 1
+      try {
+        return await _singleFetch(method, action, data);
+      } catch (err) {
+        if (err.name === 'AbortError') {
+          console.warn(`[Sheets] Timeout en primer intento para ${action}, reintentando...`);
+          // Intento 2 (reintento) — mismo slot, mismo finally
+          try {
+            return await _singleFetch(method, action, data);
+          } catch (retryErr) {
+            if (retryErr.name === 'AbortError') {
+              throw new Error(`[Sheets] Timeout en ${action} tras 2 intentos (15s c/u)`);
+            }
+            throw retryErr;
+          }
+        }
+        throw new Error(`[Sheets] ${action}: ${err.message}`);
+      }
+    } finally {
+      // SIEMPRE se libera: éxito, error, abort, retry fallido — sin excepción.
+      _releaseGetSlot(action);
+    }
+  }
+
+  // ── POST: ejecución directa, sin cola, con reintento único ──
   try {
     return await _singleFetch(method, action, data);
   } catch (err) {
-    if (method === 'GET' && err.name === 'AbortError') {
-      console.warn(`[Sheets] Timeout en primer intento para ${action}, reintentando...`);
+    if (err.name === 'AbortError') {
+      console.warn(`[Sheets] Timeout en primer intento POST para ${action}, reintentando...`);
       try {
         return await _singleFetch(method, action, data);
       } catch (retryErr) {
         if (retryErr.name === 'AbortError') {
-          throw new Error(`[Sheets] Timeout en ${action} tras 2 intentos (15s c/u)`);
+          throw new Error(`[Sheets] Timeout en ${action} tras 2 intentos (8s c/u)`);
         }
         throw retryErr;
       }
-    }
-    if (err.name === 'AbortError') {
-      throw new Error(`[Sheets] Timeout en ${action} (8s)`);
     }
     throw new Error(`[Sheets] ${action}: ${err.message}`);
   }

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from '
 import { saveLog as _saveLog } from '../services/sheets';
 
 const LS_SESSION_LOGS = 'trainingos_session_logs';
+const LS_DRAFT = 'trainingos_active_session_draft';
 const SessionContext = createContext();
 
 export function SessionProvider({ children }) {
@@ -51,6 +52,28 @@ export function SessionProvider({ children }) {
   };
 
   /**
+   * Guarda un draft incremental en localStorage.
+   * Usa merge preservativo: hereda campos de otros writers (ej. ssRoundState de Session.jsx).
+   */
+  const _saveDraft = (logsSnapshot) => {
+    if (!activeSession) return;
+    try {
+      let existing = {};
+      try {
+        const raw = localStorage.getItem(LS_DRAFT);
+        if (raw) existing = JSON.parse(raw);
+      } catch (_) {}
+      localStorage.setItem(LS_DRAFT, JSON.stringify({
+        ...existing,
+        activeSession,
+        exerciseLogs: logsSnapshot,
+        startTime,
+        savedAt: Date.now(),
+      }));
+    } catch (_) { /* localStorage lleno — fallo silencioso */ }
+  };
+
+  /**
    * Actualiza el valor de una serie en un ejercicio.
    */
   const updateLogSet = (exerciseId, setIndex, field, value) => {
@@ -63,16 +86,16 @@ export function SessionProvider({ children }) {
   };
 
   /**
-   * Cambia el estado completado de una serie.
+   * Cambia el estado completado de una serie. Dispara autoguardado del draft.
    */
   const toggleLogSet = (exerciseId, setIndex) => {
-    setExerciseLogs(prev => {
-      const exLogs = prev[exerciseId] ? [...prev[exerciseId]] : [];
-      if (!exLogs[setIndex]) return prev;
-      const isDone = !exLogs[setIndex].done;
-      exLogs[setIndex] = { ...exLogs[setIndex], done: isDone };
-      return { ...prev, [exerciseId]: exLogs };
-    });
+    const prev = exerciseLogs;
+    const exLogs = prev[exerciseId] ? [...prev[exerciseId]] : [];
+    if (!exLogs[setIndex]) return;
+    exLogs[setIndex] = { ...exLogs[setIndex], done: !exLogs[setIndex].done };
+    const next = { ...prev, [exerciseId]: exLogs };
+    setExerciseLogs(next);
+    _saveDraft(next);
   };
 
   /**
@@ -92,6 +115,31 @@ export function SessionProvider({ children }) {
     setExerciseLogs({});
     setStartTime(null);
     setElapsedSeconds(0);
+    localStorage.removeItem(LS_DRAFT);
+  };
+
+  // ── Draft recovery ────────────────────────────────────────────
+  const getDraft = () => {
+    try {
+      const raw = localStorage.getItem(LS_DRAFT);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  };
+
+  const discardDraft = () => {
+    localStorage.removeItem(LS_DRAFT);
+  };
+
+  const restoreFromDraft = (draft) => {
+    if (!draft) return;
+    setActiveSession(draft.activeSession);
+    setExerciseLogs(draft.exerciseLogs || {});
+    setStartTime(draft.startTime || Date.now());
+    setElapsedSeconds(
+      draft.startTime ? Math.floor((Date.now() - draft.startTime) / 1000) : 0
+    );
   };
 
   // ── Cálculo de Métricas ───────────────────────────────────────
@@ -177,6 +225,7 @@ export function SessionProvider({ children }) {
       const existing = existingRaw ? JSON.parse(existingRaw) : [];
       const updated = [logEntry, ...existing];
       localStorage.setItem(LS_SESSION_LOGS, JSON.stringify(updated));
+      localStorage.removeItem(LS_DRAFT);
 
       // Notificar evento global de actualización de logs
       window.dispatchEvent(new Event('session_logs_updated'));
@@ -212,7 +261,10 @@ export function SessionProvider({ children }) {
       resetSession,
       updateLogSet,
       toggleLogSet,
-      saveSession
+      saveSession,
+      getDraft,
+      discardDraft,
+      restoreFromDraft
     }}>
       {children}
     </SessionContext.Provider>

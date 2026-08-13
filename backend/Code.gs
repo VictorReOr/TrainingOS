@@ -46,6 +46,59 @@ function _appendRow(sheetName, rowObj) {
   sh.appendRow(row);
 }
 
+
+// ─── Firebase ID Token verification ──────────────────────────────────────────
+/**
+ * Verifica un ID Token de Firebase contra Identity Toolkit.
+ * Usa CacheService para evitar re-verificaciones dentro de una ventana de 5 min.
+ * Fail-closed: si la verificación falla por cualquier motivo, se rechaza la petición.
+ *
+ * @param {string} idToken — ID Token JWT de Firebase Auth
+ * @returns {string} uid verificado
+ * @throws {Error} si el token es ausente, inválido, o expirado
+ */
+function _verifyIdToken(idToken) {
+  if (!idToken) throw new Error('No autorizado: token ausente');
+
+  // ── Cache: evitar re-verificación del mismo token en ráfagas ──
+  var cache = CacheService.getScriptCache();
+  var cacheKey = 'tok_' + idToken.substring(idToken.length - 40);
+  var cached = cache.get(cacheKey);
+  if (cached) {
+    Logger.log('[Auth] Cache HIT — uid: ' + cached);
+    return cached;
+  }
+
+  // ── Verificación real contra Firebase Identity Toolkit ──
+  var apiKey = PropertiesService.getScriptProperties().getProperty('FIREBASE_WEB_API_KEY');
+  if (!apiKey) throw new Error('Config error: FIREBASE_WEB_API_KEY no configurada en ScriptProperties');
+
+  var res = UrlFetchApp.fetch(
+    'https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=' + apiKey,
+    {
+      method: 'post',
+      contentType: 'application/json',
+      payload: JSON.stringify({ idToken: idToken }),
+      muteHttpExceptions: true
+    }
+  );
+
+  var code = res.getResponseCode();
+  if (code !== 200) {
+    Logger.log('[Auth] Token inválido — HTTP ' + code + ': ' + res.getContentText());
+    throw new Error('No autorizado: token inválido o expirado (HTTP ' + code + ')');
+  }
+
+  var body = JSON.parse(res.getContentText());
+  if (!body.users || !body.users[0] || !body.users[0].localId) {
+    throw new Error('No autorizado: usuario no encontrado en la respuesta de Firebase');
+  }
+
+  var uid = body.users[0].localId;
+  cache.put(cacheKey, uid, 300); // TTL 5 minutos
+  Logger.log('[Auth] Token verificado — uid: ' + uid + ' (cacheado 5min)');
+  return uid;
+}
 // ─── INITIALIZER ─────────────────────────────────────────────────────────────
 function initSheets() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -95,13 +148,14 @@ function doPost(e) {
     var action  = payload.action;
     var now     = new Date().toISOString();
 
+    // ── Verificación de identidad (todas las acciones) ──
+    var uid = _verifyIdToken(payload.idToken);
+
     if (action === 'register') {
       var email = (payload.email || '').toLowerCase().trim();
-      var uid = payload.uid;
-      
+      // uid viene del token verificado, NO del payload
       if (!email || !uid) return _err('Faltan datos obligatorios (email, uid)');
       
-      // Comprobar si ya existe
       var existing = _sheetData('users').filter(function(u) { return u.uid === uid || u.email === email; });
       if (existing.length > 0) return _err('El usuario ya está registrado en la base de datos');
 
@@ -109,14 +163,14 @@ function doPost(e) {
         uid:           uid,
         email:         email,
         name:          payload.name || 'Atleta',
-        role:          payload.role || 'athlete', // athlete, coach, both
+        role:          payload.role || 'athlete',
         created_at:    now
       });
       return _ok({ user: { id: uid, email: email, name: payload.name || 'Atleta', role: payload.role || 'athlete' } });
     }
 
     if (action === 'savelog') {
-      var atletaId = payload.atletaId || 'unknown';
+      // Cat. A: atletaId = uid verificado (ignora payload.atletaId)
       var fecha    = payload.fecha || now;
       var rows     = [];
       (payload.ejercicios || []).forEach(function(ex) {
@@ -124,7 +178,7 @@ function doPost(e) {
           rows.push({
             id:           Utilities.getUuid(),
             exercise_id:  ex.id,
-            atleta_id:    atletaId,
+            atleta_id:    uid,
             fecha:        fecha,
             carga_real:   set.carga || 0,
             rpe_real:     set.rpe   || '',
@@ -132,7 +186,6 @@ function doPost(e) {
           });
         });
       });
-      var sh = _sheet('logs');
       rows.forEach(function(r) { _appendRow('logs', r); });
       return _ok({ saved: rows.length });
     }
@@ -141,7 +194,7 @@ function doPost(e) {
       var id = Utilities.getUuid();
       _appendRow('seasons', {
         id:          id,
-        atleta_id:   payload.atletaId || 'unknown',
+        atleta_id:   uid,
         nombre:      payload.nombre   || payload.name || '',
         deporte:     payload.deporte  || payload.sport || '',
         fecha_inicio: payload.fechaInicio || payload.startDate || '',
@@ -157,7 +210,7 @@ function doPost(e) {
       _appendRow('mesocycles', {
         id:          id,
         season_id:   payload.seasonId || '',
-        atleta_id:   payload.atletaId || 'unknown',
+        atleta_id:   uid,
         nombre:      payload.nombre   || payload.name  || '',
         tipo:        payload.tipo     || payload.type  || '',
         fecha_inicio: payload.fechaInicio || payload.startDate || '',
@@ -173,7 +226,7 @@ function doPost(e) {
       var id = payload.id || Utilities.getUuid();
       _appendRow('session_templates', {
         id:              id,
-        atleta_id:       payload.atletaId   || 'unknown',
+        atleta_id:       uid,
         nombre:          payload.nombre     || payload.name  || '',
         tipo:            payload.tipo       || payload.type  || '',
         deporte:         payload.deporte    || payload.sport || '',
@@ -190,7 +243,7 @@ function doPost(e) {
       var id = Utilities.getUuid();
       _appendRow('week_assignments', {
         id:           id,
-        atleta_id:    payload.atletaId   || 'unknown',
+        atleta_id:    uid,
         fecha_iso:    payload.dateISO    || '',
         session_id:   payload.sessionId  || '',
         session_json: JSON.stringify(payload.sessionData || {}),
@@ -205,7 +258,7 @@ function doPost(e) {
         id:            id,
         exercise_id:   payload.exerciseId   || '',
         exercise_name: payload.exerciseName || '',
-        atleta_id:     payload.atletaId     || 'unknown',
+        atleta_id:     uid,
         fecha:         payload.fecha        || now,
         valor:         payload.valor        || 0,
         carga_real:    payload.cargaReal    || 0,
@@ -220,7 +273,7 @@ function doPost(e) {
       var id = payload.id || Utilities.getUuid();
       _appendRow('timer_templates', {
         id:          id,
-        atleta_id:   payload.atletaId || 'unknown',
+        atleta_id:   uid,
         nombre:      payload.nombre   || payload.name   || '',
         blocks_json: JSON.stringify(payload.blocks      || []),
         created_at:  now,
@@ -232,7 +285,7 @@ function doPost(e) {
       var id = payload.id || Utilities.getUuid();
       _appendRow('wellness_logs', {
         id:          id,
-        atleta_id:   payload.atletaId || 'unknown',
+        atleta_id:   uid,
         fecha:       payload.fecha || now,
         sleep:       payload.sleep || 5,
         stress:      payload.stress || 5,
@@ -246,7 +299,7 @@ function doPost(e) {
       var id = payload.id || Utilities.getUuid();
       _appendRow('performance_tests', {
         id:             id,
-        atleta_id:      payload.atletaId || 'unknown',
+        atleta_id:      uid,
         fecha:          payload.fecha || now,
         tipo:           payload.tipo || '',
         valor:          payload.valor || 0,
@@ -260,7 +313,7 @@ function doPost(e) {
       var id = payload.id || Utilities.getUuid();
       _appendRow('body_metrics', {
         id:             id,
-        atleta_id:      payload.atletaId || 'unknown',
+        atleta_id:      uid,
         fecha:          payload.fecha || now,
         peso:           payload.peso || 0,
         grasa:          payload.grasa || '',
@@ -272,40 +325,51 @@ function doPost(e) {
     }
 
     if (action === 'saveWorkouts') {
-      var coachId = payload.coachId || 'unknown';
+      // Cat. A (reclasificado): coach_id = uid verificado
       var rutinaId = payload.rutinaId || '';
       if (!rutinaId) return _err('Falta rutinaId');
 
-      // 1. Eliminar filas existentes de esta rutina+coach (comportamiento "reemplazar")
       var sh = _sheet('workouts');
       var data = sh.getDataRange().getValues();
       var headers = data[0];
       var rutinaIdCol = headers.indexOf('rutina_id');
       var coachIdCol  = headers.indexOf('coach_id');
       for (var i = data.length - 1; i >= 1; i--) {
-        if (data[i][rutinaIdCol] === rutinaId && data[i][coachIdCol] === coachId) {
+        if (data[i][rutinaIdCol] === rutinaId && data[i][coachIdCol] === uid) {
           sh.deleteRow(i + 1);
         }
       }
 
-      // 2. Insertar filas nuevas
       var rows = payload.rows || [];
       rows.forEach(function(r) {
-        _appendRow('workouts', Object.assign({}, r, { rutina_id: rutinaId, coach_id: coachId }));
+        _appendRow('workouts', Object.assign({}, r, { rutina_id: rutinaId, coach_id: uid }));
       });
 
       return _ok({ saved: rows.length });
     }
 
     if (action === 'assignRoutine') {
+      // Cat. B: coach_id = uid verificado, atletaIds validados contra tabla users
+      // TODO: Pendiente sistema de invitación mutua coach-atleta (ver ROADMAP.md Fase 5)
+      // Mitigación temporal: se permite asignar a cualquier usuario registrado en la tabla 'users'.
+      // La solución final requiere que el atleta acepte una invitación del coach.
       var rutinaId  = payload.rutinaId || '';
-      var coachId   = payload.coachId  || 'unknown';
-      var atletaIds = payload.atletaIds || []; // array, permite asignar a varios de una vez
+      var atletaIds = payload.atletaIds || [];
+
+      // Validar que todos los atletaIds existen como usuarios reales registrados
+      var allUsers = _sheetData('users');
+      var validUids = {};
+      allUsers.forEach(function(u) { validUids[u.uid] = true; });
+      var invalidIds = atletaIds.filter(function(aid) { return !validUids[aid]; });
+      if (invalidIds.length > 0) {
+        return _err('atletaIds no registrados: ' + invalidIds.join(', ') + ' — solo se puede asignar a usuarios con cuenta real');
+      }
+
       var results = [];
       atletaIds.forEach(function(aid) {
         var id = Utilities.getUuid();
         _appendRow('routine_assignments', {
-          id: id, rutina_id: rutinaId, coach_id: coachId,
+          id: id, rutina_id: rutinaId, coach_id: uid,
           atleta_id: aid, active: false, assigned_at: now,
         });
         results.push(id);
@@ -314,6 +378,9 @@ function doPost(e) {
     }
 
     if (action === 'activateRoutine') {
+      // Cat. B: solo operar sobre filas donde coach_id = uid verificado
+      // TODO: Pendiente sistema de invitación mutua coach-atleta (ver ROADMAP.md Fase 5)
+      // Mitigación temporal: un coach solo puede activar/desactivar asignaciones que él mismo creó.
       var assignmentId = payload.assignmentId || '';
       var atletaId = payload.atletaId || '';
       var sh = _sheet('routine_assignments');
@@ -322,11 +389,18 @@ function doPost(e) {
       var idCol = headers.indexOf('id');
       var atletaCol = headers.indexOf('atleta_id');
       var activeCol = headers.indexOf('active');
+      var coachCol  = headers.indexOf('coach_id');
+      var modified = 0;
       for (var i = 1; i < data.length; i++) {
-        if (data[i][atletaCol] === atletaId) {
+        // Solo modifica filas que pertenecen a ESTE coach verificado
+        if (data[i][atletaCol] === atletaId && data[i][coachCol] === uid) {
           var shouldBeActive = (data[i][idCol] === assignmentId);
           sh.getRange(i + 1, activeCol + 1).setValue(shouldBeActive);
+          modified++;
         }
+      }
+      if (modified === 0) {
+        return _err('No se encontraron asignaciones de este coach para el atleta indicado');
       }
       return _ok({ activated: assignmentId });
     }
@@ -387,11 +461,14 @@ function doGet(e) {
   try {
     var p      = e.parameter || {};
     var action = p.action;
-    var atleta = p.atleta_id || 'unknown';
+
+    // ── Verificación de identidad (todas las acciones) ──
+    var uid = _verifyIdToken(p.id_token);
 
     if (action === 'getLogs') {
+      // Cat. A: atleta = uid verificado (ignora p.atleta_id)
       var rows = _sheetData('logs').filter(function(r) {
-        if (r.atleta_id !== atleta) return false;
+        if (r.atleta_id !== uid) return false;
         if (p.fechaDesde && r.fecha < p.fechaDesde) return false;
         if (p.fechaHasta && r.fecha > p.fechaHasta) return false;
         return true;
@@ -401,12 +478,11 @@ function doGet(e) {
 
     if (action === 'getSeasons') {
       var seasons = _sheetData('seasons').filter(function(r) {
-        return r.atleta_id === atleta;
+        return r.atleta_id === uid;
       });
       var mesoAll = _sheetData('mesocycles').filter(function(r) {
-        return r.atleta_id === atleta;
+        return r.atleta_id === uid;
       });
-      // Anidar mesociclos dentro de cada temporada
       seasons.forEach(function(s) {
         s.mesocycles = mesoAll.filter(function(m) { return m.season_id === s.id; });
       });
@@ -415,7 +491,7 @@ function doGet(e) {
 
     if (action === 'getSessions') {
       var rows = _sheetData('session_templates').filter(function(r) {
-        return r.atleta_id === atleta;
+        return r.atleta_id === uid;
       }).map(function(r) {
         try { r.blocks = JSON.parse(r.bloques_json || '[]'); } catch(e) { r.blocks = []; }
         return r;
@@ -425,7 +501,7 @@ function doGet(e) {
 
     if (action === 'getWeekAssignments') {
       var rows = _sheetData('week_assignments').filter(function(r) {
-        if (r.atleta_id !== atleta) return false;
+        if (r.atleta_id !== uid) return false;
         if (p.weekStart && r.fecha_iso < p.weekStart) return false;
         if (p.weekEnd   && r.fecha_iso > p.weekEnd)   return false;
         return true;
@@ -438,7 +514,7 @@ function doGet(e) {
 
     if (action === 'getPRs') {
       var rows = _sheetData('prs').filter(function(r) {
-        if (r.atleta_id !== atleta) return false;
+        if (r.atleta_id !== uid) return false;
         if (p.exercise_id && r.exercise_id !== p.exercise_id) return false;
         return true;
       });
@@ -446,50 +522,41 @@ function doGet(e) {
     }
 
     if (action === 'getWorkouts') {
-      var coachIdParam  = p.coach_id  ? String(p.coach_id).trim()  : '';
+      // Cat. A (reclasificado): coach_id = uid verificado
       var rutinaIdParam = p.rutina_id ? String(p.rutina_id).trim() : '';
 
-      // Logs de depuración 2026-08-11
-      // Logger.log('=== DEBUG getWorkouts ===');
-      // Logger.log('coachId recibido del frontend: [' + coachIdParam + ']');
-      // Logger.log('rutina_id filtro (si aplica): [' + rutinaIdParam + ']');
-
       var allRows = _sheetDataWorkouts();
-
-      // Logger.log('Total filas en hoja workouts: ' + allRows.length);
 
       var rows = allRows.filter(function(r) {
         var rowRutinaId = String(r.rutina_id || '').trim();
         var rowCoachId  = String(r.coach_id  || '').trim();
 
         if (rutinaIdParam) {
-          // Si se pide una rutina concreta, esa es la condición principal.
           if (rowRutinaId !== rutinaIdParam) return false;
-          // coach_id, si viene, es un filtro adicional opcional (no bloqueante
-          // si no coincide, para no romper el caso self-coaching con ids
-          // legacy desalineados).
           return true;
         }
 
-        if (coachIdParam) {
-          return rowCoachId === coachIdParam;
-        }
-
-        // Sin ningún filtro útil, no devolver todo el dataset a ciegas.
-        return false;
+        // Sin rutina_id, filtrar por coach_id = uid verificado
+        return rowCoachId === uid;
       });
-
-      // Logger.log('Filas resultantes tras el filtro: ' + rows.length);
-      // Logger.log('=== FIN DEBUG getWorkouts ===');
 
       return _ok({ rows: rows });
     }
 
     if (action === 'getRoutineAssignments') {
       var rows = _sheetData('routine_assignments').filter(function(r) {
-        return r.atleta_id === atleta;
+        return r.atleta_id === uid;
       });
       return _ok({ rows: rows });
+    }
+
+    if (action === 'getSharedSession') {
+      // Shared sessions are public by code — no atleta_id filtering needed
+      // But still require a valid token to prevent anonymous abuse
+      var code = p.code || '';
+      // This action doesn't filter by atleta_id, it's a shared resource by code
+      // For now, just verify the user is authenticated (token already verified above)
+      return _err('getSharedSession no implementada en backend real — solo mock');
     }
 
     return _err('Acción GET desconocida: ' + action);

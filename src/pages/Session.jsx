@@ -2,11 +2,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useSession } from '../context/SessionContext';
 import { useAthlete } from '../context/AthleteContext';
 import { usePlanner } from '../context/PlannerContext';
+import { useTimer } from '../context/TimerContext';
 import ProgressBar from '../components/ProgressBar';
 import ExerciseRow from '../components/ExerciseRow';
 import SetLoggerSheet from '../components/SetLoggerSheet';
 import TimerSheet from '../components/TimerSheet';
 import ReadinessModal from '../components/ReadinessModal';
+import DraftRecoveryModal from '../components/DraftRecoveryModal';
 import FeedbackSection from '../components/FeedbackSection';
 import { MESO_RPE_TARGETS } from '../utils/loadSuggestion';
 import { CheckCircle2, Share2, CloudUpload } from 'lucide-react';
@@ -35,10 +37,14 @@ export default function Session() {
     toggleLogSet,
     saveSession,
     resetSession,
+    getDraft,
+    discardDraft,
+    restoreFromDraft,
   } = useSession();
 
   const { todayCheckIn } = useAthlete();
   const { activeMesocycle } = usePlanner();
+  const { startRest } = useTimer();
 
   // Calcular semana dentro del mesociclo
   const mesoWeek = useMemo(() => {
@@ -63,6 +69,29 @@ export default function Session() {
   const [showReadiness, setShowReadiness] = useState(false);
   const [prBanner, setPrBanner] = useState(null);
   const [toastMsg, setToastMsg] = useState('');
+  const [_ssRoundState, _setSsRoundState] = useState(null);
+  const [draftModal, setDraftModal] = useState(null);
+
+  // ── Draft detection on mount ──
+  useEffect(() => {
+    const draft = getDraft();
+    if (draft && draft.exerciseLogs) {
+      setDraftModal(draft);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Persist _ssRoundState into draft (merge) ──
+  useEffect(() => {
+    if (!sessionData) return;
+    try {
+      const raw = localStorage.getItem('trainingos_active_session_draft');
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      draft.ssRoundState = _ssRoundState;
+      localStorage.setItem('trainingos_active_session_draft', JSON.stringify(draft));
+    } catch (_) {}
+  }, [_ssRoundState, sessionData]);
 
   // Auto-open readiness on mount if not checked today
   useEffect(() => {
@@ -104,49 +133,82 @@ export default function Session() {
     return logs.every(log => log.done);
   };
 
+  // ── Superset round-by-round queue ──────────────────────────────────────────
+  const _buildSupersetQueue = (block, supersetId) => {
+    const group = block.supersets?.find(s => s.id === supersetId);
+    if (!group) return [];
+    const exercises = group.exerciseIds
+      .map(id => block.exercises.find(e => e.id === id))
+      .filter(Boolean);
+    const maxSets = Math.max(...exercises.map(e => e.series || e.targetSets || 1));
+    const queue = [];
+    for (let setIdx = 0; setIdx < maxSets; setIdx++) {
+      for (const ex of exercises) {
+        if (setIdx < (ex.series || ex.targetSets || 1)) {
+          queue.push({ exerciseId: ex.id, setIndex: setIdx });
+        }
+      }
+    }
+    return queue;
+  };
+
   const getCurrentBlock = () => {
     if (!selectedExercise?._blockId) return null;
     return sessionData.blocks.find(b => b.id === selectedExercise._blockId) || null;
   };
 
-  const getNextSupersetExercise = () => {
+  const getSupersetRound = () => {
+    if (!_ssRoundState) return null;
+    const { queue, currentIndex } = _ssRoundState;
+    const turn = queue[currentIndex];
+    if (!turn) return null;
     const block = getCurrentBlock();
-    if (!block || !selectedExercise?.supersetId) return null;
+    if (!block) return null;
 
-    const group = block.supersets?.find(s => s.id === selectedExercise.supersetId);
+    const group = block.supersets?.find(s => s.id === selectedExercise?.supersetId);
     if (!group) return null;
 
-    const currentIdx = group.exerciseIds.indexOf(selectedExercise.id);
-    if (currentIdx === -1 || currentIdx === group.exerciseIds.length - 1) {
-      return null; // no encontrado, o es el último → sin encadenamiento
-    }
-
-    const nextId = group.exerciseIds[currentIdx + 1];
-    return block.exercises.find(e => e.id === nextId) || null;
-  };
-
-  const getSupersetInfo = () => {
-    const block = getCurrentBlock();
-    if (!block || !selectedExercise?.supersetId) return null;
-
-    const group = block.supersets?.find(s => s.id === selectedExercise.supersetId);
-    if (!group) return null;
-
-    const currentIdx = group.exerciseIds.indexOf(selectedExercise.id);
-    const isLast = currentIdx === group.exerciseIds.length - 1;
-    const nextExercise = isLast ? null : getNextSupersetExercise();
+    const nextTurn = currentIndex + 1 < queue.length ? queue[currentIndex + 1] : null;
+    const nextEx = nextTurn ? block.exercises.find(e => e.id === nextTurn.exerciseId) : null;
 
     return {
-      position: currentIdx + 1,
-      total: group.exerciseIds.length,
-      isLast,
-      nextExerciseName: nextExercise?.name || null,
+      exercisePosition: group.exerciseIds.indexOf(turn.exerciseId) + 1,
+      totalExercises: group.exerciseIds.length,
+      currentRound: turn.setIndex + 1,
+      totalRounds: Math.max(...queue.map(t => t.setIndex)) + 1,
+      currentSetIndex: turn.setIndex,
+      isLastTurn: nextTurn === null,
+      nextExerciseName: nextEx?.name || null,
+      nextSetIndex: nextTurn?.setIndex ?? null,
+      isRoundBoundary: nextTurn ? nextTurn.setIndex !== turn.setIndex : false,
     };
   };
 
   const handleOpenExercise = (exercise, block) => {
-    setSelectedExercise({ 
-      ...exercise, 
+    if (exercise.supersetId) {
+      const queue = _buildSupersetQueue(block, exercise.supersetId);
+      if (queue.length > 0) {
+        // Smart positioning: primer turno incompleto
+        let startIndex = queue.findIndex(turn => {
+          const turnLogs = exerciseLogs[turn.exerciseId];
+          return !turnLogs?.[turn.setIndex]?.done;
+        });
+        if (startIndex === -1) startIndex = queue.length - 1;
+
+        _setSsRoundState({ queue, currentIndex: startIndex });
+        const firstTurn = queue[startIndex];
+        const firstEx = block.exercises.find(e => e.id === firstTurn.exerciseId);
+        setSelectedExercise({
+          ...(firstEx || exercise),
+          sessionType: block.goal || sessionData.type || 'gym',
+          _blockId: block.id,
+        });
+        return;
+      }
+    }
+    _setSsRoundState(null);
+    setSelectedExercise({
+      ...exercise,
       sessionType: block.goal || sessionData.type || 'gym',
       _blockId: block.id,
     });
@@ -164,17 +226,41 @@ export default function Session() {
     }
   };
 
-  const handleSupersetNext = () => {
-    const nextExercise = getNextSupersetExercise();
-    const block = getCurrentBlock();
-    if (nextExercise && block) {
-      setSelectedExercise({
-        ...nextExercise,
-        sessionType: block.goal || sessionData.type || 'gym',
-        _blockId: block.id,
-      });
-    } else {
+  const handleSupersetRoundAdvance = () => {
+    if (!_ssRoundState) return;
+    const { queue, currentIndex } = _ssRoundState;
+    const nextIndex = currentIndex + 1;
+
+    if (nextIndex >= queue.length) {
+      _setSsRoundState(null);
       setSelectedExercise(null);
+      return;
+    }
+
+    const currentTurn = queue[currentIndex];
+    const nextTurn = queue[nextIndex];
+
+    // Round boundary → rest timer
+    if (currentTurn.setIndex !== nextTurn.setIndex) {
+      const block = getCurrentBlock();
+      const lastEx = block?.exercises.find(e => e.id === currentTurn.exerciseId);
+      if (lastEx?.restSeconds) {
+        startRest(lastEx.restSeconds);
+      }
+    }
+
+    _setSsRoundState(prev => ({ ...prev, currentIndex: nextIndex }));
+
+    if (nextTurn.exerciseId !== currentTurn.exerciseId) {
+      const block = getCurrentBlock();
+      const nextEx = block?.exercises.find(e => e.id === nextTurn.exerciseId);
+      if (nextEx && block) {
+        setSelectedExercise({
+          ...nextEx,
+          sessionType: block.goal || sessionData.type || 'gym',
+          _blockId: block.id,
+        });
+      }
     }
   };
 
@@ -392,9 +478,9 @@ export default function Session() {
           logs={exerciseLogs[selectedExercise.id]}
           onLogChange={handleLogChange}
           onToggleSet={handleToggleSet}
-          onClose={() => setSelectedExercise(null)}
-          onSupersetNext={handleSupersetNext}
-          supersetInfo={getSupersetInfo()}
+          onClose={() => { setSelectedExercise(null); _setSsRoundState(null); }}
+          supersetRound={getSupersetRound()}
+          onSupersetRoundAdvance={handleSupersetRoundAdvance}
         />
       )}
 
@@ -419,7 +505,26 @@ export default function Session() {
       {isTimerOpen && <TimerSheet onClose={() => setIsTimerOpen(false)} />}
 
       {/* READINESS DAILY CHECK-IN */}
-      {showReadiness && <ReadinessModal onClose={() => setShowReadiness(false)} />}
+      {showReadiness && !draftModal && <ReadinessModal onClose={() => setShowReadiness(false)} />}
+
+      {/* DRAFT RECOVERY */}
+      {draftModal && (
+        <DraftRecoveryModal
+          draft={draftModal}
+          currentSessionName={sessionData?.name}
+          onContinue={() => {
+            restoreFromDraft(draftModal);
+            if (draftModal.ssRoundState) {
+              _setSsRoundState(draftModal.ssRoundState);
+            }
+            setDraftModal(null);
+          }}
+          onDiscard={() => {
+            discardDraft();
+            setDraftModal(null);
+          }}
+        />
+      )}
     </div>
   );
 }

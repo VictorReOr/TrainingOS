@@ -252,6 +252,7 @@ export function PlannerProvider({ children }) {
       if (assigned) {
         result[dayName] = {
           sessionId: assigned.id || assigned.sessionId,
+          instanceId: assigned.instanceId,
           type: assigned.type || 'libre',
           sport: assigned.sport || assigned.deporte || 'gym',
           name: assigned.name || assigned.nombre || 'Sesión Programada',

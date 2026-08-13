@@ -16,10 +16,10 @@ const parseDurationToSeconds = (durStr) => {
   return match ? parseInt(match[1]) * 60 : 60;
 };
 
-export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChange, onToggleSet, onClose, onOpenTimerGlobal, onSupersetNext, supersetInfo }) {
+export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChange, onToggleSet, onClose, onOpenTimerGlobal, supersetRound, onSupersetRoundAdvance }) {
   const [isVisible, setIsVisible] = useState(false);
   const [showMiniTimer, setShowMiniTimer] = useState(false);
-  const hasPrefilled = useRef(false);
+  const prevTurnKey = useRef('');
 
   // ── Performance Engine decision ──
   const { getDecisionForExercise, isColdStart } = usePerformanceEngine();
@@ -84,28 +84,42 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
   }, [suggestion, loadFactor, exercise.isTest, exercise.loadRef]);
 
   useEffect(() => {
-    if (isVisible && !hasPrefilled.current) {
-      hasPrefilled.current = true;
-      const targetReps = exercise.reps || exercise.targetReps || '';
-      
-      if (suggestedVal > 0) {
-        logs.forEach((_, idx) => {
-          if (seriesModifier === -99 && idx >= Math.ceil(logs.length / 2)) return;
-          if (seriesModifier === -1 && idx === logs.length - 1) return;
+    const turnKey = supersetRound
+      ? `${exercise.id}:${supersetRound.currentSetIndex}`
+      : exercise.id;
 
-          if (!logs[idx].carga) {
-            onLogChange(idx, 'carga', suggestedVal);
+    if (isVisible && turnKey !== prevTurnKey.current) {
+      prevTurnKey.current = turnKey;
+      const targetReps = exercise.reps || exercise.targetReps || '';
+
+      if (supersetRound) {
+        // ── Round mode: prefill SOLO el set del turno actual ──
+        const idx = supersetRound.currentSetIndex;
+        if (suggestedVal > 0 && !logs[idx]?.carga) {
+          onLogChange(idx, 'carga', suggestedVal);
+        }
+        if (!logs[idx]?.reps && targetReps) {
+          onLogChange(idx, 'reps', targetReps);
+        }
+      } else {
+        // ── Normal mode: prefill todas las series (comportamiento actual) ──
+        if (suggestedVal > 0) {
+          logs.forEach((_, idx) => {
+            if (seriesModifier === -99 && idx >= Math.ceil(logs.length / 2)) return;
+            if (seriesModifier === -1 && idx === logs.length - 1) return;
+            if (!logs[idx].carga) {
+              onLogChange(idx, 'carga', suggestedVal);
+            }
+          });
+        }
+        logs.forEach((l, idx) => {
+          if (!l.reps && targetReps) {
+            onLogChange(idx, 'reps', targetReps);
           }
         });
       }
-
-      logs.forEach((l, idx) => {
-        if (!l.reps && targetReps) {
-          onLogChange(idx, 'reps', targetReps);
-        }
-      });
     }
-  }, [isVisible, suggestedVal, seriesModifier, logs, onLogChange, exercise.reps, exercise.targetReps]);
+  }, [isVisible, suggestedVal, seriesModifier, logs, onLogChange, exercise.id, exercise.reps, exercise.targetReps, supersetRound?.currentSetIndex]);
 
   const navigate = useNavigate();
   const { startRest, startCountdown, stopTimer, mode, status, setMode, setTimeMs } = useTimer();
@@ -236,16 +250,14 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
             </div>
           </div>
 
-          {supersetInfo && (
+          {supersetRound && (
             <div className="mt-3 bg-signal-orange/10 border border-signal-orange/25 rounded-xl px-3.5 py-2.5 flex items-center justify-between">
               <span className="font-mono text-[9px] font-black text-signal-orange uppercase tracking-widest">
-                ⚡ SUPERSERIE {supersetInfo.position}/{supersetInfo.total}
+                ⚡ RONDA {supersetRound.currentRound}/{supersetRound.totalRounds}
               </span>
-              {supersetInfo.nextExerciseName && (
-                <span className="font-mono text-[9px] text-muted uppercase tracking-wider truncate max-w-[45%]">
-                  Siguiente: {supersetInfo.nextExerciseName}
-                </span>
-              )}
+              <span className="font-mono text-[9px] text-muted uppercase tracking-wider">
+                Ejercicio {supersetRound.exercisePosition}/{supersetRound.totalExercises}
+              </span>
             </div>
           )}
 
@@ -429,7 +441,9 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
             </div>
           )}
 
-          {logs.map((log, index) => (
+          {logs.map((log, index) => {
+            if (supersetRound && index !== supersetRound.currentSetIndex) return null;
+            return (
             <div
               key={index}
               className={`rounded-xl border transition-all duration-200 overflow-hidden ${
@@ -535,7 +549,8 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Separator Line */}
@@ -545,21 +560,25 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
         <div className="px-5 pt-2 bg-card">
           <button
             onClick={() => {
-              if (supersetInfo && !supersetInfo.isLast && onSupersetNext) {
-                // No dispara descanso, no cierra el sheet normalmente: avanza 
-                // directamente al siguiente ejercicio del grupo
-                setIsVisible(false);
-                setTimeout(() => onSupersetNext(), 300);
+              if (supersetRound && onSupersetRoundAdvance) {
+                // Auto-mark current set as done
+                const idx = supersetRound.currentSetIndex;
+                if (!logs[idx]?.done) {
+                  onToggleSet(idx);
+                }
+                if (supersetRound.isLastTurn) {
+                  handleClose();
+                } else {
+                  onSupersetRoundAdvance();
+                }
               } else {
                 handleClose();
               }
             }}
             className="w-full py-3.5 bg-signal-orange text-ink font-display font-black text-xl rounded-xl tracking-wider hover:bg-signal-orange/95 cursor-pointer uppercase"
           >
-            {supersetInfo && !supersetInfo.isLast
-              ? '⚡ Siguiente Ejercicio →'
-              : supersetInfo && supersetInfo.isLast
-              ? 'Guardar y Continuar'
+            {supersetRound && !supersetRound.isLastTurn
+              ? `${supersetRound.isRoundBoundary ? '→' : '⚡'} ${supersetRound.nextExerciseName} — Serie ${supersetRound.nextSetIndex + 1}`
               : 'Guardar y Cerrar'}
           </button>
         </div>

@@ -59,6 +59,9 @@ export default function Home() {
   const DAYS_ES     = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
   const todayKey    = DAYS_ES[new Date().getDay()];
   const todaySession = weekSessions?.[todayKey] || null;
+  const padISO = n => n.toString().padStart(2, '0');
+  const now = new Date();
+  const todayISO = `${now.getFullYear()}-${padISO(now.getMonth() + 1)}-${padISO(now.getDate())}`;
 
   const quickActions = [
     { label: 'Plan',      sub: 'Semanal', icon: <CalendarDays size={18} />, to: '/plan',      color: 'var(--color-signal-orange)' },
@@ -163,6 +166,7 @@ export default function Home() {
                 onClick={() => {
                   loadSession({
                     id: todaySession.sessionId || todaySession.id || 'session-today',
+                    instanceId: todaySession?.instanceId || `${todaySession.sessionId || todaySession.id}_${todayISO}`,
                     name: todaySession.name || 'Sesión',
                     dayBadge: getDayOfWeek(),
                     type: todaySession.type || 'gym',

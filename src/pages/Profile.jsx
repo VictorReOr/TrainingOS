@@ -36,8 +36,6 @@ export default function Profile() {
   // Settings State
   const [demoMode, setDemoMode] = useState(() => localStorage.getItem('trainingos_demo_mode') === 'true');
   const [notifications, setNotifications] = useState(true);
-  const [athleteIdSync, setAthleteIdSync] = useState(localStorage.getItem('trainingos_athlete_id_sync') || 'v-atleta-1');
-  const [syncing, setSyncing] = useState(false);
 
   // Derived Identity
   const initial = currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : athlete.name ? athlete.name.charAt(0).toUpperCase() : 'A';
@@ -160,20 +158,6 @@ export default function Profile() {
     });
 
     navigate('/plan');
-  };
-
-  const handleSync = async () => {
-    setSyncing(true);
-    localStorage.setItem('trainingos_athlete_id_sync', athleteIdSync);
-    try {
-      const res1 = await getSeasons(athleteIdSync);
-      const res2 = await getSessions(athleteIdSync);
-      console.log("Sync completo:", { res1, res2 });
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setTimeout(() => setSyncing(false), 800);
-    }
   };
 
   return (
@@ -518,26 +502,6 @@ export default function Profile() {
               >
                 <div className={`w-4 h-4 bg-white rounded-full transition-transform ${demoMode ? 'translate-x-6' : 'translate-x-0'}`} />
               </button>
-            </div>
-
-            <div className="pt-4 border-t border-border">
-               <label className="font-mono text-[9px] text-muted tracking-widest uppercase mb-2 block">
-                Atleta ID (GSheets Sync)
-               </label>
-               <input 
-                 type="text" 
-                 value={athleteIdSync}
-                 onChange={(e) => setAthleteIdSync(e.target.value)}
-                 className="w-full bg-bg/25 border border-border rounded-xl px-4 py-3 font-mono text-sm outline-none focus:border-signal-orange mb-3 text-ink"
-               />
-               <button 
-                 onClick={handleSync}
-                 disabled={syncing}
-                 className="w-full flex items-center justify-center gap-2 bg-card border-2 border-ink text-ink font-condensed font-black py-3 rounded-xl disabled:opacity-50 active:scale-[0.98] transition-transform cursor-pointer tracking-wider text-sm uppercase hover:bg-ink hover:text-white"
-               >
-                 <RefreshCw size={16} className={syncing ? 'animate-spin' : ''} />
-                 {syncing ? 'Sincronizando...' : 'Sincronizar con Sheets'}
-               </button>
             </div>
 
           </div>

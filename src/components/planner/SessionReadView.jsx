@@ -484,6 +484,7 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
   const handleExecute = () => {
     const sessionData = {
       id: sId,
+      instanceId: currentSession?.instanceId || (dateISO ? `${sId}_${dateISO}` : null),
       name: currentSession.name,
       dayBadge: `${dayLabel?.toUpperCase() || ''} · ${currentSession.sport?.toUpperCase() || ''}`,
       blocks: finalBlocks,
