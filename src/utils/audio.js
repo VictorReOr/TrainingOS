@@ -47,6 +47,62 @@ export const playBell = () => {
   oscillator.stop(audioCtx.currentTime + 0.8);
 };
 
+export const playWhistle = () => {
+  createTone(2800, 'sine', 0.25);
+  createTone(2950, 'sine', 0.25);
+};
+
+export const playDoubleBeep = () => {
+  createTone(880, 'sine', 0.1);
+  setTimeout(() => createTone(1046.5, 'sine', 0.2), 120);
+};
+
+export const playChime = () => {
+  createTone(523.25, 'sine', 0.3);
+  setTimeout(() => createTone(659.25, 'sine', 0.3), 100);
+  setTimeout(() => createTone(783.99, 'sine', 0.4), 200);
+};
+
+export const SOUND_PRESETS = [
+  { id: 'beep_long', name: 'Beep Clásico', type: 'synth' },
+  { id: 'bell', name: 'Campana de Boxeo', type: 'synth' },
+  { id: 'whistle', name: 'Silbato Digital', type: 'synth' },
+  { id: 'double_beep', name: 'Doble Beep', type: 'synth' },
+  { id: 'chime', name: 'Chime Armónico', type: 'synth' },
+];
+
+export const playSound = (soundId) => {
+  const preset = SOUND_PRESETS.find(s => s.id === soundId);
+  if (!preset) {
+    playLongBeep();
+    return;
+  }
+
+  if (preset.type === 'file' && preset.url) {
+    const audio = new Audio(preset.url);
+    audio.play().catch(err => console.warn('[Audio] Error al reproducir audio estático:', err));
+  } else {
+    switch (soundId) {
+      case 'bell':
+        playBell();
+        break;
+      case 'whistle':
+        playWhistle();
+        break;
+      case 'double_beep':
+        playDoubleBeep();
+        break;
+      case 'chime':
+        playChime();
+        break;
+      case 'beep_long':
+      default:
+        playLongBeep();
+        break;
+    }
+  }
+};
+
 export const speakText = (text) => {
   if (!window.speechSynthesis) return;
   window.speechSynthesis.cancel();

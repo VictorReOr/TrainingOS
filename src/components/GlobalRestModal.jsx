@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTimer } from '../context/TimerContext';
-import { X, FastForward, Square } from 'lucide-react';
+import { X, FastForward, Square, Volume2 } from 'lucide-react';
 
 const formatTime = (ms) => {
   const totalS = Math.floor(ms / 1000);
@@ -10,7 +10,10 @@ const formatTime = (ms) => {
 };
 
 export default function GlobalRestModal() {
-  const { status, timeMs, showRestModal, setShowRestModal, stopTimer, startRest } = useTimer();
+  const { 
+    status, timeMs, showRestModal, setShowRestModal, stopTimer, startRest,
+    completionSound, setCompletionSound, SOUND_PRESETS, playSound 
+  } = useTimer();
 
   if (!showRestModal) return null;
 
@@ -40,7 +43,11 @@ export default function GlobalRestModal() {
                 {status === 'running' ? 'DESCANSANDO' : 'TIEMPO DE DESCANSO'}
               </p>
               <h3 className={`font-condensed font-black text-xl ${isLastSeconds ? 'text-red-500' : 'text-[#E85D04]'}`}>
-                {status === 'running' ? 'Recupera energía' : 'Elige tu descanso'}
+                {status === 'running'
+                  ? 'Recupera energía'
+                  : status === 'completed'
+                    ? '¡Tiempo completado!'
+                    : 'Elige tu descanso'}
               </h3>
             </div>
             <button
@@ -83,6 +90,24 @@ export default function GlobalRestModal() {
                   </button>
                 </div>
               </>
+            ) : status === 'completed' ? (
+              <div className="text-center py-4">
+                <div className="w-14 h-14 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3 font-black text-2xl animate-bounce">
+                  ✓
+                </div>
+                <h4 className="font-condensed font-black text-2xl text-[#1C1C1E] mb-1">
+                  ¡DESCANSO TERMINADO!
+                </h4>
+                <p className="text-xs font-sans text-[#6E6E73] mb-5">
+                  Tu tiempo de recuperación ha finalizado.
+                </p>
+                <button
+                  onClick={() => { stopTimer(); setShowRestModal(false); }}
+                  className="w-full py-3.5 bg-[#FF6B00] text-white rounded-2xl font-condensed font-black text-lg tracking-wide shadow-md active:scale-95 transition-transform cursor-pointer"
+                >
+                  ¡A TRABAJAR!
+                </button>
+              </div>
             ) : (
               <div className="grid grid-cols-3 gap-2.5">
                 {[30, 60, 90, 120, 150, 180].map(s => (
@@ -94,6 +119,38 @@ export default function GlobalRestModal() {
                     {s}s
                   </button>
                 ))}
+              </div>
+            )}
+
+            {/* Selector de sonido de finalización */}
+            {status !== 'running' && (
+              <div className="mt-6 pt-4 border-t border-[#E8E8E4]">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-condensed font-bold uppercase tracking-wider text-[#6E6E73] flex items-center gap-1.5">
+                    <Volume2 size={14} className="text-[#FF6B00]" /> Sonido de Alarma
+                  </span>
+                  <button
+                    onClick={() => playSound(completionSound)}
+                    className="text-[11px] font-condensed font-bold text-[#E85D04] hover:underline cursor-pointer"
+                  >
+                    Probar 🔊
+                  </button>
+                </div>
+                <select
+                  value={completionSound}
+                  onChange={(e) => {
+                    const newSound = e.target.value;
+                    setCompletionSound(newSound);
+                    playSound(newSound);
+                  }}
+                  className="w-full py-2 px-3 bg-[#F5F5F0] border border-[#E8E8E4] rounded-xl font-sans text-xs font-semibold text-[#1C1C1E] outline-none focus:border-[#FF6B00] cursor-pointer"
+                >
+                  {SOUND_PRESETS.map((preset) => (
+                    <option key={preset.id} value={preset.id}>
+                      {preset.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
           </div>

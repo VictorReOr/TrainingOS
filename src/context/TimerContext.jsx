@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { playShortBeep, playLongBeep, playWorkBeep, playRestBeep, vibrateShort, vibrateLong } from '../utils/audio';
+import { playShortBeep, playLongBeep, playWorkBeep, playRestBeep, playSound, SOUND_PRESETS, vibrateShort, vibrateLong } from '../utils/audio';
 
 // Estado global de entrenamiento interactivo
 const TimerContext = createContext();
@@ -25,11 +25,22 @@ export function TimerProvider({ children }) {
 
   const [showRestModal, setShowRestModal] = useState(false);
 
+  const [completionSound, setCompletionSoundState] = useState(() => {
+    return localStorage.getItem('trainingos_completion_sound') || 'beep_long';
+  });
+  const completionSoundRef = useRef(completionSound);
+  const setCompletionSound = (soundId) => {
+    completionSoundRef.current = soundId;
+    setCompletionSoundState(soundId);
+    localStorage.setItem('trainingos_completion_sound', soundId);
+  };
+
   // Core Engine mutable para evitar re-renderizados colosales
   const engineRef = useRef({
     targetTime: 0,
     elapsedMs: 0,
     lastTick: 0,
+    targetTimestamp: 0,
   });
 
   const rafRef = useRef(null);
@@ -47,9 +58,9 @@ export function TimerProvider({ children }) {
       return;
     }
 
-    // Modalidades regresivas
-    engineRef.current.targetTime -= delta;
-    const currentT = engineRef.current.targetTime;
+    // Modalidades regresivas: cálculo contra ancla de reloj real
+    const currentT = engineRef.current.targetTimestamp - Date.now();
+    engineRef.current.targetTime = currentT;
     
     // Sincroniza al UI frame
     setTimeMs(currentT > 0 ? currentT : 0);
@@ -70,7 +81,7 @@ export function TimerProvider({ children }) {
     if (currentT <= 0) {
       if (mode === 'countdown' || mode === 'rest') {
         setStatus('completed');
-        playLongBeep();
+        playSound(completionSoundRef.current);
         vibrateLong();
         
         if (mode === 'rest') {
@@ -87,7 +98,7 @@ export function TimerProvider({ children }) {
             // Si acabamos de terminar el ultimo work de la ultima ronda, fin de sesion.
             if (cfg.currentRound === cfg.rounds && cfg.currentPhase === 'work') {
                setStatus('completed');
-               playLongBeep();
+               playSound(completionSoundRef.current);
                vibrateLong();
                return { ...cfg, currentPhase: 'finished' };
             }
@@ -98,9 +109,11 @@ export function TimerProvider({ children }) {
             if (nextPhase === 'work') {
                playWorkBeep(); vibrateShort();
                engineRef.current.targetTime = cfg.work;
+               engineRef.current.targetTimestamp = Date.now() + cfg.work;
             } else {
                playRestBeep(); vibrateShort();
                engineRef.current.targetTime = cfg.rest;
+               engineRef.current.targetTimestamp = Date.now() + cfg.rest;
             }
             return { ...cfg, currentPhase: nextPhase, currentRound: nextRound };
          });
@@ -126,6 +139,35 @@ export function TimerProvider({ children }) {
     return () => cancelAnimationFrame(rafRef.current);
   }, [status, mode]);
 
+  // Sincronización al volver de segundo plano / reactivar pantalla
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && statusRef.current === 'running') {
+        if (mode === 'countdown' || mode === 'rest') {
+          const remaining = engineRef.current.targetTimestamp - Date.now();
+          if (remaining <= 0) {
+            setStatus('completed');
+            playSound(completionSoundRef.current);
+            vibrateLong();
+            setTimeMs(0);
+            if (mode === 'rest') {
+              setTimeout(() => {
+                setShowRestModal(false);
+                setMode(null);
+              }, 3000);
+            }
+          } else {
+            setTimeMs(remaining);
+            engineRef.current.lastTick = performance.now();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [mode]);
+
   // --- ACCIONES MAESTRAS ---
 
   const startStopwatch = () => {
@@ -135,6 +177,7 @@ export function TimerProvider({ children }) {
 
   const startCountdown = (totalMs) => {
     engineRef.current.targetTime = totalMs;
+    engineRef.current.targetTimestamp = Date.now() + totalMs;
     lastBeepSecRef.current = null;
     setInitialTimeMs(totalMs);
     setMode('countdown'); setTimeMs(totalMs); setStatus('running');
@@ -143,6 +186,7 @@ export function TimerProvider({ children }) {
   const startRest = (seconds) => {
     const ms = seconds * 1000;
     engineRef.current.targetTime = ms;
+    engineRef.current.targetTimestamp = Date.now() + ms;
     lastBeepSecRef.current = null;
     setInitialTimeMs(ms);
     setMode('rest'); setTimeMs(ms); setStatus('running'); setShowRestModal(true);
@@ -151,6 +195,7 @@ export function TimerProvider({ children }) {
   const startHiit = (workS, restS, rounds) => {
     const wMs = workS * 1000;
     engineRef.current.targetTime = wMs;
+    engineRef.current.targetTimestamp = Date.now() + wMs;
     lastBeepSecRef.current = null;
     setIntervalConfig({ work: wMs, rest: restS * 1000, rounds, currentPhase: 'work', currentRound: 1 });
     setMode('hiit'); setTimeMs(wMs); setStatus('running');
@@ -165,6 +210,7 @@ export function TimerProvider({ children }) {
   const pauseTimer = () => setStatus('paused');
   const resumeTimer = () => {
      engineRef.current.lastTick = performance.now();
+     engineRef.current.targetTimestamp = Date.now() + engineRef.current.targetTime;
      setStatus('running');
   };
   const stopTimer = () => {
@@ -178,6 +224,7 @@ export function TimerProvider({ children }) {
     <TimerContext.Provider value={{
       mode, status, timeMs, initialTimeMs, intervalConfig,
       showRestModal, setShowRestModal,
+      completionSound, setCompletionSound, SOUND_PRESETS, playSound,
       startStopwatch, startCountdown, startRest, startHiit, startTabata,
       pauseTimer, resumeTimer, stopTimer
     }}>
