@@ -1,13 +1,15 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { X, Check, Timer, ArrowRight, Hourglass, Repeat } from 'lucide-react';
+import { X, Check, Timer, ArrowRight, Hourglass, Repeat, History } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTimer } from '../context/TimerContext';
 import { useCircuit } from '../context/CircuitContext';
 import { usePR } from '../context/PRContext';
+import { useSession } from '../context/SessionContext';
 import { usePlanner } from '../context/PlannerContext';
 import { usePerformanceEngine } from '../hooks/usePerformanceEngine';
 import TrafficLightBadge from './performance/TrafficLightBadge';
 import { suggestLoad, MESO_RPE_TARGETS } from '../utils/loadSuggestion';
+import { getPreviousWeekReference } from '../utils/getPreviousWeekReference';
 import { MOCK_SESSION, BLOCK_COLORS } from '../data/mockSession';
 
 const parseDurationToSeconds = (durStr) => {
@@ -21,6 +23,9 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
   const [showMiniTimer, setShowMiniTimer] = useState(false);
   const prevTurnKey = useRef('');
 
+  // ── Session Context ──
+  const { activeSession } = useSession();
+
   // ── Performance Engine decision ──
   const { getDecisionForExercise, isColdStart } = usePerformanceEngine();
   const peDecision = getDecisionForExercise(exercise.id);
@@ -31,6 +36,19 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
   const sessionLogs = JSON.parse(
     localStorage.getItem('trainingos_session_logs') || '[]'
   );
+
+  // ── Referencia de la semana anterior (misma plantilla) ──
+  const previousWeekRef = useMemo(() => {
+    if (!activeSession?.id || !exercise?.id) return [];
+    const currentDateISO = new Date().toISOString();
+    return getPreviousWeekReference(
+      sessionLogs,
+      activeSession.id,
+      activeSession.instanceId,
+      exercise.id,
+      currentDateISO
+    );
+  }, [sessionLogs, activeSession?.id, activeSession?.instanceId, exercise?.id]);
 
   // Calcular semana dentro del mesociclo
   const getMesoWeek = () => {
@@ -481,26 +499,45 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
                 </span>
 
                 {/* Inputs */}
-                <div className="flex-1 grid grid-cols-2 gap-3">
-                  <div className="flex flex-col">
-                    <label className="text-[8px] text-muted font-mono font-bold uppercase tracking-widest mb-1">Carga (kg)</label>
-                    <input
-                      type="number" inputMode="decimal"
-                      value={log.carga}
-                      onChange={e => onLogChange(index, 'carga', e.target.value)}
-                      placeholder="0.0"
-                      className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm font-mono font-bold text-ink focus:border-signal-orange outline-none transition-colors"
-                    />
-                  </div>
-                  <div className="flex flex-col">
-                    <label className="text-[8px] text-muted font-mono font-bold uppercase tracking-widest mb-1">Reps</label>
-                    <input
-                      type="text" inputMode="text"
-                      value={log.reps}
-                      onChange={e => onLogChange(index, 'reps', e.target.value)}
-                      placeholder={exercise.reps || exercise.targetReps || "0"}
-                      className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm font-mono font-bold text-ink focus:border-signal-orange outline-none transition-colors"
-                    />
+                <div className="flex-1 flex flex-col">
+                  {(() => {
+                    const refSet = previousWeekRef[index];
+                    if (!refSet || (refSet.carga == null && refSet.reps == null)) return null;
+                    const effortStr = refSet.rpe != null
+                      ? ` @ RPE${refSet.rpe}`
+                      : refSet.rir != null
+                      ? ` @ RIR${refSet.rir}`
+                      : '';
+                    return (
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <History size={11} className="text-muted" />
+                        <span className="font-mono text-[10px] text-muted tracking-wider">
+                          S. ANTERIOR — {refSet.carga != null ? `${refSet.carga}kg` : ''} {refSet.reps != null ? `× ${refSet.reps}` : ''}{effortStr}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col">
+                      <label className="text-[8px] text-muted font-mono font-bold uppercase tracking-widest mb-1">Carga (kg)</label>
+                      <input
+                        type="number" inputMode="decimal"
+                        value={log.carga}
+                        onChange={e => onLogChange(index, 'carga', e.target.value)}
+                        placeholder="0.0"
+                        className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm font-mono font-bold text-ink focus:border-signal-orange outline-none transition-colors"
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <label className="text-[8px] text-muted font-mono font-bold uppercase tracking-widest mb-1">Reps</label>
+                      <input
+                        type="text" inputMode="text"
+                        value={log.reps}
+                        onChange={e => onLogChange(index, 'reps', e.target.value)}
+                        placeholder={exercise.reps || exercise.targetReps || "0"}
+                        className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm font-mono font-bold text-ink focus:border-signal-orange outline-none transition-colors"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
