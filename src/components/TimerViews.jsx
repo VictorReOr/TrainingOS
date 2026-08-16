@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useTimer } from '../context/TimerContext';
 import { useCircuit } from '../context/CircuitContext';
-import { Play, Pause, Square, RotateCcw, X, FastForward } from 'lucide-react';
+import { Play, Pause, Square, RotateCcw, X, FastForward, Volume2 } from 'lucide-react';
 
 import CircuitConfigurator from './timer/CircuitConfigurator';
 import CircuitPlayer from './timer/CircuitPlayer';
@@ -23,7 +23,8 @@ export default function TimerViews({ asModal = false, onCloseModal }) {
   const { 
     mode, status, timeMs, initialTimeMs, intervalConfig, 
     startStopwatch, startCountdown, startHiit, startTabata, startRest,
-    pauseTimer, resumeTimer, stopTimer
+    pauseTimer, resumeTimer, stopTimer,
+    completionSound, setCompletionSound, SOUND_PRESETS, playSound
   } = useTimer();
 
   const { executionStatus } = useCircuit();
@@ -276,13 +277,43 @@ export default function TimerViews({ asModal = false, onCloseModal }) {
     <div className="flex flex-col items-center justify-center flex-1 text-ink">
       {!hasStarted ? (
         <div className="w-full flex-1 flex flex-col items-center justify-center">
-           <h3 className="font-mono text-muted mb-8 text-xs font-bold uppercase tracking-wider">Descanso Rápido</h3>
-           <div className="grid grid-cols-2 gap-4 w-full max-w-xs">
+           <h3 className="font-mono text-muted mb-6 text-xs font-bold uppercase tracking-wider">Descanso Rápido</h3>
+           <div className="grid grid-cols-2 gap-3 w-full max-w-xs mb-6">
               {[30, 60, 90, 120, 180].map(s => (
                  <button key={s} onClick={() => startRest(s)} className="py-4 bg-card rounded-xl border border-border font-display font-black text-2xl text-ink hover:border-signal-orange cursor-pointer">
                     {s}S
                  </button>
               ))}
+           </div>
+
+           {/* Selector de sonido de alarma */}
+           <div className="w-full max-w-xs pt-4 border-t border-border/50">
+             <div className="flex items-center justify-between mb-2">
+               <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-muted flex items-center gap-1.5">
+                 <Volume2 size={14} className="text-signal-orange" /> Sonido de Alarma
+               </span>
+               <button
+                 onClick={() => playSound(completionSound)}
+                 className="text-[11px] font-mono font-bold text-signal-orange hover:underline cursor-pointer"
+               >
+                 Probar 🔊
+               </button>
+             </div>
+             <select
+               value={completionSound}
+               onChange={(e) => {
+                 const newSound = e.target.value;
+                 setCompletionSound(newSound);
+                 playSound(newSound);
+               }}
+               className="w-full py-2 px-3 bg-card border border-border rounded-xl font-mono text-xs font-semibold text-ink outline-none focus:border-signal-orange cursor-pointer"
+             >
+               {SOUND_PRESETS.map((preset) => (
+                 <option key={preset.id} value={preset.id}>
+                   {preset.name}
+                 </option>
+               ))}
+             </select>
            </div>
         </div>
       ) : (
