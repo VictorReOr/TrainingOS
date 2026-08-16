@@ -35,9 +35,10 @@ const groupSessionsByWeek = (logs) => {
   const now = new Date();
   const getStartOfWeek = (date) => {
     const d = new Date(date);
-    const day = d.getDay() || 7; // Sunday is 0, make it 7.
-    d.setDate(d.getDate() - day + 1);
-    d.setHours(0,0,0,0);
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    d.setDate(d.getDate() + diff);
+    d.setHours(0, 0, 0, 0);
     return d;
   };
   

@@ -47,9 +47,14 @@ const getDayDate  = (monday, i) => { const d = new Date(monday); d.setDate(d.get
 const isToday     = (date)      => { const t = new Date(); return date.toDateString() === t.toDateString(); };
 const isPast      = (date)      => { const today = new Date(); today.setHours(0,0,0,0); const d = new Date(date); d.setHours(0,0,0,0); return d < today; };
 const isCurrentWeek = (monday)  => {
-  const today = new Date(), d = today.getDay(), diff = d === 0 ? -6 : 1 - d;
-  const currMonday = new Date(today); currMonday.setDate(today.getDate() + diff); currMonday.setHours(0,0,0,0);
-  const m = new Date(monday); m.setHours(0,0,0,0);
+  const today = new Date();
+  const d = today.getDay();
+  const diff = d === 0 ? -6 : 1 - d;
+  const currMonday = new Date(today);
+  currMonday.setDate(today.getDate() + diff);
+  currMonday.setHours(0, 0, 0, 0);
+  const m = new Date(monday);
+  m.setHours(0, 0, 0, 0);
   return m.getTime() === currMonday.getTime();
 };
 const formatWeekRange = (monday) => {
