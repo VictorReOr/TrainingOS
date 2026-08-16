@@ -7,7 +7,8 @@ import { usePR } from '../context/PRContext';
 import { useFeedback } from '../context/FeedbackContext';
 import { useAuth } from '../context/AuthContext';
 import { useRole } from '../hooks/useRole';
-import { ChevronLeft, Pencil, Star, Plus, ShieldCheck, RefreshCw, Bell, Users, DownloadCloud, MessageCircle, LogOut, CheckCircle2, PlayCircle } from 'lucide-react';
+import { useTimer } from '../context/TimerContext';
+import { ChevronLeft, Pencil, Star, Plus, ShieldCheck, RefreshCw, Bell, Users, DownloadCloud, MessageCircle, LogOut, CheckCircle2, PlayCircle, Volume2 } from 'lucide-react';
 import { getSeasons, getSessions, getRoutineAssignments, activateRoutine, fetchWorkouts } from '../services/sheets';
 import { parseWorkouts } from '../utils/workoutParser';
 
@@ -20,6 +21,7 @@ export default function Profile() {
   const { unreadCount, sessionsWithUnread } = useFeedback();
   const { logout, currentUser } = useAuth();
   const { isBoth } = useRole();
+  const { completionSound, setCompletionSound, SOUND_PRESETS, playSound } = useTimer();
 
   const [assignedRoutines, setAssignedRoutines] = useState([]);
   const [loadingAssignments, setLoadingAssignments] = useState(true);
@@ -472,7 +474,42 @@ export default function Profile() {
           
           <div className="space-y-4">
             
-            <div className="flex justify-between items-center">
+            {/* Sonido de Alarma Global */}
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Volume2 size={18} className="text-signal-orange" />
+                  <div>
+                    <div className="font-bold text-sm uppercase font-condensed tracking-wide">Sonido de Alarma</div>
+                    <div className="font-mono text-[9px] text-muted uppercase tracking-wider mt-0.5">Al finalizar cualquier temporizador</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => playSound(completionSound)}
+                  className="font-mono text-xs font-bold text-signal-orange hover:underline cursor-pointer bg-signal-orange/10 px-2.5 py-1 rounded-lg border border-signal-orange/20"
+                >
+                  Probar 🔊
+                </button>
+              </div>
+              <select
+                value={completionSound}
+                onChange={(e) => {
+                  const newSound = e.target.value;
+                  setCompletionSound(newSound);
+                  playSound(newSound);
+                }}
+                className="w-full py-2.5 px-3 bg-bg/50 border border-border rounded-xl font-mono text-xs font-semibold text-ink outline-none focus:border-signal-orange cursor-pointer"
+              >
+                {SOUND_PRESETS.map((preset) => (
+                  <option key={preset.id} value={preset.id}>
+                    {preset.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="flex justify-between items-center pt-3 border-t border-border">
               <div className="flex items-center gap-3">
                 <Bell size={18} className="text-muted" />
                 <div>
