@@ -297,8 +297,7 @@ export default function CircuitConfigurator() {
 
       {/* FOOTER */}
       <div
-        className="fixed bottom-0 left-0 w-full bg-card border-t border-border px-5 py-4 z-40 flex items-center gap-4"
-        style={{ paddingBottom: 'calc(1rem + var(--safe-bottom, 0px))' }}
+        className="fixed bottom-[calc(4rem+var(--safe-bottom,0px))] left-0 w-full bg-card border-t border-border px-5 py-4 z-40 flex items-center gap-4"
       >
         <div className="flex flex-col flex-1">
           <span className="font-mono text-[9px] text-muted tracking-widest uppercase font-bold">Total Duración</span>
