@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { savePR as _savePR, getPRs } from '../services/sheets';
+import { savePR as _savePR, getPRs, getLogs } from '../services/sheets';
 import { estimate1RM } from '../engine/performance/utils/oneRMEstimators';
+import { mergeSessionLogs } from '../utils/mergeSessionLogs';
 
 // ══════════════════════════════════════════════════════
 // PRContext — TrainingOS (Prompt 3.1)
