@@ -114,7 +114,7 @@ export const playSound = (soundId, options = { useAudioTagFallback: true }) => {
   const fileUrl = SOUND_FILES[soundId] || null;
 
   if (fileUrl) {
-    console.log(`[Audio] ▶️ Reproduciendo archivo HTML5 primario: "${fileUrl}" (soundId: "${soundId}")`);
+    console.log(`[playSound] Reproduciendo vía <audio> HTML5: ${fileUrl} (soundId: ${soundId})`);
     try {
       const audio = new Audio();
       audio.src = fileUrl;
@@ -125,24 +125,23 @@ export const playSound = (soundId, options = { useAudioTagFallback: true }) => {
       if (playPromise !== undefined) {
         playPromise
           .then(() => {
-            console.log(`[Audio] ✅ Reproducción HTML5 exitosa para: "${fileUrl}"`);
+            console.log(`[playSound] Éxito <audio> HTML5 para: ${fileUrl}`);
           })
           .catch(err => {
-            console.warn(`[Audio] ⚠️ HTML5 <audio> primario falló para "${soundId}" (${fileUrl}):`, err.name, err.message);
-            console.warn('[Audio] 🔄 Ejecutando fallback a Web Audio API sintetizado.');
+            console.warn(`[playSound] Fallback a Web Audio API — motivo: ${err.name} - ${err.message}`);
             if (options?.useAudioTagFallback !== false) {
               playSynthFallback(soundId);
             }
           });
       }
     } catch (e) {
-      console.warn(`[Audio] Excepción al crear HTML5 Audio para "${fileUrl}":`, e);
+      console.warn(`[playSound] Fallback a Web Audio API — motivo: Excepción ${e.message}`);
       if (options?.useAudioTagFallback !== false) {
         playSynthFallback(soundId);
       }
     }
   } else {
-    console.log(`[Audio] 🎵 Sin archivo MP4/MP3 mapeado para soundId: "${soundId}". Ejecutando sintetizador Web Audio API.`);
+    console.log(`[playSound] Fallback a Web Audio API — motivo: sin archivo mapeado para ${soundId}`);
     playSynthFallback(soundId);
   }
 };

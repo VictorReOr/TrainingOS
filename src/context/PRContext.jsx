@@ -9,18 +9,6 @@ import { estimate1RM } from '../engine/performance/utils/oneRMEstimators';
 
 const LS_KEY = 'trainingos_prs';
 
-// Helper sync (igual que PlannerContext)
-const USE_SHEETS = !!import.meta.env.VITE_SHEETS_API_URL && import.meta.env.VITE_USE_MOCK !== 'true';
-
-function _bgSync(fn) {
-  const demoMode = localStorage.getItem('trainingos_demo_mode') === 'true';
-  if (!USE_SHEETS || demoMode) return;
-  Promise.resolve()
-    .then(() => fn())
-    .then(res => console.log('[Sheets] savePR → ok', res?.id || ''))
-    .catch(err => console.warn('[Sheets] savePR falló:', err.message));
-}
-
 const PRContext = createContext();
 
 export function PRProvider({ children }) {
@@ -40,13 +28,33 @@ export function PRProvider({ children }) {
 
   // Exponer ÚNICAMENTE en window para invocación manual desde consola (A.2 - Sin autoejecutar)
   useEffect(() => {
-    window.runPRBackfill = () => {
-      console.log('[PRBackfill] Iniciando backfill manual de PRs desde consola...');
+    window.runPRBackfill = async () => {
+      console.log('[PRBackfill] Iniciando backfill manual de PRs (locales + Sheets remotos)...');
       try {
-        const rawLogs = localStorage.getItem('trainingos_session_logs');
-        const logs = rawLogs ? JSON.parse(rawLogs) : [];
-        if (!Array.isArray(logs) || logs.length === 0) {
-          console.warn('[PRBackfill] No hay trainingos_session_logs para procesar.');
+        const rawLocalLogs = localStorage.getItem('trainingos_session_logs');
+        let localLogs = rawLocalLogs ? JSON.parse(rawLocalLogs) : [];
+
+        // 1. Descargar registros de Sheets para fusionar con local logs
+        let remoteRows = [];
+        try {
+          const res = await getLogs();
+          if (res && res.rows && Array.isArray(res.rows)) {
+            remoteRows = res.rows;
+            console.log(`[PRBackfill] Se recuperaron ${remoteRows.length} filas remotas de Sheets.`);
+          }
+        } catch (netErr) {
+          console.warn('[PRBackfill] No se pudieron descargar logs de Sheets (local-first fallback):', netErr);
+        }
+
+        // 2. Fusionar logs locales con remotos de Sheets
+        const mergedLogs = mergeSessionLogs(localLogs, remoteRows);
+        if (mergedLogs.length > 0) {
+          localStorage.setItem('trainingos_session_logs', JSON.stringify(mergedLogs));
+          window.dispatchEvent(new Event('session_logs_updated'));
+        }
+
+        if (mergedLogs.length === 0) {
+          console.warn('[PRBackfill] No hay logs de sesión (locales ni remotos) para procesar.');
           return { processed: 0, newPRs: 0 };
         }
 
@@ -54,7 +62,7 @@ export function PRProvider({ children }) {
         let currentPRs = rawPRs ? JSON.parse(rawPRs) : [];
         let newCount = 0;
 
-        logs.forEach(log => {
+        mergedLogs.forEach(log => {
           if (!log || !Array.isArray(log.ejercicios)) return;
           const logDate = log.fecha || new Date().toISOString();
 
@@ -108,7 +116,7 @@ export function PRProvider({ children }) {
           console.log('[PRBackfill] Se escanearon los logs pero no había PRs nuevos que añadir.');
         }
 
-        return { processedLogs: logs.length, newPRs: newCount };
+        return { processedLogs: mergedLogs.length, newPRs: newCount };
       } catch (err) {
         console.error('[PRBackfill] Error ejecutando backfill:', err);
         return { error: err.message };

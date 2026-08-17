@@ -37,6 +37,7 @@ const CoachRoute = ({ children }) => {
 };
 
 export default function App() {
+  useRemoteLogSync();
   const { currentUser } = useAuth();
   const { athlete } = useAthlete();
   const location = useLocation();
