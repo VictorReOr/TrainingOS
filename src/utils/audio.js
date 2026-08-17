@@ -107,23 +107,42 @@ const playSynthFallback = (soundId) => {
  * (solicita Audio Focus al SO y atenúa Spotify/música de fondo),
  * cayendo a Web Audio API sintético como MÉTODO FALLBACK.
  *
- * @param {string} soundId - ID del tono seleccionado
+ * @param {string} soundId - ID del tono seleccionado ('bell' | 'whistle' | 'beep_long' | 'double_beep' | 'chime')
  * @param {Object} [options={ useAudioTagFallback: true }]
  */
 export const playSound = (soundId, options = { useAudioTagFallback: true }) => {
   const fileUrl = SOUND_FILES[soundId] || null;
 
   if (fileUrl) {
-    const audio = new Audio(fileUrl);
-    // Método primario: reproducir vía HTML5 <audio> para solicitar Audio Focus
-    audio.play().catch(err => {
-      console.warn(`[Audio] HTML5 <audio> primario falló para "${soundId}" (${err.message}). Ejecutando fallback a Web Audio API.`);
+    console.log(`[Audio] ▶️ Reproduciendo archivo HTML5 primario: "${fileUrl}" (soundId: "${soundId}")`);
+    try {
+      const audio = new Audio();
+      audio.src = fileUrl;
+      audio.preload = 'auto';
+      audio.currentTime = 0;
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            console.log(`[Audio] ✅ Reproducción HTML5 exitosa para: "${fileUrl}"`);
+          })
+          .catch(err => {
+            console.warn(`[Audio] ⚠️ HTML5 <audio> primario falló para "${soundId}" (${fileUrl}):`, err.name, err.message);
+            console.warn('[Audio] 🔄 Ejecutando fallback a Web Audio API sintetizado.');
+            if (options?.useAudioTagFallback !== false) {
+              playSynthFallback(soundId);
+            }
+          });
+      }
+    } catch (e) {
+      console.warn(`[Audio] Excepción al crear HTML5 Audio para "${fileUrl}":`, e);
       if (options?.useAudioTagFallback !== false) {
         playSynthFallback(soundId);
       }
-    });
+    }
   } else {
-    // Si no existe archivo mapeado para el ID, ejecutar fallback de sintetizador directo
+    console.log(`[Audio] 🎵 Sin archivo MP4/MP3 mapeado para soundId: "${soundId}". Ejecutando sintetizador Web Audio API.`);
     playSynthFallback(soundId);
   }
 };
