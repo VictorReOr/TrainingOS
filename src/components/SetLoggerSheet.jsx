@@ -37,7 +37,7 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
     localStorage.getItem('trainingos_session_logs') || '[]'
   );
 
-  // ── Referencia de la semana anterior (misma plantilla) ──
+  // ── Referencia de la semana anterior (misma plantilla o fallback inteligente) ──
   const previousWeekRef = useMemo(() => {
     if (!activeSession?.id || !exercise?.id) return [];
     const currentDateISO = new Date().toISOString();
@@ -46,9 +46,10 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
       activeSession.id,
       activeSession.instanceId,
       exercise.id,
-      currentDateISO
+      currentDateISO,
+      exercise.name || exercise.nombre
     );
-  }, [sessionLogs, activeSession?.id, activeSession?.instanceId, exercise?.id]);
+  }, [sessionLogs, activeSession?.id, activeSession?.instanceId, exercise?.id, exercise?.name, exercise?.nombre]);
 
   // Calcular semana dentro del mesociclo
   const getMesoWeek = () => {

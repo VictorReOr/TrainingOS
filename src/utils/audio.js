@@ -64,42 +64,67 @@ export const playChime = () => {
 };
 
 export const SOUND_PRESETS = [
-  { id: 'beep_long', name: 'Beep Clásico', type: 'synth' },
-  { id: 'bell', name: 'Campana de Boxeo', type: 'synth' },
-  { id: 'whistle', name: 'Silbato Digital', type: 'synth' },
-  { id: 'double_beep', name: 'Doble Beep', type: 'synth' },
-  { id: 'chime', name: 'Chime Armónico', type: 'synth' },
+  { id: 'beep_long', name: 'Beep Clásico', type: 'audio_primary' },
+  { id: 'bell', name: 'Campana de Boxeo', type: 'audio_primary' },
+  { id: 'whistle', name: 'Silbato Digital', type: 'audio_primary' },
+  { id: 'double_beep', name: 'Doble Beep', type: 'audio_primary' },
+  { id: 'chime', name: 'Chime Armónico', type: 'audio_primary' },
 ];
 
-export const playSound = (soundId) => {
-  const preset = SOUND_PRESETS.find(s => s.id === soundId);
-  if (!preset) {
-    playLongBeep();
-    return;
-  }
+// Mapeo de archivos primarios HTML5 <audio> presentes en /sounds/
+// Mapea las keys reales de trainingos_completion_sound a los archivos MP4/MP3 en public/sounds/
+const SOUND_FILES = {
+  bell: '/sounds/Campana.mp4',
+  whistle: '/sounds/Silbato.mp4',
+  // NOTA: Para beep_long, double_beep y chime, si el archivo aún no se ha subido a public/sounds/,
+  // audio.play() captura el 404 o fileUrl nulo y ejecuta inmediatamente el fallback de Web Audio API.
+};
 
-  if (preset.type === 'file' && preset.url) {
-    const audio = new Audio(preset.url);
-    audio.play().catch(err => console.warn('[Audio] Error al reproducir audio estático:', err));
+// Fallback sintetizado via Web Audio API si el elemento HTML5 <audio> no puede reproducir
+const playSynthFallback = (soundId) => {
+  switch (soundId) {
+    case 'bell':
+      playBell();
+      break;
+    case 'whistle':
+      playWhistle();
+      break;
+    case 'double_beep':
+      playDoubleBeep();
+      break;
+    case 'chime':
+      playChime();
+      break;
+    case 'beep_long':
+    default:
+      playLongBeep();
+      break;
+  }
+};
+
+/**
+ * Requisito B.1: Reproducir sonido usando elemento HTML5 <audio> como MÉTODO PRIMARIO
+ * (solicita Audio Focus al SO y atenúa Spotify/música de fondo),
+ * cayendo a Web Audio API sintético como MÉTODO FALLBACK.
+ *
+ * @param {string} soundId - ID del tono seleccionado
+ * @param {Object} [options={ useAudioTagFallback: true }]
+ */
+export const playSound = (soundId, options = { useAudioTagFallback: true }) => {
+  const fileUrl = SOUND_FILES[soundId] || null;
+
+  if (fileUrl) {
+    const audio = new Audio(fileUrl);
+    // Método primario: reproducir vía HTML5 <audio> para solicitar Audio Focus
+    audio.play().catch(err => {
+      console.warn(`[Audio] HTML5 <audio> primario falló para "${soundId}" (${err.message}). Ejecutando fallback a Web Audio API.`);
+      if (options?.useAudioTagFallback !== false) {
+        playSynthFallback(soundId);
+      }
+    });
   } else {
-    switch (soundId) {
-      case 'bell':
-        playBell();
-        break;
-      case 'whistle':
-        playWhistle();
-        break;
-      case 'double_beep':
-        playDoubleBeep();
-        break;
-      case 'chime':
-        playChime();
-        break;
-      case 'beep_long':
-      default:
-        playLongBeep();
-        break;
-    }
+    // Si no existe archivo mapeado para el ID, ejecutar fallback de sintetizador directo
+    playSynthFallback(soundId);
   }
 };
 
@@ -113,6 +138,20 @@ export const speakText = (text) => {
   window.speechSynthesis.speak(utt);
 };
 
-export const vibrateShort = () => { if (navigator.vibrate) navigator.vibrate(50); };
-export const vibrateLong = () => { if (navigator.vibrate) navigator.vibrate([200, 100, 200]); };
-export const vibratePulse = () => { if (navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]); };
+export const vibrateShort = () => {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(50);
+  } catch (_) {}
+};
+
+export const vibrateLong = () => {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  } catch (_) {}
+};
+
+export const vibratePulse = () => {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 100]);
+  } catch (_) {}
+};

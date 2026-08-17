@@ -1,11 +1,19 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { saveLog as _saveLog } from '../services/sheets';
+import { usePR } from './PRContext';
+import { useAthlete } from './AthleteContext';
+import { useAuth } from './AuthContext';
+import { estimate1RM } from '../engine/performance/utils/oneRMEstimators';
 
 const LS_SESSION_LOGS = 'trainingos_session_logs';
 const LS_DRAFT = 'trainingos_active_session_draft';
 const SessionContext = createContext();
 
 export function SessionProvider({ children }) {
+  const { savePRRecord } = usePR();
+  const { athlete } = useAthlete();
+  const { currentUser } = useAuth();
+
   const [activeSession, setActiveSession] = useState(null);
   const [exerciseLogs, setExerciseLogs] = useState({});
   const [startTime, setStartTime] = useState(null);
@@ -219,6 +227,46 @@ export function SessionProvider({ children }) {
         volumenTotal: volTotal,
         ejercicios: ejerciciosArray
       };
+
+      // Generar y guardar PRs para ejercicios con series completadas con carga > 0 (A.1)
+      ejerciciosArray.forEach(ex => {
+        if (!ex || !ex.id || !Array.isArray(ex.seriesLog)) return;
+        const validSets = ex.seriesLog.filter(s => s && s.done && parseFloat(s.carga) > 0 && parseInt(s.reps) > 0);
+        if (validSets.length === 0) return;
+
+        let max1RM = 0;
+        let bestCarga = 0;
+        let bestReps = 0;
+
+        validSets.forEach(s => {
+          const c = parseFloat(s.carga);
+          const r = parseInt(s.reps);
+          const est = estimate1RM(c, r, 'epley');
+          if (est > max1RM) {
+            max1RM = est;
+            bestCarga = c;
+            bestReps = r;
+          }
+        });
+
+        if (max1RM > 0) {
+          const targetAtletaId = currentUser?.id || athlete?.id;
+          if (!targetAtletaId) {
+            console.warn('[SessionContext] No se guardó el PR: falta un atletaId (currentUser/athlete) válido.');
+          } else {
+            savePRRecord({
+              exerciseId: ex.id,
+              exerciseName: ex.nombre || ex.name || 'Ejercicio',
+              atletaId: targetAtletaId,
+              fecha: now,
+              valor: Math.round(max1RM * 10) / 10,
+              cargaReal: bestCarga,
+              repsReales: bestReps,
+              unidad: 'kg'
+            });
+          }
+        }
+      });
 
       // Guardar en localStorage
       const existingRaw = localStorage.getItem(LS_SESSION_LOGS);

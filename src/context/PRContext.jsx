@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { savePR as _savePR, getPRs } from '../services/sheets';
+import { estimate1RM } from '../engine/performance/utils/oneRMEstimators';
 
 // ══════════════════════════════════════════════════════
 // PRContext — TrainingOS (Prompt 3.1)
@@ -37,13 +38,93 @@ export function PRProvider({ children }) {
     localStorage.setItem(LS_KEY, JSON.stringify(prs));
   }, [prs]);
 
+  // Exponer ÚNICAMENTE en window para invocación manual desde consola (A.2 - Sin autoejecutar)
+  useEffect(() => {
+    window.runPRBackfill = () => {
+      console.log('[PRBackfill] Iniciando backfill manual de PRs desde consola...');
+      try {
+        const rawLogs = localStorage.getItem('trainingos_session_logs');
+        const logs = rawLogs ? JSON.parse(rawLogs) : [];
+        if (!Array.isArray(logs) || logs.length === 0) {
+          console.warn('[PRBackfill] No hay trainingos_session_logs para procesar.');
+          return { processed: 0, newPRs: 0 };
+        }
+
+        const rawPRs = localStorage.getItem('trainingos_prs');
+        let currentPRs = rawPRs ? JSON.parse(rawPRs) : [];
+        let newCount = 0;
+
+        logs.forEach(log => {
+          if (!log || !Array.isArray(log.ejercicios)) return;
+          const logDate = log.fecha || new Date().toISOString();
+
+          log.ejercicios.forEach(ex => {
+            if (!ex || !ex.id || !Array.isArray(ex.seriesLog)) return;
+            const validSets = ex.seriesLog.filter(s => s && s.done && parseFloat(s.carga) > 0 && parseInt(s.reps) > 0);
+            if (validSets.length === 0) return;
+
+            let max1RM = 0;
+            let bestCarga = 0;
+            let bestReps = 0;
+
+            validSets.forEach(s => {
+              const c = parseFloat(s.carga);
+              const r = parseInt(s.reps);
+              const est = estimate1RM(c, r, 'epley');
+              if (est > max1RM) {
+                max1RM = est;
+                bestCarga = c;
+                bestReps = r;
+              }
+            });
+
+            if (max1RM > 0) {
+              const recordId = `pr-backfill-${ex.id}-${new Date(logDate).getTime()}`;
+              const exists = currentPRs.some(p => p.id === recordId || (p.exerciseId === ex.id && p.fecha === logDate));
+              if (!exists) {
+                currentPRs.push({
+                  id: recordId,
+                  exerciseId: ex.id,
+                  exerciseName: ex.nombre || ex.name || 'Ejercicio',
+                  atletaId: log.atletaId || log.atleta_id || 'atleta-local',
+                  fecha: logDate,
+                  valor: Math.round(max1RM * 10) / 10,
+                  cargaReal: bestCarga,
+                  repsReales: bestReps,
+                  unidad: 'kg'
+                });
+                newCount++;
+              }
+            }
+          });
+        });
+
+        if (newCount > 0) {
+          currentPRs.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+          localStorage.setItem('trainingos_prs', JSON.stringify(currentPRs));
+          setPrs(currentPRs);
+          console.log(`[PRBackfill] ¡Éxito! Se generaron ${newCount} registros de PRs retroactivos en localStorage.`);
+        } else {
+          console.log('[PRBackfill] Se escanearon los logs pero no había PRs nuevos que añadir.');
+        }
+
+        return { processedLogs: logs.length, newPRs: newCount };
+      } catch (err) {
+        console.error('[PRBackfill] Error ejecutando backfill:', err);
+        return { error: err.message };
+      }
+    };
+  }, []);
+
   // Sincronizar PRs desde Google Sheets al iniciar
   useEffect(() => {
     const syncPRsFromSheets = async () => {
       const demoMode = localStorage.getItem('trainingos_demo_mode') === 'true';
       if (!USE_SHEETS || demoMode) return;
       try {
-        const atletaId = import.meta.env.VITE_ATLETA_ID || 'v-atleta-1';
+        const storedAuth = localStorage.getItem('trainingos_auth_user');
+        const atletaId = storedAuth ? JSON.parse(storedAuth).id : null;
+        if (!atletaId) return;
         const res = await getPRs(atletaId);
         if (res && res.rows) {
           const mapped = res.rows.map(r => ({
@@ -103,7 +184,7 @@ export function PRProvider({ children }) {
       id: prData.id || `pr-${Date.now()}`,
       exerciseId: prData.exerciseId,
       exerciseName: prData.exerciseName,
-      atletaId: prData.atletaId || 'v-atleta-1',
+      atletaId: prData.atletaId || 'atleta-local',
       fecha: prData.fecha || new Date().toISOString(),
       valor: prData.valor, // 1RM est
       cargaReal: prData.cargaReal,
