@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { playShortBeep, playLongBeep, playWorkBeep, playRestBeep, playSound, SOUND_PRESETS, vibrateShort, vibrateLong } from '../utils/audio';
+import { playShortBeep, playWorkBeep, playRestBeep, playSound, SOUND_PRESETS, vibrateShort, vibrateLong, unlockAudio } from '../utils/audio';
 
 // Estado global de entrenamiento interactivo
 const TimerContext = createContext();
@@ -33,6 +33,27 @@ export function TimerProvider({ children }) {
     completionSoundRef.current = soundId;
     setCompletionSoundState(soundId);
     localStorage.setItem('trainingos_completion_sound', soundId);
+  };
+
+  // Solicitar permisos de notificación al montar
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  const triggerCompletionNotification = () => {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification('TrainingOS — Tiempo de Descanso Completado', {
+          body: '¡A por la siguiente serie!',
+          icon: '/icon-180.png',
+          vibrate: [300, 150, 300]
+        });
+      } catch (e) {
+        console.warn('[TimerContext] Notification error:', e);
+      }
+    }
   };
 
   // Core Engine mutable para evitar re-renderizados colosales
@@ -84,6 +105,10 @@ export function TimerProvider({ children }) {
         playSound(completionSoundRef.current);
         vibrateLong();
         
+        if (document.visibilityState === 'hidden') {
+          triggerCompletionNotification();
+        }
+        
         if (mode === 'rest') {
             setTimeout(() => {
                setShowRestModal(false);
@@ -100,6 +125,9 @@ export function TimerProvider({ children }) {
                setStatus('completed');
                playSound(completionSoundRef.current);
                vibrateLong();
+               if (document.visibilityState === 'hidden') {
+                 triggerCompletionNotification();
+               }
                return { ...cfg, currentPhase: 'finished' };
             }
 
@@ -171,11 +199,13 @@ export function TimerProvider({ children }) {
   // --- ACCIONES MAESTRAS ---
 
   const startStopwatch = () => {
+    unlockAudio();
     engineRef.current.elapsedMs = 0;
     setMode('stopwatch'); setTimeMs(0); setStatus('running');
   };
 
   const startCountdown = (totalMs) => {
+    unlockAudio();
     engineRef.current.targetTime = totalMs;
     engineRef.current.targetTimestamp = Date.now() + totalMs;
     lastBeepSecRef.current = null;
@@ -184,6 +214,7 @@ export function TimerProvider({ children }) {
   };
 
   const startRest = (seconds) => {
+    unlockAudio();
     const ms = seconds * 1000;
     engineRef.current.targetTime = ms;
     engineRef.current.targetTimestamp = Date.now() + ms;
@@ -193,6 +224,7 @@ export function TimerProvider({ children }) {
   };
 
   const startHiit = (workS, restS, rounds) => {
+    unlockAudio();
     const wMs = workS * 1000;
     engineRef.current.targetTime = wMs;
     engineRef.current.targetTimestamp = Date.now() + wMs;
@@ -203,16 +235,19 @@ export function TimerProvider({ children }) {
   };
 
   const startTabata = () => {
+    unlockAudio();
     startHiit(20, 10, 8);
     setMode('tabata');
   };
 
   const pauseTimer = () => setStatus('paused');
   const resumeTimer = () => {
+     unlockAudio();
      engineRef.current.lastTick = performance.now();
      engineRef.current.targetTimestamp = Date.now() + engineRef.current.targetTime;
      setStatus('running');
   };
+
   const stopTimer = () => {
     setStatus('idle');
     setMode(null);

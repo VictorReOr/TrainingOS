@@ -130,15 +130,40 @@ export function suggestLoad({
 }) {
 
   // PASO 1 — 1RM actual
-  const exercisePRs = prs.filter(
-    pr => pr.exerciseId === exerciseId
+  const safePRs = Array.isArray(prs) ? prs : [];
+  const exercisePRs = safePRs.filter(
+    pr => pr && pr.exerciseId === exerciseId
   );
-  if (exercisePRs.length === 0) return null;
   
-  const bestPR = exercisePRs.reduce(
-    (max, pr) => pr.valor > max.valor ? pr : max
-  );
-  const oneRM = bestPR.valor;
+  let oneRM = 0;
+  if (exercisePRs.length > 0) {
+    const bestPR = exercisePRs.reduce(
+      (max, pr) => pr.valor > max.valor ? pr : max
+    );
+    oneRM = bestPR.valor;
+  } else if (Array.isArray(sessionLogs) && sessionLogs.length > 0) {
+    // Fallback dinámico: calcular mejor 1RM desde sessionLogs si prs aún no se ha poblado
+    let maxEst = 0;
+    sessionLogs.forEach(log => {
+      if (!log || !Array.isArray(log.ejercicios)) return;
+      log.ejercicios.forEach(ex => {
+        if (!ex || ex.id !== exerciseId || !Array.isArray(ex.seriesLog)) return;
+        ex.seriesLog.forEach(s => {
+          if (s && s.done && parseFloat(s.carga) > 0 && parseInt(s.reps) > 0) {
+            const c = parseFloat(s.carga);
+            const r = parseInt(s.reps);
+            const est = c * (1 + r / 30); // Epley
+            if (est > maxEst) maxEst = est;
+          }
+        });
+      });
+    });
+    if (maxEst > 0) {
+      oneRM = Math.round(maxEst * 10) / 10;
+    }
+  }
+
+  if (oneRM <= 0) return null;
 
   // PASO 2 — Parsear reps
   const reps = parseReps(targetReps);
