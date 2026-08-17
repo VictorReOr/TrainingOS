@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { useAthlete } from './context/AthleteContext';
+import { useRemoteLogSync } from './hooks/useRemoteLogSync';
 import BottomNav from './components/BottomNav';
 import Home from './pages/Home';
 import Plan from './pages/Plan';

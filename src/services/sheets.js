@@ -10,6 +10,8 @@ import { auth } from '../config/firebase';
 const API_URL = import.meta.env.VITE_SHEETS_API_URL;
 console.log('[DEBUG] API_URL activa:', API_URL);
 
+export const USE_SHEETS = !!import.meta.env.VITE_SHEETS_API_URL && import.meta.env.VITE_USE_MOCK !== 'true';
+
 export function getAtletaId() {
   return auth.currentUser?.uid || null;
 }
