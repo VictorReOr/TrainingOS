@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { saveLog as _saveLog } from '../services/sheets';
 import { usePR } from './PRContext';
-import { useAthlete } from './AthleteContext';
 import { useAuth } from './AuthContext';
 import { estimate1RM } from '../engine/performance/utils/oneRMEstimators';
 
@@ -11,7 +10,6 @@ const SessionContext = createContext();
 
 export function SessionProvider({ children }) {
   const { savePRRecord } = usePR();
-  const { athlete } = useAthlete();
   const { currentUser } = useAuth();
 
   const [activeSession, setActiveSession] = useState(null);
@@ -250,7 +248,13 @@ export function SessionProvider({ children }) {
         });
 
         if (max1RM > 0) {
-          const targetAtletaId = currentUser?.id || athlete?.id;
+          let storedAthleteId = null;
+          try {
+            const rawAth = localStorage.getItem('trainingos_athlete');
+            if (rawAth) storedAthleteId = JSON.parse(rawAth)?.id;
+          } catch (_) {}
+
+          const targetAtletaId = currentUser?.id || storedAthleteId;
           if (!targetAtletaId) {
             console.warn('[SessionContext] No se guardó el PR: falta un atletaId (currentUser/athlete) válido.');
           } else {
