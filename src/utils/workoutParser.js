@@ -288,7 +288,7 @@ function calculateExerciseSeconds(ex, isIntermediateInSuperset = false) {
           block.execution = {
             type: 'SUPERSET',
             exerciseRoles: {},
-            restProfile: { mode: 'PRESET', presetId: 'SUPERSET_DEFAULT' }
+            restProfile: { mode: 'PRESET', presetId: 'SUPERSET_STRENGTH' }
           };
         }
       });
