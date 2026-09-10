@@ -8,6 +8,9 @@ import SessionReadView from '../../components/planner/SessionReadView';
 import { usePlanner } from '../../context/PlannerContext';
 import { SESSION_TYPES } from '../../data/mockPlanner';
 import ExportSessionModal from '../../components/ExportSessionModal';
+import { EXERCISE_LIBRARY } from '../../data/exerciseLibrary';
+import { matchExerciseId } from '../../utils/exerciseMatcher';
+
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const generateId = (prefix = 'id') => `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -134,13 +137,35 @@ export default function SessionEditor() {
       showToast('Error: no se pudo añadir el ejercicio');
       return;
     }
+
+    // Resolver ID canónico si el ejercicio ya tiene nombre (o usar ID si ya es canónico)
+    let initialId = exercise.id;
+    if (exercise.name && exercise.name.trim()) {
+      const matched = matchExerciseId(exercise.name.trim(), EXERCISE_LIBRARY);
+      if (matched) {
+        initialId = matched;
+      } else {
+        const slug = exercise.name
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toLowerCase()
+          .replace(/[^a-z0-9\s-]/g, '')
+          .replace(/\s+/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-+|-+$/g, '');
+        initialId = slug ? `custom-${slug}` : generateId('ex');
+      }
+    } else if (!initialId || initialId.startsWith('ex-new')) {
+      initialId = generateId('ex');
+    }
+
     setDraft(prev => {
       const newBlocks = [...prev.blocks];
       newBlocks[targetBlockIdx] = {
         ...newBlocks[targetBlockIdx],
         exercises: [
           ...newBlocks[targetBlockIdx].exercises,
-          { ...exercise, id: generateId('ex') },
+          { ...exercise, id: initialId },
         ],
       };
       return { ...prev, blocks: newBlocks };
@@ -160,11 +185,43 @@ export default function SessionEditor() {
   // ── Guardado como plantilla ──────────────────────────────────────────────────
   // Helper: persiste sin navegar
   const _persistDraft = () => {
+    // Normalizar y resolver IDs de los ejercicios en todos los bloques antes de persistir
+    const normalizedBlocks = draft.blocks.map(block => ({
+      ...block,
+      exercises: (block.exercises || []).map(ex => {
+        const trimmedName = (ex.name || '').trim();
+        if (!trimmedName) return ex;
+
+        // 1. Intentar resolver con la biblioteca o tabla de aliases
+        const matched = matchExerciseId(trimmedName, EXERCISE_LIBRARY);
+        if (matched) {
+          return { ...ex, id: matched };
+        }
+
+        // 2. Si no match y no tiene ya un ID canónico de librería (lib-*)
+        if (!ex.id || !ex.id.startsWith('lib-')) {
+          const slug = trimmedName
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-+|-+$/g, '');
+          const customId = slug ? `custom-${slug}` : (ex.id || generateId('ex'));
+          return { ...ex, id: customId };
+        }
+
+        return ex;
+      })
+    }));
+
     const template = {
       ...draft,
+      blocks: normalizedBlocks,
       updatedAt: new Date().toISOString(),
-      exercises: draft.blocks.reduce((acc, b) => acc + b.exercises.length, 0),
-      duration: draft.blocks.reduce((acc, b) => acc + (parseInt(b.duration) || 0), 0),
+      exercises: normalizedBlocks.reduce((acc, b) => acc + b.exercises.length, 0),
+      duration: normalizedBlocks.reduce((acc, b) => acc + (parseInt(b.duration) || 0), 0),
     };
     saveSessionTemplate(template);
     return template;

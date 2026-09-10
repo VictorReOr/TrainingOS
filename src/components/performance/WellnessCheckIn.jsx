@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useReadiness } from '../../context/ReadinessContext';
+import { calculateReadinessAdjuster } from '../../utils/overloadEngine';
 
 const METRICS = [
   {
@@ -15,10 +16,9 @@ const METRICS = [
     icon: '😤',
     options: ['😤','😟','😐','🙂','😊'],
     descriptions: ['Muy alto','Alto','Moderado','Bajo','Sin estrés'],
-    inverted: true, // 1=bad, 5=good
   },
   {
-    key: 'energy',  // mapped to 'fatigue' inverted in saveWellness
+    key: 'energy',
     label: 'Energía',
     icon: '⚡',
     options: ['😴','😐','🙂','😊','🤩'],
@@ -28,13 +28,13 @@ const METRICS = [
     key: 'doms',
     label: 'Dolor muscular',
     icon: '🦵',
-    options: ['🤩','😊','😐','😟','😤'],
-    descriptions: ['Sin dolor','Leve','Moderado','Fuerte','Muy fuerte'],
+    options: ['😤','😟','😐','😊','🤩'],
+    descriptions: ['Muy fuerte','Fuerte','Moderado','Leve','Sin dolor'],
   },
 ];
 
 export default function WellnessCheckIn({ onDismiss }) {
-  const { saveWellness } = useReadiness();
+  const { saveWellness, cmjStats } = useReadiness();
 
   const [values, setValues] = useState({
     sleep: null, stress: null, energy: null, doms: null,
@@ -50,14 +50,34 @@ export default function WellnessCheckIn({ onDismiss }) {
     if (!allFilled || submitting) return;
     setSubmitting(true);
     try {
-      // Map energy (1-5) → fatigue (5-1, inverted: high energy = low fatigue)
-      const fatigueVal = values.energy ? 6 - values.energy : 3;
-      await saveWellness({
+      // En la escala unificada (1=pésimo, 5=óptimo), energía=5 equivale a fatiga=5 (ninguna fatiga)
+      const fatigueVal = values.energy || 5;
+      const wellRecord = await saveWellness({
         sleep:   values.sleep,
         stress:  values.stress,
         doms:    values.doms,
         fatigue: fatigueVal,
       });
+
+      // Calcular readiness adjuster y persistir en sessionStorage
+      // (idéntico al flujo de ReadinessModal.jsx legacy, para que
+      // SetLoggerSheet.jsx reciba loadFactor/seriesModifier correctos).
+      // cmjToday = null porque este componente no captura salto CMJ;
+      // si hay historial CMJ, cmjStats.avg30d alimenta el cálculo parcialmente.
+      const cmjAvg = cmjStats?.avg30d > 0 ? cmjStats.avg30d : null;
+      const adjuster = calculateReadinessAdjuster(wellRecord, null, cmjAvg);
+
+      sessionStorage.setItem('trainingos_today_readiness', JSON.stringify({
+        factor:   adjuster.loadFactor,
+        modifier: adjuster.seriesModifier,
+        score:    adjuster.readinessScore,
+        status:   adjuster.status,
+        message:  adjuster.message,
+      }));
+
+      // Notificar a SetLoggerSheet (y cualquier otro listener) del nuevo valor
+      window.dispatchEvent(new Event('readiness_checkin_completed'));
+
       onDismiss?.();
     } catch (e) {
       console.error('[WellnessCheckIn] Error:', e);

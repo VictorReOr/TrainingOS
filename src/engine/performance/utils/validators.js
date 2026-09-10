@@ -120,12 +120,15 @@ function normalizeAthlete(athlete) {
 function normalizeHistory(history) {
   if (!Array.isArray(history)) return [];
   return history.map(ex => ({
-    exerciseId: ex.exerciseId ?? ex.id ?? '',
-    exerciseName: ex.exerciseName ?? ex.name ?? '',
-    pattern: ex.pattern ?? 'knee_dominant',
-    systemicCost: ex.systemicCost ??
+    exerciseId:       ex.exerciseId ?? ex.id ?? '',
+    exerciseName:     ex.exerciseName ?? ex.name ?? '',
+    pattern:          ex.pattern ?? 'unspecified',
+    systemicCost:     ex.systemicCost ??
       PERFORMANCE_CONFIG.fatigue.defaultExerciseCost,
-    sportTransfer: ex.sportTransfer ?? 5,
+    sportTransfer:    ex.sportTransfer ?? 5,
+    // Propagar campos de modelo de progresión (null si no existen → compatibilidad legacy)
+    progressionModel: ex.progressionModel ?? null,
+    exerciseType:     ex.exerciseType     ?? null,
     sessions: Array.isArray(ex.sessions)
       ? ex.sessions.map(s => ({
           date: s.date ?? new Date().toISOString(),

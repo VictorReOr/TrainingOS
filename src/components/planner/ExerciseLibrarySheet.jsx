@@ -116,7 +116,7 @@ export default function ExerciseLibrarySheet({ open, onClose, onSelectExercise }
                 <button
                   key={ex.id}
                   onClick={() => onSelectExercise({
-                    id: `ex-lib-${Date.now()}`,
+                    id: ex.id,
                     name: ex.name,
                     series: ex.defaultSeries,
                     reps: ex.defaultReps || '',

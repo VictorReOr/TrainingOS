@@ -1,5 +1,6 @@
 export const PERFORMANCE_CONFIG = {
-  version: '1.0.0',
+  version: '2.0.0',
+  warmupSessionsCount: 5,
 
   // ═══════════════════════════════════
   // ÍNDICE DE FATIGA (IFS)

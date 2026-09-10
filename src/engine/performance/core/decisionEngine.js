@@ -6,7 +6,7 @@ import { PERFORMANCE_CONFIG } from '../performanceConfig.js';
  * en todos los índices (Wave 1 + Wave 2)
  */
 export function computeDecisions(
-  input, indices, config = PERFORMANCE_CONFIG) {
+  input, indices, config = PERFORMANCE_CONFIG, sessionIntent = null) {
   
   const recommendations = [];
   
@@ -145,13 +145,17 @@ export function computeDecisions(
       });
     }
   }
+
+  // Ajuste de prioridades por SessionIntent (no-op cuando sessionIntent=null)
+  // Debe aplicarse ANTES del sort para que el reordenamiento sea efectivo.
+  const weighted = applyIntentWeighting(recommendations, sessionIntent);
   
   // Ordenar por prioridad
   const priorityOrder = {
     critical: 0, high: 1, 
     medium: 2, low: 3
   };
-  recommendations.sort((a,b) => 
+  weighted.sort((a,b) => 
     (priorityOrder[a.priority] ?? 3) - 
     (priorityOrder[b.priority] ?? 3)
   );
@@ -166,7 +170,7 @@ export function computeDecisions(
   );
   
   return { 
-    recommendations, 
+    recommendations: weighted, 
     globalTrafficLight,
     exerciseDecisions
   };
@@ -230,13 +234,59 @@ function buildExerciseDecisions(indices, input) {
          indices.progression.exerciseDecisions
        )) {
     decisions[exId] = {
-      trafficLight: decision.trafficLight,
-      suggestedLoadDelta: 
-        decision.suggestedLoadDelta,
-      isStagnating: decision.isStagnating,
-      reasoning: decision.reasoning
+      trafficLight:       decision.trafficLight,
+      suggestedLoadDelta: decision.suggestedLoadDelta,
+      suggestedActionType: decision.suggestedActionType ?? null,
+      progressionModel:   decision.progressionModel    ?? null,
+      isStagnating:       decision.isStagnating,
+      reasoning:          decision.reasoning
     };
   }
   
   return decisions;
+}
+
+/**
+ * applyIntentWeighting
+ *
+ * Ajusta las prioridades de las recomendaciones según el SessionIntent del día.
+ * Reglas explícitas y auditables:
+ *
+ *   - null (sin intent) → no-op total, devuelve el array con las mismas prioridades.
+ *   - 'POWER' | 'REACTIVE':
+ *       Las recomendaciones de tipo 'pattern' provenientes de sportTransfer
+ *       (identificadas por la presencia de data.weakPillars) que tengan
+ *       priority === 'medium' ascienden a 'high', porque en sesiones de
+ *       potencia/reactivo los déficits de transferencia son más urgentes.
+ *   - 'RECOVERY':
+ *       Ninguna recomendación de tipo 'volume' o 'pattern' sube de prioridad
+ *       (la única prioridad que debe dominar ese día es la de recuperación).
+ *       No se bajan prioridades ya existentes — solo se bloquean ascensos.
+ *
+ * @param {Array}       recommendations  - Array de recomendaciones construido por computeDecisions.
+ * @param {string|null} sessionIntent    - SessionIntent enum value, o null.
+ * @returns {Array} Nuevo array con prioridades ajustadas (no muta el original).
+ */
+function applyIntentWeighting(recommendations, sessionIntent) {
+  // no-op: sin intent declarado
+  if (!sessionIntent) return recommendations;
+
+  return recommendations.map(rec => {
+    // Copia defensiva del objeto para no mutar el original
+    const r = { ...rec };
+
+    if (sessionIntent === 'POWER' || sessionIntent === 'REACTIVE') {
+      // Ascender a 'high' las recomendaciones de transferencia deportiva con prioridad 'medium'.
+      // Se identifican por: type === 'pattern' Y data.weakPillars presente (generadas en sección 6).
+      if (r.type === 'pattern' && r.priority === 'medium' && r.data?.weakPillars) {
+        r.priority = 'high';
+      }
+    }
+
+    // RECOVERY: bloquear ascensos en tipos 'volume' y 'pattern' (nada de lo que ya sea high/critical cambia).
+    // Para RECOVERY no hacemos ningún ascenso — la función devuelve el rec sin modificar priority.
+    // (No hay else if porque RECOVERY es el estado por defecto: no tocar nada.)
+
+    return r;
+  });
 }

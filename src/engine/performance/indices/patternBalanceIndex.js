@@ -20,7 +20,9 @@ export function computePatternBalanceIndex(
 
   for (const exercise of input.exerciseHistory) {
     const pattern = exercise.pattern;
-    if (!pattern || pattern === 'cardio') continue;
+    // 'cardio' and 'unspecified' are excluded from all ratio calculations:
+    // unspecified = unknown biomechanical pattern (coach hasn't classified it yet).
+    if (!pattern || pattern === 'cardio' || pattern === 'unspecified') continue;
 
     for (const session of exercise.sessions) {
       if (new Date(session.date).getTime() < cutoff) continue;

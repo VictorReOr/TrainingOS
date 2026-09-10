@@ -13,7 +13,25 @@ console.log('[DEBUG] API_URL activa:', API_URL);
 export const USE_SHEETS = !!import.meta.env.VITE_SHEETS_API_URL && import.meta.env.VITE_USE_MOCK !== 'true';
 
 export function getAtletaId() {
-  return auth.currentUser?.uid || null;
+  if (auth.currentUser?.uid) return auth.currentUser.uid;
+  try {
+    const meta = localStorage.getItem('trainingos_user_meta');
+    if (meta) {
+      const parsed = JSON.parse(meta);
+      if (parsed?.uid) return parsed.uid;
+    }
+    const athleteProfile = localStorage.getItem('trainingos_athlete_profile');
+    if (athleteProfile) {
+      const parsed = JSON.parse(athleteProfile);
+      if (parsed?.id) return parsed.id;
+    }
+    const athlete = localStorage.getItem('trainingos_athlete');
+    if (athlete) {
+      const parsed = JSON.parse(athlete);
+      if (parsed?.id) return parsed.id;
+    }
+  } catch (_) {}
+  return import.meta.env.VITE_ATLETA_ID || null;
 }
 
 // ─── Base request ─────────────────────────────────────────────────────────────

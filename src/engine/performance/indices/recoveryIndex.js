@@ -31,11 +31,11 @@ export function computeRecoveryIndex(input, config = PERFORMANCE_CONFIG) {
   // Normalize 1-5 → 0-1
   const norm = x => (x - 1) / 4;
 
-  // Stress and soreness are inverted (5 = worst)
+  // Escala unificada 1-5 (1 = peor estado, 5 = estado óptimo)
   const sleepScore    = norm(wb.sleep);
-  const stressScore   = norm(6 - wb.stress);
+  const stressScore   = norm(wb.stress);
   const energyScore   = norm(wb.energy);
-  const sorenessScore = norm(6 - wb.muscleSoreness);
+  const sorenessScore = norm(wb.muscleSoreness);
 
   // Days since last session
   const restScore = computeRestScore(input.exerciseHistory, cfg);

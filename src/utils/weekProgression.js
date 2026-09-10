@@ -106,9 +106,14 @@ export function applyApprovedProgression(sourceWeekTemplates, approvedItems) {
             ...exercise,
             prescribedLoad: approved.approvedLoad,
             carga: approved.approvedLoad,
+            loadRef: approved.approvedLoad,
+            log: [],
           };
         }
-        return { ...exercise };
+        return {
+          ...exercise,
+          log: [],
+        };
       }),
     })),
   }));

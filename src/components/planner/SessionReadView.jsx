@@ -2,11 +2,26 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSession } from '../../context/SessionContext';
 import { usePlanner } from '../../context/PlannerContext';
+import { useAthlete } from '../../context/AthleteContext';
 import { useRole } from '../../hooks/useRole';
-import { saveLog as _saveLog } from '../../services/sheets';
+import { saveLog as _saveLog, getAtletaId } from '../../services/sheets';
 import { MOCK_SESSION_DETAILS } from '../../data/mockPlanner';
 import { MOCK_SESSION } from '../../data/mockSession';
-import { X, Play, Clock, Dumbbell, UploadCloud, ClipboardEdit, Check, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import {
+  X,
+  Play,
+  Clock,
+  Dumbbell,
+  UploadCloud,
+  ClipboardEdit,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Trash2,
+  Pencil,
+  ClipboardList,
+  MessageSquare
+} from 'lucide-react';
 import ExportSessionModal from '../ExportSessionModal';
 import FeedbackSection from '../FeedbackSection';
 
@@ -17,21 +32,21 @@ const SUPERSET_COLOR_CYCLE = ['signal-orange', 'belt-gold', 'corner-red'];
 const SUPERSET_STYLES = {
   'signal-orange': {
     border: 'border-l-signal-orange',
-    bg: 'bg-signal-orange/5',
+    bg: 'bg-signal-orange/[0.03]',
     badgeText: 'text-signal-orange',
     badgeBorder: 'border-signal-orange/25',
     badgeBg: 'bg-signal-orange/10',
   },
   'belt-gold': {
     border: 'border-l-belt-gold',
-    bg: 'bg-belt-gold/5',
+    bg: 'bg-belt-gold/[0.03]',
     badgeText: 'text-belt-gold',
     badgeBorder: 'border-belt-gold/25',
     badgeBg: 'bg-belt-gold/10',
   },
   'corner-red': {
     border: 'border-l-corner-red',
-    bg: 'bg-corner-red/5',
+    bg: 'bg-corner-red/[0.03]',
     badgeText: 'text-corner-red',
     badgeBorder: 'border-corner-red/25',
     badgeBg: 'bg-corner-red/10',
@@ -39,10 +54,10 @@ const SUPERSET_STYLES = {
 };
 
 const INTENSITY_COLORS = {
-  'Baja':   { bg: 'rgba(39,174,96,0.15)',   text: '#27ae60' },
-  'Media':  { bg: 'rgba(61,125,212,0.15)',  text: '#3d7dd4' },
-  'Alta':   { bg: 'rgba(245,166,35,0.15)',  text: '#f5a623' },
-  'Máxima': { bg: 'rgba(232,65,42,0.15)',   text: '#e8412a' },
+  'Baja':   { bg: 'bg-success-green/10', text: 'text-success-green', border: 'border-success-green/25' },
+  'Media':  { bg: 'bg-corner-blue/10',   text: 'text-corner-blue',   border: 'border-corner-blue/25' },
+  'Alta':   { bg: 'bg-signal-orange/10', text: 'text-signal-orange', border: 'border-signal-orange/25' },
+  'Máxima': { bg: 'bg-corner-red/10',    text: 'text-corner-red',    border: 'border-corner-red/25' },
 };
 
 const isPastOrToday = (dayDate) => {
@@ -192,8 +207,6 @@ function RetroactiveLogger({ blocks, sessionId, sessionName, dayDate, onSaved, o
         retroactive: true,              // audit flag
       };
 
-      console.log('FECHA GUARDADA:', logEntry.fecha);
-
       // Persist to localStorage — same pattern as SessionContext.saveSession
       const existing = JSON.parse(localStorage.getItem(LS_SESSION_LOGS) || '[]');
       localStorage.setItem(LS_SESSION_LOGS, JSON.stringify([logEntry, ...existing]));
@@ -217,13 +230,13 @@ function RetroactiveLogger({ blocks, sessionId, sessionName, dayDate, onSaved, o
   if (saved) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-10">
-        <div className="w-14 h-14 rounded-full bg-[#27ae60]/15 border border-[#27ae60]/30 flex items-center justify-center">
-          <Check size={28} className="text-[#27ae60]" />
+        <div className="w-14 h-14 rounded-full bg-success-green/10 border border-success-green/30 flex items-center justify-center">
+          <Check size={28} className="text-success-green" />
         </div>
-        <p className="font-condensed font-black text-lg text-white uppercase tracking-wide">
+        <p className="font-condensed font-black text-xl text-ink uppercase tracking-wide">
           Sesión guardada
         </p>
-        <p className="font-mono text-[10px] text-white/50 uppercase tracking-wider">
+        <p className="font-mono text-[10px] text-muted uppercase tracking-wider">
           {formatFullDate(dayDate)}
         </p>
       </div>
@@ -236,24 +249,24 @@ function RetroactiveLogger({ blocks, sessionId, sessionName, dayDate, onSaved, o
     <div className="flex flex-col gap-4">
       {/* Wizard progress */}
       <div className="flex items-center justify-between">
-        <span className="font-mono text-[9px] text-white/40 uppercase tracking-widest">
+        <span className="font-mono text-[10px] text-muted uppercase tracking-widest font-bold">
           {ex._blockName}
         </span>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setExIndex(i => Math.max(0, i - 1))}
             disabled={exIndex === 0}
-            className="p-1.5 rounded-lg border border-white/10 text-white/40 disabled:opacity-30 hover:border-white/30 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg border border-border text-muted disabled:opacity-30 hover:border-signal-orange hover:text-signal-orange transition-colors cursor-pointer"
           >
             <ChevronLeft size={14} />
           </button>
-          <span className="font-mono text-[9px] text-white/50">
+          <span className="font-mono text-[10px] font-bold text-ink">
             {exIndex + 1} / {allExercises.length}
           </span>
           <button
             onClick={() => setExIndex(i => Math.min(allExercises.length - 1, i + 1))}
             disabled={exIndex === allExercises.length - 1}
-            className="p-1.5 rounded-lg border border-white/10 text-white/40 disabled:opacity-30 hover:border-white/30 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg border border-border text-muted disabled:opacity-30 hover:border-signal-orange hover:text-signal-orange transition-colors cursor-pointer"
           >
             <ChevronRight size={14} />
           </button>
@@ -261,71 +274,73 @@ function RetroactiveLogger({ blocks, sessionId, sessionName, dayDate, onSaved, o
       </div>
 
       {/* Progress bar */}
-      <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
+      <div className="w-full h-1.5 bg-bg border border-border rounded-full overflow-hidden">
         <div
-          className="h-full bg-accent rounded-full transition-all duration-300"
+          className="h-full bg-signal-orange rounded-full transition-all duration-300"
           style={{ width: `${((exIndex + 1) / allExercises.length) * 100}%` }}
         />
       </div>
 
       {/* Exercise name */}
-      <div>
-        <p className="font-condensed font-black text-xl text-white leading-tight">{ex.name}</p>
-        <p className="font-mono text-[9px] text-white/40 uppercase tracking-widest mt-0.5">
+      <div className="bg-bg/40 p-3 rounded-xl border border-border">
+        <p className="font-condensed font-black text-xl text-ink leading-tight uppercase">{ex.name}</p>
+        <p className="font-mono text-[10px] text-muted uppercase tracking-widest mt-0.5 font-bold">
           {ex.series || ex.sets || 3} series · {(ex.reps ?? ex.targetReps) ?? '—'} reps
         </p>
       </div>
 
       {/* Series rows */}
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {exLogs.map((log, idx) => (
           <div
             key={idx}
             className={`rounded-xl border transition-all duration-200 overflow-hidden ${
-              log.done ? 'border-accent/60 bg-accent/5' : 'border-white/10 bg-white/3'
+              log.done ? 'border-signal-orange/60 bg-signal-orange/[0.04]' : 'border-border bg-card'
             }`}
           >
             <div className="flex items-center gap-3 px-3 py-2.5">
               {/* Done toggle */}
               <button
                 onClick={() => toggleSet(idx)}
-                className={`w-8 h-8 flex-shrink-0 flex items-center justify-center rounded-lg border-2 transition-all duration-200 cursor-pointer ${
-                  log.done ? 'bg-accent border-accent' : 'bg-transparent border-white/20 hover:border-accent'
+                className={`w-8 h-8 shrink-0 flex items-center justify-center rounded-lg border-2 transition-all duration-200 cursor-pointer ${
+                  log.done ? 'bg-signal-orange border-signal-orange text-white' : 'bg-bg border-border hover:border-signal-orange'
                 }`}
               >
                 {log.done && <Check size={14} strokeWidth={3} className="text-white" />}
               </button>
-              <span className="font-mono font-black text-xs text-white/40 w-6">S{idx + 1}</span>
+              <span className="font-mono font-black text-xs text-muted w-6">S{idx + 1}</span>
 
               {/* Inputs */}
               <div className="flex-1 grid grid-cols-2 gap-2">
                 <div className="flex flex-col">
-                  <label className="text-[8px] text-white/30 font-mono font-bold uppercase tracking-widest mb-0.5">kg</label>
+                  <label className="text-[8px] text-muted font-mono font-bold uppercase tracking-widest mb-0.5">kg</label>
                   <input
                     type="number"
                     inputMode="decimal"
                     value={log.carga}
                     onChange={e => updateLog(idx, 'carga', e.target.value)}
                     placeholder="0.0"
-                    className="w-full bg-white/5 border border-white/15 rounded-lg px-2.5 py-1.5 text-sm font-mono font-bold text-white focus:border-accent outline-none transition-colors"
+                    min="0"
+                    max="500"
+                    className="w-full bg-bg border border-border rounded-lg px-2.5 py-1.5 text-sm font-mono font-bold text-ink focus:border-signal-orange outline-none transition-colors"
                   />
                 </div>
                 <div className="flex flex-col">
-                  <label className="text-[8px] text-white/30 font-mono font-bold uppercase tracking-widest mb-0.5">reps</label>
+                  <label className="text-[8px] text-muted font-mono font-bold uppercase tracking-widest mb-0.5">reps</label>
                   <input
                     type="text"
                     inputMode="text"
                     value={log.reps}
                     onChange={e => updateLog(idx, 'reps', e.target.value)}
                     placeholder={ex.reps || ex.targetReps || '0'}
-                    className="w-full bg-white/5 border border-white/15 rounded-lg px-2.5 py-1.5 text-sm font-mono font-bold text-white focus:border-accent outline-none transition-colors"
+                    className="w-full bg-bg border border-border rounded-lg px-2.5 py-1.5 text-sm font-mono font-bold text-ink focus:border-signal-orange outline-none transition-colors"
                   />
                 </div>
               </div>
             </div>
 
             {/* RPE */}
-            <div className="px-3 pb-2 pl-[3.25rem]">
+            <div className="px-3 pb-2.5 pl-[3.25rem]">
               <div className="flex items-center gap-1">
                 {[6, 7, 8, 9, 10].map(val => (
                   <button
@@ -333,8 +348,8 @@ function RetroactiveLogger({ blocks, sessionId, sessionName, dayDate, onSaved, o
                     onClick={() => updateLog(idx, 'rpe', val)}
                     className={`flex-1 py-1 rounded-md text-[10px] font-mono font-bold border transition-all cursor-pointer ${
                       log.rpe === val
-                        ? 'bg-accent border-accent text-white'
-                        : 'bg-transparent border-white/10 text-white/40 hover:border-accent/50'
+                        ? 'bg-signal-orange border-signal-orange text-white'
+                        : 'bg-bg border-border text-muted hover:border-signal-orange/50'
                     }`}
                   >
                     {val}
@@ -350,14 +365,14 @@ function RetroactiveLogger({ blocks, sessionId, sessionName, dayDate, onSaved, o
       <div className="flex gap-2 pt-1">
         <button
           onClick={onCancel}
-          className="flex-1 py-3 rounded-xl border border-white/10 text-white/50 font-mono font-bold text-xs uppercase tracking-wide hover:border-white/25 transition-colors cursor-pointer"
+          className="flex-1 py-3 rounded-xl border border-border text-muted font-condensed font-black text-xs uppercase tracking-wide hover:bg-bg transition-colors cursor-pointer"
         >
           Cancelar
         </button>
         {exIndex < allExercises.length - 1 ? (
           <button
             onClick={() => setExIndex(i => i + 1)}
-            className="flex-[2] py-3 rounded-xl bg-white/10 border border-white/15 text-white font-condensed font-black text-base uppercase tracking-wide hover:bg-white/15 transition-colors cursor-pointer flex items-center justify-center gap-2"
+            className="flex-[2] py-3 rounded-xl bg-bg border border-border text-ink font-condensed font-black text-base uppercase tracking-wide hover:bg-border/30 transition-colors cursor-pointer flex items-center justify-center gap-2"
           >
             Siguiente <ChevronRight size={16} />
           </button>
@@ -365,7 +380,7 @@ function RetroactiveLogger({ blocks, sessionId, sessionName, dayDate, onSaved, o
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex-[2] py-3 rounded-xl bg-accent font-condensed font-black text-white text-base uppercase tracking-wider shadow-lg shadow-accent/25 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
+            className="flex-[2] py-3 rounded-xl bg-signal-orange font-condensed font-black text-white text-base uppercase tracking-wider shadow-md shadow-signal-orange/20 active:scale-[0.98] transition-all cursor-pointer disabled:opacity-60 flex items-center justify-center gap-2"
           >
             {isSaving ? 'Guardando…' : <><Check size={16} /> Guardar sesión</>}
           </button>
@@ -379,6 +394,7 @@ function RetroactiveLogger({ blocks, sessionId, sessionName, dayDate, onSaved, o
 export default function SessionReadView({ session, dayDate, dayLabel, onClose }) {
   const navigate = useNavigate();
   const { loadSession } = useSession();
+  const { athlete } = useAthlete();
   const { sessionTemplates, weekAssignments, assignSessionToDay, removeSessionFromDay } = usePlanner();
   const { isCoach } = useRole();
   const [isVisible, setIsVisible] = useState(false);
@@ -512,61 +528,69 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
       {/* Backdrop */}
       <div
         onClick={handleClose}
-        className={`fixed inset-0 bg-black/70 z-[80] transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+        className={`fixed inset-0 bg-ink/50 backdrop-blur-xs z-[80] transition-opacity duration-300 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
       />
 
-      {/* Sheet — 95% height */}
+      {/* Sheet — 94% height max, modern TrainingOS theme */}
       <div
-        className={`fixed bottom-0 left-0 w-full rounded-t-3xl z-[80] transition-transform duration-300 ease-out flex flex-col`}
+        className={`fixed bottom-0 left-0 w-full rounded-t-3xl z-[80] transition-transform duration-300 ease-out flex flex-col bg-card border-t border-border shadow-2xl`}
         style={{
-          height: '95dvh',
-          background: 'linear-gradient(180deg, #1a1f2e 0%, #0f1117 100%)',
+          maxHeight: '94dvh',
           transform: isVisible ? 'translateY(0)' : 'translateY(100%)',
         }}
       >
-        {/* Handle + close */}
-        <div className="flex items-center justify-between px-5 pt-3 pb-2 shrink-0 relative">
-          <button
-            onClick={handleDeleteSession}
-            title="Borrar entrenamiento"
-            className="flex items-center gap-1.5 px-3 py-1 bg-corner-red/10 text-corner-red rounded-full border border-corner-red/20 hover:bg-corner-red/20 active:scale-95 transition-all text-xs font-mono font-bold uppercase tracking-wider cursor-pointer z-10"
-          >
-            <Trash2 size={14} /> Borrar
-          </button>
-          <div className="w-10 h-1.5 bg-white/20 rounded-full mx-auto absolute left-1/2 -translate-x-1/2" />
-          <button onClick={handleClose} className="p-1.5 bg-white/10 text-white/60 rounded-full border border-white/10 hover:bg-white/20 transition-colors cursor-pointer z-10">
-            <X size={18} />
-          </button>
-        </div>
+        {/* Drag handle */}
+        <div className="w-12 h-1 bg-border rounded-full mx-auto my-3 shrink-0" />
 
         {/* HEADER */}
-        <div className="px-5 pt-2 pb-5 border-b border-white/5 shrink-0">
-          {/* Badges */}
-          <div className="flex items-center gap-2 mb-3 flex-wrap">
-            <span className="text-xs font-black px-3 py-1 rounded-full bg-white/10 text-white/60 tracking-widest">
-              {dayLabel ? dayLabel.toUpperCase() : ''} · {formatFullDate(dayDate)}
-            </span>
-            {isToday && (
-              <span className="text-[11px] font-black px-2.5 py-1 rounded-full bg-accent/20 text-accent border border-accent/30 tracking-widest flex items-center gap-1">
-                <span className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse inline-block" /> HOY
+        <div className="px-5 pb-4 border-b border-border shrink-0">
+          {/* Top row: Badges + Action Buttons (Delete & Close) */}
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[11px] font-condensed font-black px-3 py-1 rounded-full bg-bg text-muted border border-border tracking-wider uppercase">
+                {dayLabel ? dayLabel.toUpperCase() : ''} · {formatFullDate(dayDate)}
               </span>
-            )}
-            {isPast && !isToday && (
-              <span className={`text-[11px] font-black px-2.5 py-1 rounded-full tracking-widest ${
-                hasLog
-                  ? 'bg-[#27ae60]/15 text-[#27ae60] border border-[#27ae60]/30'
-                  : 'bg-white/10 text-white/50'
-              }`}>
-                {hasLog ? '✓ REGISTRADO' : 'PENDIENTE'}
-              </span>
-            )}
+              {isToday && (
+                <span className="text-[10px] font-condensed font-black px-2.5 py-1 rounded-full bg-signal-orange/10 text-signal-orange border border-signal-orange/30 tracking-wider flex items-center gap-1.5 uppercase">
+                  <span className="w-1.5 h-1.5 bg-signal-orange rounded-full animate-pulse inline-block" /> HOY
+                </span>
+              )}
+              {isPast && !isToday && (
+                <span className={`text-[10px] font-condensed font-black px-2.5 py-1 rounded-full border tracking-wider uppercase ${
+                  hasLog
+                    ? 'bg-success-green/10 text-success-green border-success-green/30'
+                    : 'bg-bg text-muted border-border'
+                }`}>
+                  {hasLog ? '✓ REGISTRADO' : 'PENDIENTE'}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={handleDeleteSession}
+                title="Borrar entrenamiento"
+                className="p-2 text-muted hover:text-corner-red hover:bg-corner-red/10 rounded-full transition-colors cursor-pointer"
+              >
+                <Trash2 size={17} />
+              </button>
+              <button
+                onClick={handleClose}
+                title="Cerrar"
+                className="p-2 text-muted hover:text-ink hover:bg-bg rounded-full transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
 
-          {/* Session title — text-white for contrast on dark bg */}
-          <div className="flex items-start gap-3">
-            <span className="text-4xl">{currentSession.icon}</span>
+          {/* Session title + Icon */}
+          <div className="flex items-start gap-3.5">
+            <div className="w-14 h-14 rounded-2xl bg-bg border border-border flex items-center justify-center text-3xl shrink-0 shadow-xs">
+              {currentSession.icon || '🏋️'}
+            </div>
             <div className="flex-1 min-w-0">
-              <div className="flex items-start gap-2">
+              <div className="flex items-center gap-2">
                 {isEditingName ? (
                   <input
                     type="text"
@@ -574,36 +598,40 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
                     onChange={(e) => setEditedName(e.target.value)}
                     onBlur={handleSaveName}
                     onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
-                    className="font-condensed font-black text-3xl text-white leading-tight bg-transparent border-b-2 border-accent outline-none w-full"
+                    className="font-condensed font-black text-2xl text-ink leading-tight bg-transparent border-b-2 border-signal-orange outline-none w-full uppercase"
                     autoFocus
                   />
                 ) : (
                   <>
-                    <h2 className="font-condensed font-black text-3xl text-white leading-tight break-words">{currentSession.name}</h2>
+                    <h2 className="font-condensed font-black text-2xl md:text-3xl text-ink leading-tight uppercase tracking-tight break-words">
+                      {currentSession.name}
+                    </h2>
                     <button
                       onClick={() => {
                         setEditedName(currentSession.name);
                         setIsEditingName(true);
                       }}
-                      className="text-white/40 hover:text-white mt-1.5 cursor-pointer shrink-0"
+                      className="text-muted hover:text-signal-orange transition-colors cursor-pointer shrink-0 p-1"
+                      title="Editar nombre"
                     >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                      <Pencil size={16} />
                     </button>
                   </>
                 )}
               </div>
+
+              {/* Metrics pills */}
               <div className="flex items-center gap-3 mt-2 flex-wrap">
-                <div className="flex items-center gap-1.5 text-sm text-white/50">
-                  <Clock size={14} />
+                <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-muted">
+                  <Clock size={13} className="text-muted" />
                   <span>{currentSession.duration} min</span>
                 </div>
-                <div className="flex items-center gap-1.5 text-sm text-white/50">
-                  <Dumbbell size={14} />
+                <div className="flex items-center gap-1.5 text-xs font-mono font-bold text-muted">
+                  <Dumbbell size={13} className="text-muted" />
                   <span>{currentSession.exercises} ejercicios</span>
                 </div>
                 <span
-                  className="text-[11px] font-black px-2.5 py-1 rounded-full"
-                  style={{ backgroundColor: intCfg.bg, color: intCfg.text }}
+                  className={`text-[10px] font-condensed font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider border ${intCfg.bg} ${intCfg.text} ${intCfg.border}`}
                 >
                   {currentSession.intensity}
                 </span>
@@ -613,68 +641,81 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
         </div>
 
         {/* EXERCISE BLOCKS — scrollable */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-
-          {/* ── Retroactive Logger ── */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-bg/30">
           {showRetroLogger ? (
-            <RetroactiveLogger
-              blocks={finalBlocks}
-              sessionId={sId}
-              sessionName={currentSession.name}
-              dayDate={dayDate}
-              onSaved={() => {
-                setHasLog(true);
-                setShowRetroLogger(false);
-              }}
-              onCancel={() => setShowRetroLogger(false)}
-            />
+            <div className="bg-card rounded-2xl border border-border p-4 shadow-xs">
+              <RetroactiveLogger
+                blocks={finalBlocks}
+                sessionId={sId}
+                sessionName={currentSession.name}
+                dayDate={dayDate}
+                onSaved={() => {
+                  setHasLog(true);
+                  setShowRetroLogger(false);
+                }}
+                onCancel={() => setShowRetroLogger(false)}
+              />
+            </div>
           ) : (
             <>
               {/* Info banner */}
-              <div className="flex items-center gap-2 bg-white/4 border border-white/8 rounded-xl px-4 py-3 mb-1">
-                <span className="text-lg">📋</span>
-                <p className="text-white/50 text-xs font-bold">Vista de planificación · Solo lectura</p>
+              <div className="flex items-center gap-2.5 bg-card border border-border rounded-xl px-3.5 py-2.5 shadow-xs">
+                <ClipboardList size={16} className="text-signal-orange shrink-0" />
+                <p className="text-muted text-[11px] font-mono font-bold uppercase tracking-wider">
+                  Vista de planificación · Solo lectura
+                </p>
               </div>
 
               {/* Exercise blocks */}
               {finalBlocks.length > 0 ? (
                 finalBlocks.map((block, bi) => (
-                  <div key={block.id || bi} className="bg-white/4 rounded-2xl border border-white/8 overflow-hidden mb-3">
-                    <div className="flex items-center gap-3 px-4 py-2.5 bg-white/5 border-b border-white/5">
-                      <span className="text-xl w-6 text-center">{block.icon || '💪'}</span>
-                      <span className="font-bold text-sm text-white/80 flex-1">{block.name}</span>
+                  <div key={block.id || bi} className="bg-card rounded-2xl border border-border overflow-hidden shadow-xs mb-3">
+                    <div className="flex items-center justify-between px-4 py-2.5 bg-bg/60 border-b border-border">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">{block.icon || '💪'}</span>
+                        <span className="font-condensed font-black text-sm text-ink uppercase tracking-wider">
+                          {block.name}
+                        </span>
+                      </div>
+                      <span className="font-mono text-[10px] text-muted uppercase tracking-widest font-bold">
+                        {(block.exercises || []).length} EJ.
+                      </span>
                     </div>
+
                     {groupExercisesForRender(block.exercises || []).map((grp, gi) => {
                       if (grp.type === 'single') {
                         const ex = grp.exercises[0];
                         return (
-                          <div key={ex.id || gi} className="px-4 py-2.5 border-b border-white/5 last:border-0">
-                            <div className="flex justify-between items-center">
-                              <span className="font-bold text-sm text-white">{ex.name}</span>
-                              <div className="flex items-center gap-1.5 text-xs text-white/50">
-                                <span className="font-bold text-white/80">{ex.series}</span>×
-                                <span className="font-bold text-white/80">{ex.reps}</span>
+                          <div key={ex.id || gi} className="px-4 py-3 border-b border-border/50 last:border-0">
+                            <div className="flex justify-between items-start gap-2">
+                              <span className="font-bold text-sm text-ink leading-snug">{ex.name}</span>
+                              <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                                <span className="font-mono font-bold text-xs text-ink bg-bg px-2 py-0.5 rounded border border-border">
+                                  {ex.series} × {ex.reps}
+                                </span>
                                 {ex.suggestedWeight?.min && ex.suggestedWeight?.max && (
-                                  <>
-                                    <span className="text-white/20">·</span>
-                                    <span className="text-accent font-bold">💡 {ex.suggestedWeight.min}-{ex.suggestedWeight.max}kg</span>
-                                  </>
+                                  <span className="font-mono text-xs font-bold text-signal-orange bg-signal-orange/10 px-2 py-0.5 rounded border border-signal-orange/20">
+                                    💡 {ex.suggestedWeight.min}-{ex.suggestedWeight.max}kg
+                                  </span>
                                 )}
-                                {ex.prescribedLoad && (
-                                  <>
-                                    <span className="text-white/20">·</span>
-                                    <span className="text-white/60">{ex.prescribedLoad}kg</span>
-                                  </>
+                                {ex.prescribedLoad != null && ex.prescribedLoad !== '' && (
+                                  <span className="font-mono text-xs font-bold text-signal-orange bg-signal-orange/10 px-2 py-0.5 rounded border border-signal-orange/20">
+                                    {ex.prescribedLoad}kg
+                                  </span>
                                 )}
                                 {ex.restSeconds > 0 && (
-                                  <>
-                                    <span className="text-white/20">·</span>
-                                    <span>{ex.restSeconds}s desc.</span>
-                                  </>
+                                  <span className="font-mono text-[11px] text-muted">
+                                    {ex.restSeconds}s desc.
+                                  </span>
                                 )}
                               </div>
                             </div>
-                            {ex.notes && <p className="text-xs text-white/40 italic mt-1 bg-white/5 p-2 rounded">💡 {ex.notes}</p>}
+                            {ex.notes && (
+                              <p className="text-xs text-muted italic mt-2 bg-bg border border-border/60 p-2.5 rounded-lg flex items-start gap-1.5">
+                                <span>💡</span>
+                                <span>{ex.notes}</span>
+                              </p>
+                            )}
                           </div>
                         );
                       }
@@ -686,41 +727,47 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
                       return (
                         <div
                           key={grp.supersetId + '-' + gi}
-                          className={`border-l-[3px] ${styles.border} ${styles.bg} mb-0.5`}
+                          className={`border-l-4 ${styles.border} ${styles.bg} border-b border-border/50 last:border-b-0`}
                         >
-                          <div className="px-4 pt-2 pb-1">
-                            <span className={`font-mono text-[8px] font-bold ${styles.badgeText} border ${styles.badgeBorder} ${styles.badgeBg} px-1.5 py-0.5 rounded tracking-widest`}>
+                          <div className="px-4 pt-2.5 pb-1 flex items-center justify-between">
+                            <span className={`font-mono text-[9px] font-black uppercase tracking-widest ${styles.badgeText} bg-card border ${styles.badgeBorder} px-2 py-0.5 rounded-full`}>
                               {grp.supersetId}
+                            </span>
+                            <span className="font-mono text-[9px] text-muted uppercase tracking-wider">
+                              SUPERSET · {grp.exercises.length} EJERCICIOS
                             </span>
                           </div>
                           {grp.exercises.map((ex, ei) => (
-                            <div key={ex.id || ei} className="px-4 py-2 border-t border-white/3 first:border-t-0">
-                              <div className="flex justify-between items-center">
-                                <span className="font-bold text-sm text-white">{ex.name}</span>
-                                <div className="flex items-center gap-1.5 text-xs text-white/50">
-                                  <span className="font-bold text-white/80">{ex.series}</span>×
-                                  <span className="font-bold text-white/80">{ex.reps}</span>
+                            <div key={ex.id || ei} className="px-4 py-2.5 border-t border-border/30 first:border-t-0">
+                              <div className="flex justify-between items-start gap-2">
+                                <span className="font-bold text-sm text-ink leading-snug">{ex.name}</span>
+                                <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                                  <span className="font-mono font-bold text-xs text-ink bg-card px-2 py-0.5 rounded border border-border">
+                                    {ex.series} × {ex.reps}
+                                  </span>
                                   {ex.suggestedWeight?.min && ex.suggestedWeight?.max && (
-                                    <>
-                                      <span className="text-white/20">·</span>
-                                      <span className="text-accent font-bold">💡 {ex.suggestedWeight.min}-{ex.suggestedWeight.max}kg</span>
-                                    </>
+                                    <span className="font-mono text-xs font-bold text-signal-orange bg-signal-orange/10 px-2 py-0.5 rounded border border-signal-orange/20">
+                                      💡 {ex.suggestedWeight.min}-{ex.suggestedWeight.max}kg
+                                    </span>
                                   )}
-                                  {ex.prescribedLoad && (
-                                    <>
-                                      <span className="text-white/20">·</span>
-                                      <span className="text-white/60">{ex.prescribedLoad}kg</span>
-                                    </>
+                                  {ex.prescribedLoad != null && ex.prescribedLoad !== '' && (
+                                    <span className="font-mono text-xs font-bold text-signal-orange bg-signal-orange/10 px-2 py-0.5 rounded border border-signal-orange/20">
+                                      {ex.prescribedLoad}kg
+                                    </span>
                                   )}
                                   {ex.restSeconds > 0 && (
-                                    <>
-                                      <span className="text-white/20">·</span>
-                                      <span>{ex.restSeconds}s desc.</span>
-                                    </>
+                                    <span className="font-mono text-[11px] text-muted">
+                                      {ex.restSeconds}s desc.
+                                    </span>
                                   )}
                                 </div>
                               </div>
-                              {ex.notes && <p className="text-xs text-white/40 italic mt-1 bg-white/5 p-2 rounded">💡 {ex.notes}</p>}
+                              {ex.notes && (
+                                <p className="text-xs text-muted italic mt-2 bg-card border border-border/60 p-2.5 rounded-lg flex items-start gap-1.5">
+                                  <span>💡</span>
+                                  <span>{ex.notes}</span>
+                                </p>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -729,23 +776,24 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
                   </div>
                 ))
               ) : (
-                <div className="bg-white/4 rounded-2xl border border-white/8 p-8 text-center text-white/40">
+                <div className="bg-card rounded-2xl border border-border p-8 text-center text-muted shadow-xs">
                   <Dumbbell size={32} className="mx-auto opacity-30 mb-3" />
-                  <p className="font-bold text-white/60">Sin ejercicios planificados</p>
-                  <p className="text-sm opacity-60 mt-1">Asigna una plantilla a este día desde el editor</p>
+                  <p className="font-condensed font-black text-base text-ink uppercase">Sin ejercicios planificados</p>
+                  <p className="text-xs text-muted mt-1">Asigna una plantilla a este día desde el editor</p>
                 </div>
               )}
 
               {/* Coach Feedback / Notes */}
-              <div className="bg-white/5 rounded-2xl border border-white/10 p-4 mt-3">
-                <h4 className="font-bold text-sm text-white/80 mb-3 flex items-center gap-2">
-                  💬 Notas del entrenador
+              <div className="bg-card rounded-2xl border border-border p-4 mt-3 shadow-xs">
+                <h4 className="font-condensed font-black text-sm uppercase tracking-wider text-ink mb-3 flex items-center gap-2">
+                  <MessageSquare size={16} className="text-signal-orange" />
+                  Notas del entrenador
                 </h4>
                 <FeedbackSection
                   sessionId={sId}
-                  atletaId={import.meta.env.VITE_ATLETA_ID || 'v-atleta-1'}
+                  atletaId={athlete?.id || getAtletaId() || import.meta.env.VITE_ATLETA_ID || 'atleta-local'}
                   readOnly={!isCoach}
-                  darkMode={true}
+                  darkMode={false}
                 />
               </div>
             </>
@@ -755,12 +803,12 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
         {/* FOOTER */}
         {!showRetroLogger && (
           <div
-            className="px-4 py-4 border-t border-white/5 flex gap-2 shrink-0 flex-wrap"
-            style={{ paddingBottom: 'calc(1rem + var(--safe-bottom, 0px))' }}
+            className="px-4 py-3.5 border-t border-border bg-card flex gap-2 shrink-0 flex-wrap"
+            style={{ paddingBottom: 'calc(0.875rem + var(--safe-bottom, 0px))' }}
           >
             <button
               onClick={handleClose}
-              className="flex-1 py-3.5 rounded-2xl bg-white/5 border border-white/10 font-bold text-white/60 text-sm active:scale-[0.98] transition-transform"
+              className="py-3 px-4 rounded-xl bg-bg border border-border hover:bg-border/30 font-condensed font-black text-muted hover:text-ink text-sm uppercase tracking-wider active:scale-[0.98] transition-all cursor-pointer"
             >
               Volver
             </button>
@@ -768,36 +816,30 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
             {/* Exportar */}
             <button
               onClick={() => setShowExport(true)}
-              className="flex-1 py-3.5 rounded-2xl bg-white border-2 border-accent/30 text-accent font-condensed font-bold text-sm flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform uppercase tracking-wide"
+              className="py-3 px-3.5 rounded-xl bg-bg border border-border hover:border-signal-orange/40 text-ink font-condensed font-black text-sm uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all cursor-pointer"
             >
-              <UploadCloud size={16} /> Exportar
+              <UploadCloud size={15} />
+              <span>Exportar</span>
             </button>
 
             {/* Editar */}
             {currentSession.sessionId && (
               <button
                 onClick={() => { handleClose(); setTimeout(() => navigate(`/plan/session/${currentSession.sessionId}/edit`), 310); }}
-                className="flex-1 py-3.5 rounded-2xl bg-white/5 border border-blue/30 font-bold text-blue text-sm active:scale-[0.98] transition-transform cursor-pointer"
+                className="py-3 px-3.5 rounded-xl bg-corner-blue/10 border border-corner-blue/30 text-corner-blue hover:bg-corner-blue/20 font-condensed font-black text-sm uppercase tracking-wider flex items-center justify-center gap-1.5 active:scale-[0.98] transition-all cursor-pointer"
               >
-                ✏️ Editar
+                <Pencil size={14} />
+                <span>Editar</span>
               </button>
             )}
-
-            {/* Borrar */}
-            <button
-              onClick={handleDeleteSession}
-              className="flex-1 py-3.5 rounded-2xl bg-corner-red/10 border border-corner-red/30 font-bold text-corner-red text-sm flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform uppercase tracking-wide cursor-pointer hover:bg-corner-red/20"
-            >
-              <Trash2 size={16} /> Borrar
-            </button>
 
             {/* Registrar retroactivamente — only for past/today without log */}
             {canRegisterRetroactively && !showRetroLogger && (
               <button
                 onClick={() => setShowRetroLogger(true)}
-                className="w-full py-3.5 rounded-2xl bg-white/8 border border-white/15 font-condensed font-black text-white text-base flex items-center justify-center gap-2 active:scale-[0.98] transition-transform uppercase tracking-wide"
+                className="w-full py-3 px-4 rounded-xl bg-bg border border-border hover:border-signal-orange/50 text-ink font-condensed font-black text-sm flex items-center justify-center gap-2 uppercase tracking-wider active:scale-[0.98] transition-all cursor-pointer"
               >
-                <ClipboardEdit size={18} /> Registrar esta sesión
+                <ClipboardEdit size={16} /> Registrar esta sesión
               </button>
             )}
 
@@ -805,10 +847,10 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
             {(isToday || !isPast) && (
               <button
                 onClick={handleExecute}
-                className="flex-[2] py-3.5 rounded-2xl bg-accent font-condensed font-bold text-white text-lg flex items-center justify-center gap-2 shadow-lg shadow-accent/25 active:scale-[0.98] transition-transform"
+                className="flex-1 py-3 px-5 rounded-xl bg-signal-orange hover:bg-signal-orange/95 text-white font-condensed font-black text-base uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-signal-orange/25 active:scale-[0.98] transition-all cursor-pointer"
               >
-                <Play size={18} fill="white" />
-                {isToday ? 'Ejecutar HOY' : 'Ejecutar'}
+                <Play size={16} fill="white" />
+                <span>{isToday ? 'Ejecutar HOY' : 'Ejecutar'}</span>
               </button>
             )}
           </div>

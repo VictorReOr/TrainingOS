@@ -59,6 +59,23 @@ function evaluateExercise(exercise, cfg, wave1, config) {
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, cfg.lookbackSessions);
 
+  // Resolver modelo de progresión del ejercicio
+  // null → asumir LOAD (compatibilidad con ejercicios sin campo en la librería)
+  const progressionModel = exercise.progressionModel ?? 'LOAD';
+  const isLoadModel = progressionModel === 'LOAD';
+
+  // Mapeo: progressionModel → tipo de acción cualitativa (para no-LOAD)
+  const ACTION_TYPE_MAP = {
+    VELOCITY: 'velocity',
+    QUALITY:  'quality',
+    VOLUME:   'volume',
+    DENSITY:  'density',
+    RPE:      'effort',
+    RIR:      'effort',
+    NONE:     'none',
+  };
+  const suggestedActionType = isLoadModel ? null : (ACTION_TYPE_MAP[progressionModel] ?? 'none');
+
   if (sessions.length === 0) {
     return {
       trafficLight: {
@@ -67,7 +84,9 @@ function evaluateExercise(exercise, cfg, wave1, config) {
         action: cfg.trafficLight.yellow.action,
         simpleMessage: 'Sin historial suficiente'
       },
-      suggestedLoadDelta: 0,
+      suggestedLoadDelta: isLoadModel ? 0 : null,
+      suggestedActionType,
+      progressionModel,
       isStagnating: false,
       reasoning: 'Sin sesiones registradas'
     };
@@ -85,7 +104,7 @@ function evaluateExercise(exercise, cfg, wave1, config) {
       if (!set.done) continue;
       totalDoneSets++;
 
-      if (set.perceivedVelocity === 'slow') slowSets++;
+      if (set.perceivedVelocity === 'lenta') slowSets++;
       if (set.rir === 0) failureSets++;
       if (set.rir !== null && set.rir !== undefined && set.rir <= 1) lowRIRSets++;
       if (set.technicalQuality !== null &&
@@ -103,7 +122,7 @@ function evaluateExercise(exercise, cfg, wave1, config) {
     wave1.recovery.normalized >= cfg.trafficLight.red.maxRecoveryIndex &&
     wave1.recovery.normalized < cfg.trafficLight.green.minRecoveryIndex;
 
-  // Determinar semáforo
+  // Determinar semáforo (igual para todos los modelos de progresión)
   let color = 'green';
   const reasons = [];
 
@@ -145,11 +164,54 @@ function evaluateExercise(exercise, cfg, wave1, config) {
     }
   }
 
-  // Calcular delta de carga sugerido
-  const loadDelta = color === 'green'
-    ? cfg.loadIncrementKg :
-    color === 'red'
-    ? -cfg.loadIncrementKg : 0;
+  // ─── Delta de carga sugerido ────────────────────────────────────────────────
+  // Para LOAD: delta en kg (puede ser positivo, negativo o 0)
+  // Para no-LOAD: null (no tiene sentido expresar progresión en kg)
+  const loadDelta = isLoadModel
+    ? (color === 'green' ? cfg.loadIncrementKg : color === 'red' ? -cfg.loadIncrementKg : 0)
+    : null;
+
+  // ─── Mensajes adaptados por modelo de progresión ────────────────────────────
+  function _simpleMessage(color) {
+    if (isLoadModel) {
+      return color === 'green'
+        ? `+${cfg.loadIncrementKg}kg próxima sesión`
+        : color === 'yellow' ? 'Mismo peso esta semana'
+        : `-${cfg.loadIncrementKg}kg o menos volumen`;
+    }
+    // Mensajes cualitativos por modelo
+    if (suggestedActionType === 'none') {
+      return color === 'green' ? 'Ejecución técnica correcta'
+           : color === 'yellow' ? 'Consolidar técnica'
+           : 'Revisar ejecución';
+    }
+    if (suggestedActionType === 'velocity') {
+      return color === 'green' ? 'Aumentar altura / carga de salto'
+           : color === 'yellow' ? 'Mantener exigencia actual'
+           : 'Reducir exigencia (movimiento lento)';
+    }
+    if (suggestedActionType === 'quality') {
+      return color === 'green' ? 'Aumentar dificultad técnica'
+           : color === 'yellow' ? 'Consolidar técnica actual'
+           : 'Simplificar variante';
+    }
+    if (suggestedActionType === 'volume') {
+      return color === 'green' ? 'Añadir 1 serie próxima sesión'
+           : color === 'yellow' ? 'Mantener volumen actual'
+           : 'Reducir series o repeticiones';
+    }
+    if (suggestedActionType === 'density') {
+      return color === 'green' ? 'Reducir descanso entre series'
+           : color === 'yellow' ? 'Mantener densidad actual'
+           : 'Aumentar descanso entre series';
+    }
+    if (suggestedActionType === 'effort') {
+      return color === 'green' ? 'Aumentar esfuerzo percibido (RPE/RIR)'
+           : color === 'yellow' ? 'Mantener esfuerzo objetivo'
+           : 'Reducir esfuerzo (riesgo de sobreentrenamiento)';
+    }
+    return color === 'green' ? 'Progresar' : color === 'yellow' ? 'Mantener' : 'Reducir';
+  }
 
   // Detectar estancamiento
   const isStagnating = detectStagnation(
@@ -158,19 +220,18 @@ function evaluateExercise(exercise, cfg, wave1, config) {
 
   const trafficLight = {
     color,
-    label: color === 'green' ? 'Subir carga' :
+    label: color === 'green' ? (isLoadModel ? 'Subir carga' : 'Progresar') :
            color === 'yellow' ? 'Mantener' :
-           'Reducir carga',
+           (isLoadModel ? 'Reducir carga' : 'Reducir exigencia'),
     action: cfg.trafficLight[color].action,
-    simpleMessage: color === 'green'
-      ? `+${cfg.loadIncrementKg}kg próxima sesión` :
-      color === 'yellow' ? 'Mismo peso esta semana' :
-      `-${cfg.loadIncrementKg}kg o menos volumen`
+    simpleMessage: _simpleMessage(color)
   };
 
   return {
     trafficLight,
     suggestedLoadDelta: loadDelta,
+    suggestedActionType,
+    progressionModel,
     isStagnating,
     reasoning: reasons.length > 0
       ? reasons.join('. ')

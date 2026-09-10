@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { playShortBeep, playLongBeep, playWorkBeep, playRestBeep, playSound, SOUND_PRESETS, vibrateShort, vibrateLong } from '../utils/audio';
+import { playShortBeep, playLongBeep, playWorkBeep, playRestBeep, playSound, SOUND_PRESETS, vibrateShort, vibrateLong, unlockAudio } from '../utils/audio';
+import { scheduleTimerAlert, cancelTimerAlert } from '../utils/notifications';
 
 // Estado global de entrenamiento interactivo
 const TimerContext = createContext();
@@ -33,6 +34,43 @@ export function TimerProvider({ children }) {
     completionSoundRef.current = soundId;
     setCompletionSoundState(soundId);
     localStorage.setItem('trainingos_completion_sound', soundId);
+  };
+
+  /**
+   * Envía notificación del sistema si el temporizador finaliza con la app en segundo plano
+   * y el permiso ya ha sido otorgado por el usuario.
+   */
+  const triggerBackgroundNotification = () => {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      try {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.ready.then(reg => {
+            reg.showNotification('TrainingOS — ¡Tiempo de descanso completado!', {
+              body: 'Tu descanso ha finalizado. ¡A por la siguiente serie!',
+              icon: '/icon-192.png',
+              badge: '/icon-48.png',
+              vibrate: [300, 150, 300],
+              tag: 'trainingos-timer-alert',
+              renotify: true,
+            });
+          }).catch(() => {
+            new Notification('TrainingOS — ¡Tiempo de descanso completado!', {
+              body: 'Tu descanso ha finalizado. ¡A por la siguiente serie!',
+              icon: '/icon-180.png',
+              vibrate: [300, 150, 300]
+            });
+          });
+        } else {
+          new Notification('TrainingOS — ¡Tiempo de descanso completado!', {
+            body: 'Tu descanso ha finalizado. ¡A por la siguiente serie!',
+            icon: '/icon-180.png',
+            vibrate: [300, 150, 300]
+          });
+        }
+      } catch (e) {
+        console.warn('[TimerContext] Error enviando Notification:', e);
+      }
+    }
   };
 
   // Core Engine mutable para evitar re-renderizados colosales
@@ -83,6 +121,11 @@ export function TimerProvider({ children }) {
         setStatus('completed');
         playSound(completionSoundRef.current);
         vibrateLong();
+        cancelTimerAlert();
+        
+        if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+          triggerBackgroundNotification();
+        }
         
         if (mode === 'rest') {
             setTimeout(() => {
@@ -100,6 +143,9 @@ export function TimerProvider({ children }) {
                setStatus('completed');
                playSound(completionSoundRef.current);
                vibrateLong();
+               if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+                 triggerBackgroundNotification();
+               }
                return { ...cfg, currentPhase: 'finished' };
             }
 
@@ -171,28 +217,35 @@ export function TimerProvider({ children }) {
   // --- ACCIONES MAESTRAS ---
 
   const startStopwatch = () => {
+    unlockAudio();
     engineRef.current.elapsedMs = 0;
     setMode('stopwatch'); setTimeMs(0); setStatus('running');
   };
 
   const startCountdown = (totalMs) => {
+    unlockAudio();
     engineRef.current.targetTime = totalMs;
     engineRef.current.targetTimestamp = Date.now() + totalMs;
     lastBeepSecRef.current = null;
     setInitialTimeMs(totalMs);
     setMode('countdown'); setTimeMs(totalMs); setStatus('running');
+    scheduleTimerAlert(engineRef.current.targetTimestamp, 'TrainingOS — ¡Tiempo completado!', 'El temporizador ha finalizado.');
   };
 
   const startRest = (seconds) => {
+    // 1. Desbloqueo de audio como primera línea en el gesto directo del usuario
+    unlockAudio();
     const ms = seconds * 1000;
     engineRef.current.targetTime = ms;
     engineRef.current.targetTimestamp = Date.now() + ms;
     lastBeepSecRef.current = null;
     setInitialTimeMs(ms);
     setMode('rest'); setTimeMs(ms); setStatus('running'); setShowRestModal(true);
+    scheduleTimerAlert(engineRef.current.targetTimestamp, 'TrainingOS — ¡Descanso completado!', 'Tu descanso ha finalizado. ¡A por la siguiente serie!');
   };
 
   const startHiit = (workS, restS, rounds) => {
+    unlockAudio();
     const wMs = workS * 1000;
     engineRef.current.targetTime = wMs;
     engineRef.current.targetTimestamp = Date.now() + wMs;
@@ -200,20 +253,34 @@ export function TimerProvider({ children }) {
     setIntervalConfig({ work: wMs, rest: restS * 1000, rounds, currentPhase: 'work', currentRound: 1 });
     setMode('hiit'); setTimeMs(wMs); setStatus('running');
     playWorkBeep(); vibrateShort();
+    scheduleTimerAlert(engineRef.current.targetTimestamp, 'TrainingOS — ¡Fin de intervalo!', 'Cambio de fase en el circuito.');
   };
 
   const startTabata = () => {
+    unlockAudio();
     startHiit(20, 10, 8);
     setMode('tabata');
   };
 
-  const pauseTimer = () => setStatus('paused');
+  const pauseTimer = () => {
+    cancelTimerAlert();
+    setStatus('paused');
+  };
+  
   const resumeTimer = () => {
+     unlockAudio();
      engineRef.current.lastTick = performance.now();
      engineRef.current.targetTimestamp = Date.now() + engineRef.current.targetTime;
      setStatus('running');
+     scheduleTimerAlert(
+       engineRef.current.targetTimestamp,
+       mode === 'rest' ? 'TrainingOS — ¡Descanso completado!' : 'TrainingOS — ¡Tiempo completado!',
+       mode === 'rest' ? 'Tu descanso ha finalizado. ¡A por la siguiente serie!' : 'El temporizador ha finalizado.'
+     );
   };
+  
   const stopTimer = () => {
+    cancelTimerAlert();
     setStatus('idle');
     setMode(null);
     setTimeMs(0);
@@ -234,3 +301,4 @@ export function TimerProvider({ children }) {
 }
 
 export const useTimer = () => useContext(TimerContext);
+

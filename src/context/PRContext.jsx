@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { savePR as _savePR, getPRs, getLogs } from '../services/sheets';
+import { savePR as _savePR, getPRs, USE_SHEETS } from '../services/sheets';
 import { estimate1RM } from '../engine/performance/utils/oneRMEstimators';
-import { mergeSessionLogs } from '../utils/mergeSessionLogs';
+import { humanizeExerciseSlug } from '../utils/exerciseNaming';
 
 // ══════════════════════════════════════════════════════
 // PRContext — TrainingOS (Prompt 3.1)
@@ -9,6 +9,15 @@ import { mergeSessionLogs } from '../utils/mergeSessionLogs';
 // ══════════════════════════════════════════════════════
 
 const LS_KEY = 'trainingos_prs';
+const MAX_REASONABLE_LOAD_KG = 500; // Series con carga > 500 kg se excluyen del cálculo de PR
+
+function _bgSync(fn) {
+  const demoMode = localStorage.getItem('trainingos_demo_mode') === 'true';
+  if (!USE_SHEETS || demoMode) return;
+  Promise.resolve()
+    .then(() => typeof fn === 'function' && fn())
+    .catch(err => console.warn('[PRContext] Background sync error:', err?.message));
+}
 
 const PRContext = createContext();
 
@@ -27,101 +36,117 @@ export function PRProvider({ children }) {
     localStorage.setItem(LS_KEY, JSON.stringify(prs));
   }, [prs]);
 
-  // Exponer ÚNICAMENTE en window para invocación manual desde consola (A.2 - Sin autoejecutar)
-  useEffect(() => {
-    window.runPRBackfill = async () => {
-      console.log('[PRBackfill] Iniciando backfill manual de PRs (locales + Sheets remotos)...');
-      try {
-        const rawLocalLogs = localStorage.getItem('trainingos_session_logs');
-        let localLogs = rawLocalLogs ? JSON.parse(rawLocalLogs) : [];
+  /**
+   * Función interna que extrae, calcula y sincroniza PRs desde los logs locales.
+   * Reutilizada en el montaje, ante 'session_logs_updated' y en runPRBackfill().
+   */
+  const extractAndSyncPRsFromLogs = (logsArray = null) => {
+    try {
+      const rawLocalLogs = logsArray || localStorage.getItem('trainingos_session_logs');
+      const sessionLogs = typeof rawLocalLogs === 'string' ? JSON.parse(rawLocalLogs || '[]') : (rawLocalLogs || []);
+      if (!Array.isArray(sessionLogs) || sessionLogs.length === 0) {
+        return { processedLogs: 0, newPRs: 0 };
+      }
 
-        // 1. Descargar registros de Sheets para fusionar con local logs
-        let remoteRows = [];
-        try {
-          const res = await getLogs();
-          if (res && res.rows && Array.isArray(res.rows)) {
-            remoteRows = res.rows;
-            console.log(`[PRBackfill] Se recuperaron ${remoteRows.length} filas remotas de Sheets.`);
-          }
-        } catch (netErr) {
-          console.warn('[PRBackfill] No se pudieron descargar logs de Sheets (local-first fallback):', netErr);
-        }
+      const rawPRs = localStorage.getItem(LS_KEY);
+      let currentPRs = rawPRs ? JSON.parse(rawPRs) : [];
+      let newCount = 0;
 
-        // 2. Fusionar logs locales con remotos de Sheets
-        const mergedLogs = mergeSessionLogs(localLogs, remoteRows);
-        if (mergedLogs.length > 0) {
-          localStorage.setItem('trainingos_session_logs', JSON.stringify(mergedLogs));
-          window.dispatchEvent(new Event('session_logs_updated'));
-        }
+      sessionLogs.forEach(log => {
+        if (!log || !Array.isArray(log.ejercicios)) return;
+        const logDate = log.fecha || new Date().toISOString();
 
-        if (mergedLogs.length === 0) {
-          console.warn('[PRBackfill] No hay logs de sesión (locales ni remotos) para procesar.');
-          return { processed: 0, newPRs: 0 };
-        }
+        log.ejercicios.forEach(ex => {
+          if (!ex || !ex.id || !Array.isArray(ex.seriesLog)) return;
 
-        const rawPRs = localStorage.getItem('trainingos_prs');
-        let currentPRs = rawPRs ? JSON.parse(rawPRs) : [];
-        let newCount = 0;
+          // Filtro flexible sin depender solo de s.done; excluye cargas fuera de rango
+          const overLimitSets = ex.seriesLog.filter(s => s && parseFloat(s.carga) > MAX_REASONABLE_LOAD_KG);
+          overLimitSets.forEach(s => {
+            console.warn(
+              `[PRContext] Serie excluida del backfill de PR por carga fuera de rango: ` +
+              `ejercicio="${ex.nombre || ex.name || ex.id}", carga=${s.carga} kg (máximo permitido: ${MAX_REASONABLE_LOAD_KG} kg).`
+            );
+          });
 
-        mergedLogs.forEach(log => {
-          if (!log || !Array.isArray(log.ejercicios)) return;
-          const logDate = log.fecha || new Date().toISOString();
+          const validSets = ex.seriesLog.filter(s => s && parseFloat(s.carga) > 0 && parseFloat(s.carga) <= MAX_REASONABLE_LOAD_KG && parseFloat(s.reps) > 0);
+          if (validSets.length === 0) return;
 
-          log.ejercicios.forEach(ex => {
-            if (!ex || !ex.id || !Array.isArray(ex.seriesLog)) return;
-            const validSets = ex.seriesLog.filter(s => s && s.done && parseFloat(s.carga) > 0 && parseInt(s.reps) > 0);
-            if (validSets.length === 0) return;
+          let max1RM = 0;
+          let bestCarga = 0;
+          let bestReps = 0;
 
-            let max1RM = 0;
-            let bestCarga = 0;
-            let bestReps = 0;
-
-            validSets.forEach(s => {
-              const c = parseFloat(s.carga);
-              const r = parseInt(s.reps);
-              const est = estimate1RM(c, r, 'epley');
-              if (est > max1RM) {
-                max1RM = est;
-                bestCarga = c;
-                bestReps = r;
-              }
-            });
-
-            if (max1RM > 0) {
-              const recordId = `pr-backfill-${ex.id}-${new Date(logDate).getTime()}`;
-              const exists = currentPRs.some(p => p.id === recordId || (p.exerciseId === ex.id && p.fecha === logDate));
-              if (!exists) {
-                currentPRs.push({
-                  id: recordId,
-                  exerciseId: ex.id,
-                  exerciseName: ex.nombre || ex.name || 'Ejercicio',
-                  atletaId: log.atletaId || log.atleta_id || 'atleta-local',
-                  fecha: logDate,
-                  valor: Math.round(max1RM * 10) / 10,
-                  cargaReal: bestCarga,
-                  repsReales: bestReps,
-                  unidad: 'kg'
-                });
-                newCount++;
-              }
+          validSets.forEach(s => {
+            const c = parseFloat(s.carga);
+            const r = parseInt(s.reps);
+            const est = estimate1RM(c, r, 'epley');
+            if (est > max1RM) {
+              max1RM = est;
+              bestCarga = c;
+              bestReps = r;
             }
           });
+
+          if (max1RM > 0) {
+            const recordId = `pr-backfill-${ex.id}-${new Date(logDate).getTime()}`;
+            const exists = currentPRs.some(p => p.id === recordId || (p.exerciseId === ex.id && p.fecha === logDate));
+            if (!exists) {
+              currentPRs.push({
+                id: recordId,
+                exerciseId: ex.id,
+                exerciseName: ex.nombre || ex.name || humanizeExerciseSlug(ex.id),
+                atletaId: log.atletaId || log.atleta_id || 'atleta-local',
+                fecha: logDate,
+                valor: Math.round(max1RM * 10) / 10,
+                cargaReal: bestCarga,
+                repsReales: bestReps,
+                unidad: 'kg'
+              });
+              newCount++;
+            }
+          }
         });
+      });
 
-        if (newCount > 0) {
-          currentPRs.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-          localStorage.setItem('trainingos_prs', JSON.stringify(currentPRs));
-          setPrs(currentPRs);
-          console.log(`[PRBackfill] ¡Éxito! Se generaron ${newCount} registros de PRs retroactivos en localStorage.`);
-        } else {
-          console.log('[PRBackfill] Se escanearon los logs pero no había PRs nuevos que añadir.');
-        }
-
-        return { processedLogs: mergedLogs.length, newPRs: newCount };
-      } catch (err) {
-        console.error('[PRBackfill] Error ejecutando backfill:', err);
-        return { error: err.message };
+      if (newCount > 0) {
+        currentPRs.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+        localStorage.setItem(LS_KEY, JSON.stringify(currentPRs));
+        setPrs(currentPRs);
+        console.log(`[PRContext] Auto-sincronizados ${newCount} nuevos PRs desde el historial.`);
       }
+
+      return { processedLogs: sessionLogs.length, newPRs: newCount };
+    } catch (err) {
+      console.warn('[PRContext] Error procesando PRs locales:', err);
+      return { error: err.message };
+    }
+  };
+
+  // Auto-ejecución al montar (2.a) y escucha del evento 'session_logs_updated' (2.b)
+  useEffect(() => {
+    // 2.a: Ejecución al montar el provider
+    extractAndSyncPRsFromLogs();
+
+    // 2.b: Listener del evento 'session_logs_updated'
+    const handleLogsUpdated = () => {
+      extractAndSyncPRsFromLogs();
+    };
+
+    window.addEventListener('session_logs_updated', handleLogsUpdated);
+    window.addEventListener('new_session_saved', handleLogsUpdated);
+    window.addEventListener('storage', handleLogsUpdated);
+
+    // Exposición en window para invocación manual (reutiliza la misma función)
+    window.runPRBackfill = async () => {
+      console.log('[PRBackfill] Ejecutando extracción manual de PRs...');
+      const res = extractAndSyncPRsFromLogs();
+      console.log('[PRBackfill] Resultado:', res);
+      return res;
+    };
+
+    return () => {
+      window.removeEventListener('session_logs_updated', handleLogsUpdated);
+      window.removeEventListener('new_session_saved', handleLogsUpdated);
+      window.removeEventListener('storage', handleLogsUpdated);
     };
   }, []);
 

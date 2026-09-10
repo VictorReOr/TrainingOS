@@ -39,7 +39,12 @@ export function AthleteProvider({ children }) {
       let parsed = raw ? JSON.parse(raw) : { ...DEFAULT_ATHLETE };
       
       // Unified UID Single Source of Truth
-      parsed.id = getAtletaId();
+      const resolvedId = getAtletaId();
+      if (resolvedId) {
+        parsed.id = resolvedId;
+      } else if (!parsed.id) {
+        parsed.id = DEFAULT_ATHLETE.id;
+      }
 
       // Si tenemos meta del usuario por haber hecho login/registro
       if (userMeta) {

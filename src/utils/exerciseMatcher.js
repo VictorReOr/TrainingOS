@@ -2,6 +2,8 @@
  * Utilities for matching imported exercise names against the canonical exercise library.
  */
 
+import { getAliasTarget } from './exerciseAliases.js';
+
 export function matchExerciseId(excelExerciseName, exerciseLibrary) {
   if (!excelExerciseName) return null;
 
@@ -16,6 +18,10 @@ export function matchExerciseId(excelExerciseName, exerciseLibrary) {
 
   const normalizedInput = normalize(excelExerciseName);
 
+  // NUEVO: consulta la tabla de alias antes del match exacto
+  const aliasTarget = getAliasTarget(normalizedInput);
+  if (aliasTarget) return aliasTarget;
+
   // 2. Busca match EXACTO normalizado contra exerciseLibrary[].name
   for (const libExercise of exerciseLibrary) {
     if (normalize(libExercise.name) === normalizedInput) {
@@ -27,3 +33,4 @@ export function matchExerciseId(excelExerciseName, exerciseLibrary) {
   // 4. Si NO hay match -> retorna null
   return null;
 }
+

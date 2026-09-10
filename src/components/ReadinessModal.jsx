@@ -42,7 +42,8 @@ export default function ReadinessModal({ onClose }) {
       factor: adjuster.loadFactor,
       modifier: adjuster.seriesModifier,
       score: adjuster.readinessScore,
-      status: adjuster.status
+      status: adjuster.status,
+      message: adjuster.message,
     }));
 
     window.dispatchEvent(new Event('readiness_checkin_completed'));

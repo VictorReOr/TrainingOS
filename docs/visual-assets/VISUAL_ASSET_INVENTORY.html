@@ -1,0 +1,4098 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TrainingOS — Catálogo Visual Interactivo (Fase 3)</title>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Fonts for TrainingOS display typeface -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #0B0F17;
+      --bg-card: #131A26;
+      --bg-card-hover: #1A2333;
+      --bg-preview: #080C12;
+      --border-color: #222F44;
+      --border-highlight: #FF6B00;
+      --text-main: #F3F4F6;
+      --text-muted: #9CA3AF;
+      --text-dim: #6B7280;
+      --accent: #FF6B00;
+      --accent-glow: rgba(255, 107, 0, 0.25);
+      --accent-blue: #3B82F6;
+      --accent-green: #10B981;
+      --accent-amber: #F59E0B;
+      --accent-red: #EF4444;
+      --accent-purple: #8B5CF6;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      line-height: 1.5;
+      padding: 24px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 24px;
+      margin-bottom: 32px;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .title-area h1 {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .title-area h1 span.badge {
+      background: var(--accent);
+      color: #000;
+      font-size: 12px;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .meta-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      display: flex;
+      gap: 20px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .meta-item span.label {
+      color: var(--text-dim);
+      font-size: 10px;
+      text-transform: uppercase;
+    }
+
+    .meta-item span.val {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
+    /* Executive Summary Cards */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 14px 16px;
+      text-align: left;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--border-color);
+    }
+
+    .stat-card.accent-orange::before { background: var(--accent); }
+    .stat-card.accent-blue::before { background: var(--accent-blue); }
+    .stat-card.accent-green::before { background: var(--accent-green); }
+    .stat-card.accent-amber::before { background: var(--accent-amber); }
+    .stat-card.accent-purple::before { background: var(--accent-purple); }
+
+    .stat-card .num {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--text-main);
+      font-family: 'JetBrains Mono', monospace;
+      line-height: 1.1;
+    }
+
+    .stat-card .label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
+    /* Filter Bar */
+    .filter-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 36px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .search-box {
+      flex: 1 1 280px;
+      position: relative;
+    }
+
+    .search-box input {
+      width: 100%;
+      background: var(--bg-preview);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 14px 10px 38px;
+      color: var(--text-main);
+      font-size: 14px;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .search-box input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent-glow);
+    }
+
+    .search-box .icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-dim);
+      pointer-events: none;
+    }
+
+    .filter-selects {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .filter-selects select {
+      background: var(--bg-preview);
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .filter-selects select:focus {
+      border-color: var(--accent);
+      color: var(--text-main);
+    }
+
+    .reset-btn {
+      background: transparent;
+      border: 1px solid var(--border-color);
+      color: var(--text-muted);
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .reset-btn:hover {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-main);
+      border-color: var(--text-dim);
+    }
+
+    /* Families Section */
+    .family-block {
+      margin-bottom: 48px;
+    }
+
+    .family-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 12px;
+      margin-bottom: 20px;
+    }
+
+    .family-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .family-title h2 {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .family-title .num-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      background: rgba(255, 107, 0, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(255, 107, 0, 0.3);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+
+    .family-desc {
+      color: var(--text-muted);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    .family-count {
+      font-size: 13px;
+      color: var(--text-dim);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Asset Grid */
+    .asset-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+      gap: 18px;
+    }
+
+    /* Asset Card */
+    .asset-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .asset-card:hover {
+      border-color: rgba(255, 107, 0, 0.5);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+      transform: translateY(-2px);
+    }
+
+    /* Preview Container */
+    .preview-container {
+      background: var(--bg-preview);
+      height: 140px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid var(--border-color);
+      position: relative;
+      padding: 16px;
+      overflow: hidden;
+    }
+
+    .preview-container img {
+      max-height: 90px;
+      max-width: 80%;
+      object-fit: contain;
+    }
+
+    .preview-container .lucide-icon {
+      color: var(--accent);
+      width: 44px;
+      height: 44px;
+      stroke-width: 2px;
+    }
+
+    .preview-container .icon-group {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .preview-container .icon-group i {
+      color: var(--text-main);
+      width: 28px;
+      height: 28px;
+    }
+
+    /* Custom CSS/SVG Previews */
+    .avatar-preview {
+      width: 70px;
+      height: 70px;
+      background: #3B82F6;
+      color: #FFF;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Big Shoulders Display', sans-serif;
+      font-size: 40px;
+      font-weight: 900;
+      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    }
+
+    .traffic-light-preview {
+      display: flex;
+      gap: 8px;
+      background: #000;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid #333;
+    }
+
+    .traffic-light-preview .segment {
+      width: 28px;
+      height: 10px;
+      border-radius: 2px;
+      background: #222;
+    }
+
+    .traffic-light-preview .segment.green {
+      background: #10B981;
+      box-shadow: 0 0 10px #10B981;
+    }
+
+    .progress-bar-preview {
+      width: 80%;
+      height: 12px;
+      background: #222F44;
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .progress-bar-preview .fill {
+      width: 75%;
+      height: 100%;
+      background: linear-gradient(90deg, #FF6B00, #FFA500);
+      border-radius: 6px;
+      box-shadow: 0 0 8px rgba(255, 107, 0, 0.6);
+    }
+
+    .star-rating-preview {
+      display: flex;
+      gap: 6px;
+    }
+
+    .star-rating-preview i {
+      width: 24px;
+      height: 24px;
+      color: #FF6B00;
+      fill: #FF6B00;
+    }
+
+    .star-rating-preview i.empty {
+      color: #4B5563;
+      fill: transparent;
+    }
+
+    .speed-badges-preview {
+      display: flex;
+      gap: 8px;
+    }
+
+    .speed-badge {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .speed-badge.slow {
+      background: #2A1505;
+      border: 1px solid #FF6B00;
+      color: #FF6B00;
+    }
+
+    .speed-badge.med {
+      background: #2B2305;
+      border: 1px solid #F5A623;
+      color: #F5A623;
+    }
+
+    .speed-badge.fast {
+      background: #052B14;
+      border: 1px solid #27AE60;
+      color: #27AE60;
+    }
+
+    .block-palette-preview {
+      display: flex;
+      gap: 8px;
+    }
+
+    .block-color-circle {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.2);
+    }
+
+    .sports-grid-preview, .session-types-preview {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 90%;
+    }
+
+    .emoji-chip {
+      background: #1A2333;
+      border: 1px solid var(--border-color);
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .unavailable-preview {
+      font-size: 12px;
+      color: var(--text-dim);
+      text-align: center;
+      padding: 12px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Card Body */
+    .card-body {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      gap: 12px;
+    }
+
+    .card-title-area {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .card-title-area h3 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-main);
+      line-height: 1.3;
+    }
+
+    .card-badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .badge-tag {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .badge-tag.type {
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--accent-blue);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .badge-tag.format {
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--accent-green);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .badge-tag.lib {
+      background: rgba(139, 92, 246, 0.15);
+      color: var(--accent-purple);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+    }
+
+    .card-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Card Meta Table */
+    .meta-table {
+      width: 100%;
+      font-size: 12px;
+      margin-top: auto;
+      border-collapse: collapse;
+      border-top: 1px solid var(--border-color);
+      padding-top: 10px;
+    }
+
+    .meta-table tr {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .meta-table td {
+      padding: 4px 0;
+    }
+
+    .meta-table td.field {
+      color: var(--text-dim);
+      width: 95px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+    }
+
+    .meta-table td.val {
+      color: var(--text-main);
+      word-break: break-all;
+    }
+
+    .meta-table td.val code {
+      background: rgba(0, 0, 0, 0.3);
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-family: 'JetBrains Mono', monospace;
+      color: #E5E7EB;
+      font-size: 11px;
+    }
+
+    .card-notes {
+      font-size: 11px;
+      color: #D97706;
+      background: rgba(217, 119, 6, 0.08);
+      border: 1px solid rgba(217, 119, 6, 0.2);
+      padding: 6px 10px;
+      border-radius: 6px;
+      margin-top: 4px;
+    }
+
+    /* Footer */
+    footer {
+      border-top: 1px solid var(--border-color);
+      padding-top: 24px;
+      margin-top: 48px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 13px;
+    }
+
+    .no-results {
+      grid-column: 1 / -1;
+      padding: 48px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 15px;
+      background: var(--bg-card);
+      border-radius: 12px;
+      border: 1px dashed var(--border-color);
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <header>
+    <div class="header-top">
+      <div class="title-area">
+        <h1>
+          TrainingOS — Catálogo Visual Interactivo
+          <span class="badge">Fase 3</span>
+        </h1>
+        <p style="color: var(--text-muted); margin-top: 6px; font-size: 14px;">
+          Inventario visual completo de todos los recursos gráficos, iconos, mapas de emojis y componentes visuales.
+        </p>
+      </div>
+      <div class="meta-box">
+        <div class="meta-item">
+          <span class="label">Modelo</span>
+          <span class="val">Gemini 3.7 Flash</span>
+        </div>
+        <div class="meta-item">
+          <span class="label">Razonamiento</span>
+          <span class="val">Medium</span>
+        </div>
+        <div class="meta-item">
+          <span class="label">Fecha</span>
+          <span class="val">2026-08-20</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Executive Summary Numbers -->
+    <div class="summary-grid">
+      <div class="stat-card accent-orange">
+        <div class="num">54</div>
+        <div class="label">Recursos Catalogados</div>
+      </div>
+      <div class="stat-card accent-blue">
+        <div class="num">11</div>
+        <div class="label">Familias Funcionales</div>
+      </div>
+      <div class="stat-card accent-green">
+        <div class="num">75</div>
+        <div class="label">Iconos Lucide</div>
+      </div>
+      <div class="stat-card accent-amber">
+        <div class="num">5</div>
+        <div class="label">SVG Inline Nativo</div>
+      </div>
+      <div class="stat-card accent-purple">
+        <div class="num">16</div>
+        <div class="label">Archivos Raster / PNG</div>
+      </div>
+      <div class="stat-card">
+        <div class="num">7</div>
+        <div class="label">Mapas Dinámicos / Emojis</div>
+      </div>
+      <div class="stat-card accent-orange">
+        <div class="num">11</div>
+        <div class="label">Grupos Duplicados</div>
+      </div>
+      <div class="stat-card">
+        <div class="num">14</div>
+        <div class="label">Iconos Dormidos</div>
+      </div>
+    </div>
+
+    <!-- Filter Panel -->
+    <div class="filter-panel">
+      <div class="search-box">
+        <i data-lucide="search" class="icon" style="width: 16px; height: 16px;"></i>
+        <input type="text" id="searchInput" placeholder="Buscar por nombre, archivo, componente o descripción..." oninput="filterAssets()">
+      </div>
+      <div class="filter-selects">
+        <select id="familyFilter" onchange="filterAssets()">
+          <option value="">Todas las Familias</option>
+          <option value="fam-01">Fam 01: Brand & Identity</option><option value="fam-02">Fam 02: Navigation & Wayfinding</option><option value="fam-03">Fam 03: Session Execution & Live Workout</option><option value="fam-04">Fam 04: Training Planning & Architecture</option><option value="fam-05">Fam 05: Data & Performance Visualization</option><option value="fam-06">Fam 06: Athlete & Coach Identity</option><option value="fam-07">Fam 07: Data Management & Sync</option><option value="fam-08">Fam 08: Feedback, Alerts & System State</option><option value="fam-09">Fam 09: Sports & Wellness Vocabulary</option><option value="fam-10">Fam 10: Form & Input Affordances</option><option value="fam-unclassified">Fam 11: Unclassified & Dormant Assets</option>
+        </select>
+        <select id="typeFilter" onchange="filterAssets()">
+          <option value="">Todos los Tipos</option>
+          <option value="Icono de librería">Iconos de Librería</option>
+          <option value="Raster">Archivos Raster / PNG</option>
+          <option value="SVG Inline">SVG Inline</option>
+          <option value="CSS">Componentes CSS</option>
+          <option value="Emoji">Emojis / Mapas Dinámicos</option>
+        </select>
+        <select id="libraryFilter" onchange="filterAssets()">
+          <option value="">Todas las Librerías</option>
+          <option value="lucide-react">lucide-react</option>
+          <option value="recharts">recharts</option>
+          <option value="SVG Custom">SVG Custom / Sin librería</option>
+          <option value="Unicode">Unicode Emojis</option>
+          <option value="Archivo físico">Archivos Físicos</option>
+        </select>
+        <button class="reset-btn" onclick="resetFilters()">
+          <i data-lucide="rotate-ccw" style="width: 14px; height: 14px;"></i>
+          Restablecer
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content: Families -->
+  <main id="catalogContent">
+    
+      <section class="family-block" id="fam-01" data-family-name="Brand & Identity">
+        <div class="family-header">
+          <div class="family-title">
+            <span class="num-badge">FAMILIA 01</span>
+            <h2>Brand & Identity <span style="color: var(--text-dim); font-size: 16px; font-weight: normal;">(Marca e Identidad)</span></h2>
+          </div>
+          <span class="family-count">5 recursos</span>
+        </div>
+        <div class="family-desc">Elementos que representan a TrainingOS como producto en superficies persistentes, de arranque o a nivel de sistema operativo.</div>
+        
+        <div class="asset-grid" style="margin-top: 18px;">
+          
+    <div class="asset-card" data-id="brand-01" data-type="Raster" data-format="PNG" data-library="Archivo físico (Marca)">
+      <div class="preview-container">
+        <img src="../../public/Logo_trainingOS.png" alt="Logo horizontal oficial de la marca" onerror="this.outerHTML='<div class=\'unavailable-preview\'>Preview unavailable: Asset físico no servido en servidor local</div>'">
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Logo horizontal oficial de la marca</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Raster</span>
+          <span class="badge-tag format">PNG</span>
+          <span class="badge-tag lib">Archivo físico (Marca)</span>
+        </div>
+
+        <div class="card-desc">Logotipo completo con isotipo + wordmark "TrainingOS" en orientación horizontal.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>public/Logo_trainingOS.png</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/ (Arranque) — Splash / Pantalla de bienvenida web</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>SplashScreen.jsx (L31)</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Pantalla de carga inicial mientras se inicializa Firebase y la autenticación.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">1 componente, 1 pantalla</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Icono_trainingOS.png (isotipo aislado), splash.png nativo</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Equivalente conceptual al splash screen Android pero adaptado a web</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> 91.7 KB. Asset principal servido desde /public en el arranque web.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="brand-02" data-type="Raster" data-format="PNG" data-library="Archivo físico (Marca)">
+      <div class="preview-container">
+        <img src="../../public/Icono_trainingOS.png" alt="Isotipo fuente de alta resolución" onerror="this.outerHTML='<div class=\'unavailable-preview\'>Preview unavailable: Asset físico no servido en servidor local</div>'">
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Isotipo fuente de alta resolución</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Raster</span>
+          <span class="badge-tag format">PNG</span>
+          <span class="badge-tag lib">Archivo físico (Marca)</span>
+        </div>
+
+        <div class="card-desc">Símbolo gráfico aislado de la marca TrainingOS sin tipografía.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>public/Icono_trainingOS.png</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">— (Asset fuente) — Asset fuente de diseño</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Ninguno activo en JSX</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Fuente maestra para la generación de iconos PWA y recursos Android launcher.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">0 referencias en JSX activo</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Logo_trainingOS.png (con wordmark)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Origen vectorial/raster de los mipmaps Android y favicons</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> 215.7 KB. Máxima resolución de marca en el proyecto. No renderizado directamente en runtime.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="brand-03" data-type="Raster" data-format="PNG" data-library="Capacitor Native Plugin">
+      <div class="preview-container">
+        <img src="../../public/splash.png" alt="Splash screen nativo Android" onerror="this.outerHTML='<div class=\'unavailable-preview\'>Preview unavailable: Asset físico no servido en servidor local</div>'">
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Splash screen nativo Android</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Raster</span>
+          <span class="badge-tag format">PNG</span>
+          <span class="badge-tag lib">Capacitor Native Plugin</span>
+        </div>
+
+        <div class="card-desc">Pantalla completa de carga de la aplicación nativa generada por Capacitor.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>public/splash.png / android/res/drawable/splash.png</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">Arranque nativo OS — Splash screen nativo Android</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Capacitor SplashScreen Plugin</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Mostrado por el sistema operativo Android durante el arranque en frío.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">Configuración Capacitor + 10 densidades en res/</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Variantes land y port para mdpi, hdpi, xhdpi, xxhdpi, xxxhdpi</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">public/splash.png actúa como origen web</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> 123.8 KB (versión web). Múltiples densidades en android/app/src/main/res/.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="brand-04" data-type="Raster" data-format="PNG" data-library="PWA Standard Assets">
+      <div class="preview-container">
+        <img src="../../public/icon-192.png" alt="Iconos de App PWA y Notificaciones (Familia icon-*.png)" onerror="this.outerHTML='<div class=\'unavailable-preview\'>Preview unavailable: Asset físico no servido en servidor local</div>'">
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Iconos de App PWA y Notificaciones (Familia icon-*.png)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Raster</span>
+          <span class="badge-tag format">PNG</span>
+          <span class="badge-tag lib">PWA Standard Assets</span>
+        </div>
+
+        <div class="card-desc">Iconos en diferentes resoluciones para el launcher, PWA install y notificaciones push.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>public/icon-48, 72, 96, 180, 192, 512.png</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">Global / OS Level — Escritorio OS / Notificaciones</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>index.html, manifest.json, TimerContext.jsx (L47)</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Favicon, icono PWA en home screen y badge de notificaciones push de temporizador.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">index.html (3), manifest.json (5), TimerContext.jsx (1)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Resoluciones de 48px a 512px; icon-180 usado en TimerContext</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Variantes de escala del isotipo de marca</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> icon-180.png es el único invocado programáticamente en runtime por Notification API.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="brand-05" data-type="CSS / Tipográfico" data-format="CSS Box + Big Shoulders Display" data-library="CSS nativo + Google Fonts">
+      <div class="preview-container">
+        <div class="avatar-preview">V</div>
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Avatar Inicial Monograma del Atleta</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">CSS / Tipográfico</span>
+          <span class="badge-tag format">CSS Box + Big Shoulders Display</span>
+          <span class="badge-tag lib">CSS nativo + Google Fonts</span>
+        </div>
+
+        <div class="card-desc">Monograma tipográfico estilizado con la letra inicial del atleta cuando no hay foto.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/pages/Profile.jsx (L187)</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/profile — Perfil de usuario</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Profile.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Placeholder visual del avatar del atleta en dimensiones 80x80px sobre azul #3B82F6.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">1 componente, 1 pantalla</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Sin variante de fotografía actualmente</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Único en su implementación</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Utiliza la fuente condensada Big Shoulders Display con fondo azul hardcodeado #3B82F6.</div>
+      </div>
+    </div>
+  
+        </div>
+      </section>
+    
+      <section class="family-block" id="fam-02" data-family-name="Navigation & Wayfinding">
+        <div class="family-header">
+          <div class="family-title">
+            <span class="num-badge">FAMILIA 02</span>
+            <h2>Navigation & Wayfinding <span style="color: var(--text-dim); font-size: 16px; font-weight: normal;">(Navegación y Orientación)</span></h2>
+          </div>
+          <span class="family-count">5 recursos</span>
+        </div>
+        <div class="family-desc">Elementos de dirección, barras de navegación, flechas de retroceso, paginadores y reordenamiento.</div>
+        
+        <div class="asset-grid" style="margin-top: 18px;">
+          
+    <div class="asset-card" data-id="nav-01" data-type="Icono de librería (Dinámico)" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="home"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">home</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="calendar-days"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">calendar-days</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="play"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">play</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="timer"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">timer</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="trending-up"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">trending-up</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="users"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">users</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Barra de navegación inferior (BottomNav Tabs)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería (Dinámico)</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Acceso a las 5 pestañas principales: Inicio, Plan, Sesión, Timer, Evolución (+ Coach si rol activo).</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/components/BottomNav.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">Global (Autenticado) — Todas las pantallas con BottomNav</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>BottomNav.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Navegación primaria persistente de la app. Pasa referencias de iconos como props.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">6 iconos dinámicos (Home, CalendarDays, Play, Timer, TrendingUp, Users)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Estado activo cambia color y peso; icono conserva geometría</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Play se duplica como botón CTA; Users se duplica en Onboarding/Routines</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Renderizado dinámico mediante <Icon size={22} />.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="nav-02" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="arrow-left"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">arrow-left</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="chevron-left"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">chevron-left</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Flecha de retroceso (ArrowLeft / ChevronLeft)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Acción de volver a la pantalla o modal anterior.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>ImportSession, PerformanceDashboard, SessionDetailView, Plan, Profile, AthleteDetail, etc.</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">Subpáginas y modales — Vistas secundarias</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Cabeceras de navegación</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Botón superior izquierdo para retroceder en la jerarquía de navegación.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">ArrowLeft (4 renders), ChevronLeft (8 renders)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">ArrowLeft (flecha con asta) vs ChevronLeft (ángulo sin asta)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">DUP-NAV: Dos iconos distintos para la misma acción de volver</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Coexisten sin regla estricta que determine cuándo usar flecha vs chevron.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="nav-03" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="chevron-down"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">chevron-down</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="chevron-up"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">chevron-up</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Indicador de colapso / expansión (ChevronDown / ChevronUp)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Control para mostrar u ocultar el contenido de acordeones o tarjetas.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>EditableExercise.jsx, PerformanceDashboard.jsx, ExerciseReview.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/plan/session/new, /performance, /exercises/review — Editor de sesión, Dashboard de rendimiento</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Acordeones y tarjetas colapsables</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Conmuta visualmente entre estado colapsado (ChevronDown) y expandido (ChevronUp).</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">ChevronDown (5 renders), ChevronUp (2 renders)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">ChevronDown también se usa como selector dropdown en formularios</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Mismo icono con dos semánticas: toggle de sección y select affordance</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Animación o cambio de icono programático según estado boolean isExpanded.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="nav-04" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        <i data-lucide="chevron-right" class="lucide-icon"></i>
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Indicador de avance y drill-down (ChevronRight)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Señal de que un elemento de lista es clickeable, o avance de semana en calendario.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>Plan.jsx, SeasonList.jsx, MesocycleList.jsx, Evolution.jsx, Onboarding.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/plan, /plan/seasons, /evolution, /onboarding — Planificador, Listados de temporadas</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Listas, paginador semanal, onboarding</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Avanzar al siguiente paso, abrir detalle de elemento o navegar a la semana siguiente.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">ChevronRight (9 renders en 9 archivos)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">ArrowRight (en SetLoggerSheet) usado para transición de ejercicio</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Dormido en ImportSession.jsx y SessionDetailView.jsx</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Uno de los conectores de navegación más extendidos en la app.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="nav-05" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="arrow-up"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">arrow-up</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="arrow-down"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">arrow-down</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="move-up"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">move-up</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="move-down"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">move-down</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Controles de reordenamiento (ArrowUp / ArrowDown vs MoveUp / MoveDown)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Mover bloques o intervalos de entrenamiento hacia arriba o hacia abajo.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>EditableBlock.jsx (Arrow*), CircuitConfigurator.jsx (Move*)</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/plan/session/new, /timer (circuit) — Editor de sesión, Configurador de circuito</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>EditableBlock, CircuitConfigurator</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Reordenar la posición secuencial de bloques de entrenamiento e intervalos.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">ArrowUp (1), ArrowDown (1), MoveUp (1), MoveDown (1)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">ArrowUp/Down (flechas simples) vs MoveUp/Down (flechas con línea de base)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">DUP-ORDER: 4 iconos para el mismo concepto de cambio de orden en dos editores</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Fragmentación de librería entre el editor de bloques del plan y el configurador del timer.</div>
+      </div>
+    </div>
+  
+        </div>
+      </section>
+    
+      <section class="family-block" id="fam-03" data-family-name="Session Execution & Live Workout">
+        <div class="family-header">
+          <div class="family-title">
+            <span class="num-badge">FAMILIA 03</span>
+            <h2>Session Execution & Live Workout <span style="color: var(--text-dim); font-size: 16px; font-weight: normal;">(Ejecución de Sesión y Entrenamiento en Vivo)</span></h2>
+          </div>
+          <span class="family-count">10 recursos</span>
+        </div>
+        <div class="family-desc">Controles en tiempo real, cronómetros, temporizadores de descanso, control de volumen y registro de series.</div>
+        
+        <div class="asset-grid" style="margin-top: 18px;">
+          
+    <div class="asset-card" data-id="exec-01" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        <i data-lucide="play" class="lucide-icon"></i>
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Botón CTA de inicio de sesión de entrenamiento</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Acción principal de iniciar o reanudar un entrenamiento planificado.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>Home.jsx, DraftRecoveryModal.jsx, SessionReadView.jsx, ImportSession.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/, /plan/session-detail, /import/:code — Home, Detalle de sesión, Importación</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Botones CTA primarios</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Disparador central para entrar a la pantalla de sesión activa /session.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">Play (~4 renders específicos de inicio de sesión)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Compartido con controles de timer y navegación BottomNav</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Alta carga semántica sobre el mismo glifo Play</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Icono con triple carga funcional en la aplicación.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="exec-02" data-type="SVG Inline multicapa" data-format="SVG personalizado con defs, linearGradient, feGaussianBlur" data-library="SVG Custom / Sin librería">
+      <div class="preview-container">
+        
+        <svg width="100" height="100" viewBox="0 0 120 120">
+          <defs>
+            <linearGradient id="cr-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#FF6B00"/>
+              <stop offset="100%" stop-color="#FFA500"/>
+            </linearGradient>
+            <filter id="cr-glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+            </filter>
+          </defs>
+          <circle cx="60" cy="60" r="48" fill="none" stroke="#1A2333" stroke-width="8"/>
+          <circle cx="60" cy="60" r="48" fill="none" stroke="url(#cr-grad)" stroke-width="8" stroke-dasharray="301" stroke-dashoffset="75" stroke-linecap="round" filter="url(#cr-glow)"/>
+          <text x="60" y="66" fill="#FFF" font-family="'JetBrains Mono', monospace" font-size="18" font-weight="700" text-anchor="middle">00:45</text>
+        </svg>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Anillo 3D de cuenta regresiva (CountdownRing)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">SVG Inline multicapa</span>
+          <span class="badge-tag format">SVG personalizado con defs, linearGradient, feGaussianBlur</span>
+          <span class="badge-tag lib">SVG Custom / Sin librería</span>
+        </div>
+
+        <div class="card-desc">Anillo visual de temporizador circular con profundidad 3D, gradientes y brillo neón.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/components/timer/CountdownRing.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/timer — Temporizador y Circuit Player</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>CountdownRing.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Indicador visual primario del tiempo restante con 6 capas concéntricas y animación strokeDashoffset.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">1 componente dedicado, usado en TimerViews y CircuitPlayer</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">El color del anillo cambia según el tipo de bloque activo</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Elemento único y el más sofisticado a nivel gráfico del proyecto</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Contiene 3 gradientes lineales, 1 filtro blur neón y 6 círculos superpuestos.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="exec-03" data-type="SVG Inline" data-format="SVG nativo hardcodeado" data-library="SVG Custom">
+      <div class="preview-container">
+        
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#FF6B00" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <polyline points="12 6 12 12 16 14"/>
+        </svg>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>FAB flotante de temporizador en sesión activa</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">SVG Inline</span>
+          <span class="badge-tag format">SVG nativo hardcodeado</span>
+          <span class="badge-tag lib">SVG Custom</span>
+        </div>
+
+        <div class="card-desc">Botón de acción flotante (FAB) superpuesto para desplegar el temporizador global.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/pages/Session.jsx (L492-495)</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/session — Sesión activa de entrenamiento</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Session.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Acceso rápido persistente al timer durante el entrenamiento.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">1 render en Session.jsx</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Equivalente visual de Timer (Lucide) y Clock (Lucide)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">DUP-TIME: Coexiste con Timer, Clock, Hourglass y emoji ⏱</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> SVG con strokeWidth="3" para mayor grosor que los iconos estándar de Lucide (stroke 2).</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="exec-04" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="play"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">play</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="pause"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">pause</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="square"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">square</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Controles de reproducción del temporizador (Play / Pause / Square)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Controles clásicos multimedia adaptados al control de cronómetros e intervalos.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>TimerViews.jsx, CircuitPlayer.jsx, GlobalRestModal.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/timer, modal de descanso en /session — Temporizador, Reproductor de circuito</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>TimerViews, CircuitPlayer, GlobalRestModal</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Iniciar (Play), pausar (Pause) o detener completamente (Square) el conteo.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">Play (6), Pause (4), Square (4)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Square utilizado como convención de STOP</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Play compartido con inicio de sesión</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Sigue la metáfora universal de controles de reproducción de medios.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="exec-05" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="fast-forward"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">fast-forward</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="skip-back"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">skip-back</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="skip-forward"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">skip-forward</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Adelantar / Rebobinar temporizador e intervalos (FastForward / SkipBack / SkipForward)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Saltar +10s en descanso, o navegar al intervalo anterior/siguiente de un circuito.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>GlobalRestModal.jsx, TimerViews.jsx, CircuitPlayer.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/timer, modal descanso — Temporizador e intervalos</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>GlobalRestModal, CircuitPlayer</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">+10s de descanso (FastForward), intervalo previo (SkipBack), intervalo siguiente (SkipForward).</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">FastForward (2), SkipBack (1), SkipForward (1)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Navegación temporal vs navegación de lista de ejercicios</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Ninguno</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Uso consistente en el subsistema de temporizadores.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="exec-06" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        <i data-lucide="rotate-ccw" class="lucide-icon"></i>
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Reinicio de temporizador o descarte de borrador (RotateCcw)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Reiniciar el contador a 0 o descartar el borrador para reiniciar la sesión.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>TimerViews.jsx, DraftRecoveryModal.jsx, ProgressBar.jsx, Evolution.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/timer, /, /evolution — Temporizador, Modal de recuperación, Evolución</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>TimerViews, DraftRecoveryModal, ProgressBar, Evolution</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Resetear timer (TimerViews), descartar borrador (DraftRecovery), limpiar filtros (Evolution).</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">RotateCcw (4 renders en 4 archivos)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Tres funciones semánticas totalmente distintas con el mismo icono</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">DUP-RESET: Timer reset vs Draft discard vs Filter clear</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Icono multiuso con sobrecarga conceptual.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="exec-07" data-type="CSS animado" data-format="CSS Gradient + animación flash-green" data-library="CSS nativo">
+      <div class="preview-container">
+        
+        <div class="progress-bar-preview">
+          <div class="fill"></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Barra de progreso de sesión con animación flash</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">CSS animado</span>
+          <span class="badge-tag format">CSS Gradient + animación flash-green</span>
+          <span class="badge-tag lib">CSS nativo</span>
+        </div>
+
+        <div class="card-desc">Progreso porcentual de la sesión en curso con destello verde al completar el 100%.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/components/ProgressBar.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/session — Sesión activa</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>ProgressBar.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Feedback continuo del avance del entrenamiento.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">1 componente</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Sin variantes</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Único en la sesión activa</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Acompañado de texto dinámico de motivación y porcentaje.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="exec-08" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        <i data-lucide="history" class="lucide-icon"></i>
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Referencia histórica de carga (History)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Indica que los datos de carga mostrados corresponden a la semana anterior.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/components/SetLoggerSheet.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/session — Registro de series</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>SetLoggerSheet.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Marcador junto a los kg/reps de referencia del ciclo anterior.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">History (1 render)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Sin variantes</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Uso específico y no duplicado</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Significado de dominio muy concreto: "carga de la semana pasada".</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="exec-09" data-type="Emoji + Badge CSS" data-format="Unicode Emoji + CSS border/bg" data-library="Unicode Emojis">
+      <div class="preview-container">
+        
+        <div class="speed-badges-preview">
+          <div class="speed-badge slow">🐢 Lenta</div>
+          <div class="speed-badge med">⚡ Media</div>
+          <div class="speed-badge fast">🚀 Rápida</div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Velocidad percibida de la serie (Badges 🐢 / ⚡ / 🚀)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Emoji + Badge CSS</span>
+          <span class="badge-tag format">Unicode Emoji + CSS border/bg</span>
+          <span class="badge-tag lib">Unicode Emojis</span>
+        </div>
+
+        <div class="card-desc">Clasificación de la velocidad de ejecución: Lenta (grinding), Media o Rápida (explosiva).</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/components/SetLoggerSheet.jsx (L571-575)</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/session — Registro de series</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>SetLoggerSheet.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Tagging de velocidad percibida por serie para análisis de velocidad / RPE.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">3 emojis, 1 componente</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">🐢 Lenta (#FF6B00), ⚡ Media (#f5a623), 🚀 Rápida (#27ae60)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">⚡ colisiona con Potencia, Energía y Carga Aguda</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Parte esencial del motor de autorregulación del entrenamiento.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="exec-10" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="hourglass"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">hourglass</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="volume-2"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">volume-2</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="music"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">music</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="play-circle"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">play-circle</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Temporizador de descanso y control de audio (Hourglass, Volume2, Music, PlayCircle)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Acceso a descanso automático, control de volumen y selector de tono acústico.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>SetLoggerSheet.jsx, GlobalRestModal.jsx, Profile.jsx, CircuitConfigurator.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/session, /profile, /timer — Sesión activa, Ajustes, Circuito</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>SetLoggerSheet, GlobalRestModal, Profile, CircuitConfigurator</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Hourglass (mini-timer), Volume2 (volumen), Music (tono), PlayCircle (test tono).</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">Hourglass (1), Volume2 (3), Music (1), PlayCircle (1)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Distintos controles del subsistema acústico/temporal</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Hourglass vs Timer en el mismo SetLoggerSheet</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Conjunto de affordances auxiliares de audio y descanso.</div>
+      </div>
+    </div>
+  
+        </div>
+      </section>
+    
+      <section class="family-block" id="fam-04" data-family-name="Training Planning & Architecture">
+        <div class="family-header">
+          <div class="family-title">
+            <span class="num-badge">FAMILIA 04</span>
+            <h2>Training Planning & Architecture <span style="color: var(--text-dim); font-size: 16px; font-weight: normal;">(Planificación y Arquitectura del Entrenamiento)</span></h2>
+          </div>
+          <span class="family-count">6 recursos</span>
+        </div>
+        <div class="family-desc">Bloques de trabajo, tipos de sesión, repetición de semanas, edición de ejercicios y estructura macro/mesociclo.</div>
+        
+        <div class="asset-grid" style="margin-top: 18px;">
+          
+    <div class="asset-card" data-id="plan-01" data-type="CSS / Paleta de colores" data-format="CSS circular badges con hex codes" data-library="CSS + Lucide (Check, Plus, Trash2)">
+      <div class="preview-container">
+        
+        <div class="block-palette-preview">
+          <div class="block-color-circle" style="background:#f5a623;" title="Preparación"></div>
+          <div class="block-color-circle" style="background:#e67e22;" title="Calentamiento"></div>
+          <div class="block-color-circle" style="background:#FF6B00;" title="Trabajo"></div>
+          <div class="block-color-circle" style="background:#3d7dd4;" title="Descanso"></div>
+          <div class="block-color-circle" style="background:#27ae60;" title="Cooldown"></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Paleta de colores de tipos de bloque (BlockTypeSelector)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">CSS / Paleta de colores</span>
+          <span class="badge-tag format">CSS circular badges con hex codes</span>
+          <span class="badge-tag lib">CSS + Lucide (Check, Plus, Trash2)</span>
+        </div>
+
+        <div class="card-desc">Clasificación cromática de bloques de entrenamiento: Preparación, Calentamiento, Trabajo, Descanso, Cooldown.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/components/timer/BlockTypeSelector.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/plan/session/new, /timer — Editor de sesión y configurador de bloques</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>BlockTypeSelector.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Asignar tipo y color al bloque. El tipo seleccionado se marca con un icono Check.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">1 componente, 5 tipos estándar + custom</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Preparación (#f5a623), Calentamiento (#e67e22), Trabajo (#FF6B00), Descanso (#3d7dd4), Cooldown (#27ae60)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Sistema paralelo a SESSION_TYPES de mockPlanner.js</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> El color del bloque se propaga a CountdownRing y badges de la sesión.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="plan-02" data-type="Mapa dinámico (Emoji + Color)" data-format="JavaScript Object en mockPlanner.js" data-library="Unicode Emojis">
+      <div class="preview-container">
+        
+        <div class="session-types-preview">
+          <span class="emoji-chip" style="border-color:#e8412a;">⚡ Potencia</span>
+          <span class="emoji-chip" style="border-color:#3d7dd4;">🏋️ Fuerza</span>
+          <span class="emoji-chip" style="border-color:#8e44ad;">💪 Hipertrofia</span>
+          <span class="emoji-chip" style="border-color:#f5a623;">🥋 TKD</span>
+          <span class="emoji-chip" style="border-color:#16a085;">🚴 Cardio</span>
+          <span class="emoji-chip" style="border-color:#2a3050;">😴 Descanso</span>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Mapa de tipos de sesión (SESSION_TYPES)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Mapa dinámico (Emoji + Color)</span>
+          <span class="badge-tag format">JavaScript Object en mockPlanner.js</span>
+          <span class="badge-tag lib">Unicode Emojis</span>
+        </div>
+
+        <div class="card-desc">Tipología global de sesiones: Potencia ⚡, Fuerza 🏋️, Hipertrofia 💪, TKD 🥋, Sparring 🥊, Cardio 🚴, Descanso 😴, Libre 🎯.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/data/mockPlanner.js (L230-239)</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/plan, tarjetas de sesión — Calendario semanal y vista de plan</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Consumido por múltiples componentes de plan</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Define el color, icono emoji y etiqueta de cada sesión en el planificador.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">8 tipos de sesión estructurados</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Cada deporte/tipo tiene su código cromático y emoji asociado</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Los emojis se comparten con DEFAULT_SPORTS</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Es el registro maestro de la identidad visual de las sesiones.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="plan-03" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="more-vertical"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">more-vertical</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="copy"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">copy</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="trash-2"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">trash-2</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="plus"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">plus</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Acciones del editor de bloques (MoreVertical, Copy, Trash2, Plus)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Menú contextual, duplicación, eliminación y adición de bloques de entrenamiento.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/components/planner/EditableBlock.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/plan/session/new, /plan/session/:id/edit — Editor de sesión</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>EditableBlock.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Gestión estructural del bloque dentro de la sesión.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">MoreVertical (1), Copy (1), Trash2 (1), Plus (1)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Trash2 consistente en toda la app</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Copy usado para duplicar y para copiar al portapapeles</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Patrón de acciones estándar para contenedores de bloques.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="plan-04" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="plus"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">plus</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="minus"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">minus</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="trash-2"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">trash-2</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Controles de ejercicio en bloque (Plus / Minus / Trash2)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Ajuste de series (incrementar/decrementar) y eliminación de ejercicio del bloque.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/components/planner/EditableExercise.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/plan/session/new — Editor de sesión</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>EditableExercise.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Añadir/quitar series planificadas y eliminar el ejercicio.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">Plus (1), Minus (1), Trash2 (1)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Plus aquí es control de cantidad (no de creación)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Plus tiene doble rol: creador de items vs contador cuantitativo</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Controles numéricos de micro-ajuste de volumen.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="plan-05" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="calendar"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">calendar</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="layers"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">layers</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="target"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">target</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="repeat"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">repeat</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Estructura macro/mesociclo (Calendar, Layers, Target, Repeat)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Unidades temporales superiores: temporadas, capas de mesociclo, objetivos y replicación de semanas.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>SeasonList.jsx, MesocycleList.jsx, WeekRepetitionModal.jsx, Plan.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/plan/seasons, /plan/seasons/:id, /plan — Jerarquía de planificación</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>SeasonList, MesocycleList, WeekRepetitionModal</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Visualizar temporadas (Calendar), fases (Layers), objetivos (Target) y clonar semanas (Repeat).</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">Calendar (2), Layers (2), Target (1), Repeat (3)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Calendar vs CalendarDays</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Repeat se usa para clonar semana y para generar circuitos</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Iconografía de alto nivel para periodización deportiva.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="plan-06" data-type="SVG Inline (Duplicado en 2 archivos)" data-format="SVG path hardcodeado" data-library="SVG Custom / Sin librería">
+      <div class="preview-container">
+        
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#FF6B00" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+        </svg>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Renombrar sesión inline (Lápiz SVG Duplicado)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">SVG Inline (Duplicado en 2 archivos)</span>
+          <span class="badge-tag format">SVG path hardcodeado</span>
+          <span class="badge-tag lib">SVG Custom / Sin librería</span>
+        </div>
+
+        <div class="card-desc">Edición in-place rápida del nombre de la sesión.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/pages/Home.jsx (L152) y src/components/planner/SessionReadView.jsx (L592)</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/ y vista de lectura de plan — Home y Detalle de lectura</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Home.jsx, SessionReadView.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Habilitar input editable directo sobre el título de la sesión.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">2 renders idénticos en 2 archivos</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Pencil de Lucide en Profile.jsx</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">DUP-SVG-PENCIL: Mismo SVG copiado en dos componentes en lugar de usar Lucide</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Único caso de SVG inline duplicado textualmente en dos archivos.</div>
+      </div>
+    </div>
+  
+        </div>
+      </section>
+    
+      <section class="family-block" id="fam-05" data-family-name="Data & Performance Visualization">
+        <div class="family-header">
+          <div class="family-title">
+            <span class="num-badge">FAMILIA 05</span>
+            <h2>Data & Performance Visualization <span style="color: var(--text-dim); font-size: 16px; font-weight: normal;">(Visualización de Datos y Rendimiento)</span></h2>
+          </div>
+          <span class="family-count">6 recursos</span>
+        </div>
+        <div class="family-desc">Gráficos Recharts, micro-gráficos Sparkline, marcador TrafficLightBadge, trofeos, rachas y métricas calculadas.</div>
+        
+        <div class="asset-grid" style="margin-top: 18px;">
+          
+    <div class="asset-card" data-id="vis-01" data-type="Librería de gráficos" data-format="SVG generado por Recharts v3.8.1" data-library="recharts (v3.8.1)">
+      <div class="preview-container">
+        
+        <svg width="160" height="50" viewBox="0 0 160 50">
+          <rect x="15" y="20" width="16" height="30" fill="#FF6B00" rx="2"/>
+          <rect x="45" y="10" width="16" height="40" fill="#3B82F6" rx="2"/>
+          <rect x="75" y="25" width="16" height="25" fill="#10B981" rx="2"/>
+          <rect x="105" y="15" width="16" height="35" fill="#F5A623" rx="2"/>
+          <rect x="135" y="5" width="16" height="45" fill="#8B5CF6" rx="2"/>
+        </svg>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Gráficos interactivos de evolución (Recharts)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Librería de gráficos</span>
+          <span class="badge-tag format">SVG generado por Recharts v3.8.1</span>
+          <span class="badge-tag lib">recharts (v3.8.1)</span>
+        </div>
+
+        <div class="card-desc">Volumen semanal, tendencia de RPE y carga acumulada a lo largo del tiempo.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/pages/Evolution.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/evolution — Evolución / Analítica</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Evolution.jsx (ResponsiveContainer, BarChart, LineChart)</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Visualización analítica para el atleta y el coach.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">1 página, 5+ componentes Recharts</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Gráficos de barras y de líneas</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Ninguno</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Generación SVG dinámica en runtime basada en los logs de sesión.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="vis-02" data-type="SVG Inline matemático" data-format="SVG con defs, linearGradient sg, path interpolado, polyline y circle" data-library="SVG Custom">
+      <div class="preview-container">
+        
+        <svg width="180" height="60" viewBox="0 0 180 60">
+          <defs>
+            <linearGradient id="spk-g" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#FF6B00" stop-opacity="0.4"/>
+              <stop offset="100%" stop-color="#FF6B00" stop-opacity="0.0"/>
+            </linearGradient>
+          </defs>
+          <path d="M 10 45 L 45 35 L 80 40 L 115 22 L 150 28 L 170 12 L 170 55 L 10 55 Z" fill="url(#spk-g)"/>
+          <polyline points="10,45 45,35 80,40 115,22 150,28 170,12" fill="none" stroke="#FF6B00" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="170" cy="12" r="4" fill="#FF6B00" stroke="#FFF" stroke-width="2"/>
+        </svg>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Mini gráfico Sparkline de tendencia de 1RM</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">SVG Inline matemático</span>
+          <span class="badge-tag format">SVG con defs, linearGradient sg, path interpolado, polyline y circle</span>
+          <span class="badge-tag lib">SVG Custom</span>
+        </div>
+
+        <div class="card-desc">Curva histórica del 1RM estimado por ejercicio en las tarjetas de PRs.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/pages/Evolution.jsx (L112-139)</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/evolution — Tarjetas de récords en Evolución</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Función Sparkline en Evolution.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Ver la tendencia histórica inmediata sin abrir gráficos pesados.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">1 componente local, renderizado por cada tarjeta de PR</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Gradiente de área naranja (#FF6B00 con opacidad 0.3 a 0)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Complemento micro de los gráficos Recharts</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Interpolación matemática de coordenadas en SVG nativo.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="vis-03" data-type="CSS Flexbox component" data-format="CSS segment box con estados cromáticos" data-library="CSS nativo">
+      <div class="preview-container">
+        
+        <div class="traffic-light-preview">
+          <div class="segment green"></div>
+          <div class="segment green"></div>
+          <div class="segment green"></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Marcador electrónico de rendimiento (TrafficLightBadge)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">CSS Flexbox component</span>
+          <span class="badge-tag format">CSS segment box con estados cromáticos</span>
+          <span class="badge-tag lib">CSS nativo</span>
+        </div>
+
+        <div class="card-desc">Semáforo de 3 segmentos estilo marcador deportivo electrónico (Verde 3, Amarillo 2, Rojo 1).</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/components/performance/TrafficLightBadge.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/performance — Performance Dashboard</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>TrafficLightBadge.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Indica el estado del sistema en función de fatiga, sobrecarga y preparación.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">1 componente dedicado</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Tamaños compact (16x6px), standard (24x8px), large (40x10px)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Único en su diseño</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Inspirado en los tableros luminosos de pabellones deportivos.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="vis-04" data-type="Emoji + Tarjeta CSS" data-format="Unicode Emoji en contenedor Tailwind" data-library="Unicode Emojis">
+      <div class="preview-container">
+        
+        <div style="display:flex; gap:6px; flex-wrap:wrap; justify-content:center;">
+          <span class="emoji-chip">🔥 SNS</span>
+          <span class="emoji-chip">💚 Recup</span>
+          <span class="emoji-chip">⚡ Carga</span>
+          <span class="emoji-chip">📈 Prog</span>
+          <span class="emoji-chip">⚖️ Bal</span>
+          <span class="emoji-chip">🥋 Trans</span>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Tarjetas de métricas del Performance Dashboard</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Emoji + Tarjeta CSS</span>
+          <span class="badge-tag format">Unicode Emoji en contenedor Tailwind</span>
+          <span class="badge-tag lib">Unicode Emojis</span>
+        </div>
+
+        <div class="card-desc">Métricas bioenergéticas y neuromusculares calculadas por el motor.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/pages/PerformanceDashboard.jsx (L40-77)</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/performance — Performance Dashboard</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>PerformanceDashboard.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Fatiga SNS 🔥, Recuperación 💚, Carga Aguda ⚡, Sobrecarga 📈, Balance ⚖️, Transferencia 🥋.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">6 emojis, 1 pantalla</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Cada métrica tiene su emoji ancla</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">🥋 asume deporte de combate; ⚡ sobrecargado</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Proporciona anclaje visual intuitivo a cálculos complejos del motor.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="vis-05" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="trophy"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">trophy</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="flame"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">flame</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="trending-up"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">trending-up</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Trofeo de récords y llama de racha (Trophy, Flame, TrendingUp)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Logros del atleta: Récords personales (Trophy), racha activa (Flame) y evolución positiva (TrendingUp).</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>Home.jsx, Evolution.jsx, BottomNav.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/, /evolution — Home y Navegación</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Home.jsx, BottomNav.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Gamificación y motivación del atleta.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">Trophy (1), Flame (1), TrendingUp (3)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Award dormido en Onboarding</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Trophy y TrendingUp importados pero dormidos en Evolution.jsx</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Elementos de refuerzo positivo.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="vis-06" data-type="Icono de librería interactivo" data-format="SVG via Lucide (Star) con fill condicional" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="star-rating-preview">
+          <i data-lucide="star"></i>
+          <i data-lucide="star"></i>
+          <i data-lucide="star"></i>
+          <i data-lucide="star"></i>
+          <i data-lucide="star" class="empty"></i>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Calificación de satisfacción de sesión (Star Rating)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería interactivo</span>
+          <span class="badge-tag format">SVG via Lucide (Star) con fill condicional</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Valoración subjetiva post-entrenamiento de 1 a 5 estrellas.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/components/FeedbackSection.jsx (L28-49), Profile.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">Post-sesión, /profile — Feedback de fin de sesión</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>FeedbackSection.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Permite al atleta calificar cómo se ha sentido con relleno naranja #FF6B00.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">Star (2 renders)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Estrella vacía (borde gris) vs estrella llena (#FF6B00)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Ninguno</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Selector interactivo de 1 a 5 estrellas.</div>
+      </div>
+    </div>
+  
+        </div>
+      </section>
+    
+      <section class="family-block" id="fam-06" data-family-name="Athlete & Coach Identity">
+        <div class="family-header">
+          <div class="family-title">
+            <span class="num-badge">FAMILIA 06</span>
+            <h2>Athlete & Coach Identity <span style="color: var(--text-dim); font-size: 16px; font-weight: normal;">(Identidad de Atleta y Coach)</span></h2>
+          </div>
+          <span class="family-count">3 recursos</span>
+        </div>
+        <div class="family-desc">Gestión de roles, lista de atletas, asignación de rutinas y acreditación de perfil.</div>
+        
+        <div class="asset-grid" style="margin-top: 18px;">
+          
+    <div class="asset-card" data-id="id-01" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="user"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">user</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="users"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">users</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Iconos de rol Atleta vs Coach (User vs Users)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Diferenciación de rol individual (Atleta / User) y colectivo/gestión (Coach / Users).</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>Onboarding.jsx, Register.jsx, BottomNav.jsx, MyRoutines.jsx, Profile.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/onboarding, /register, /coach, /profile — Onboarding, Registro, Navegación de Coach</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Onboarding, BottomNav, MyRoutines, Profile</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Seleccionar rol en onboarding y habilitar la pestaña Coach en BottomNav.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">User (2 renders), Users (4 renders)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">User (silueta individual) vs Users (grupo)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">User también se usa como prefijo en el input de nombre de registro</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Distingue claramente el contexto individual del multi-atleta.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="id-02" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="shield-check"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">shield-check</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="user-check"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">user-check</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Acreditación de rol verificado y asignación (ShieldCheck, UserCheck)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Insignia de rol confirmado (ShieldCheck) y acción de asignar rutina a atleta (UserCheck).</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>AthleteDetail.jsx, Onboarding.jsx, Profile.jsx, MyRoutines.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/coach/:id, /onboarding, /profile, /coach/routines — Perfil, Detalle de atleta, Rutinas</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>AthleteDetail, Onboarding, Profile, MyRoutines</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Acreditar que el usuario es Coach/Atleta verificado y botón de asignar rutina.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">ShieldCheck (4 renders), UserCheck (1 render)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Ninguna</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Ninguno</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Iconos con fuerte carga de autoridad y vinculación en el ecosistema coach-atleta.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="id-03" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        <i data-lucide="circle" class="lucide-icon"></i>
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Selector de radio button en onboarding (Circle)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Estado no seleccionado en los selectores de rol de onboarding.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/pages/Onboarding.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/onboarding — Bienvenida / Onboarding</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Onboarding.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Icono circular vacío para opción no marcada.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">Circle (2 renders)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Conmuta a CheckCircle2 al seleccionarse</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Parte de la familia de confirmaciones DUP-01</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Uso de un icono de Lucide en lugar de un radio button HTML nativo.</div>
+      </div>
+    </div>
+  
+        </div>
+      </section>
+    
+      <section class="family-block" id="fam-07" data-family-name="Data Management & Sync">
+        <div class="family-header">
+          <div class="family-title">
+            <span class="num-badge">FAMILIA 07</span>
+            <h2>Data Management & Sync <span style="color: var(--text-dim); font-size: 16px; font-weight: normal;">(Gestión de Datos, Nube y Sincronización)</span></h2>
+          </div>
+          <span class="family-count">6 recursos</span>
+        </div>
+        <div class="family-desc">Sincronización con Google Sheets, exportación a WhatsApp, copiado en portapapeles, guardado y borrado.</div>
+        
+        <div class="asset-grid" style="margin-top: 18px;">
+          
+    <div class="asset-card" data-id="data-01" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        <i data-lucide="download-cloud" class="lucide-icon"></i>
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Sincronización desde Google Sheets (DownloadCloud)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Descargar e importar planes y sesiones desde hojas de cálculo de Google Sheets.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>AthleteDetail.jsx, ImportSession.jsx, Plan.jsx, Profile.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/coach/:id, /import/:code, /plan, /profile — Plan, Detalle de atleta, Perfil</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Botones de sincronización de plan</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Disparar el motor de parsing e ingesta de entrenamientos desde Sheets.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">DownloadCloud (7 renders en 4 archivos)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">UploadCloud / CloudUpload para la dirección de subida</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">DUP-CLOUD: Dirección de sincronización con nombres dispares</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> El icono de nube más utilizado en la aplicación.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="data-02" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="upload-cloud"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">upload-cloud</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="cloud-upload"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">cloud-upload</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Subir sesión y estado offline (UploadCloud / CloudUpload)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Publicar sesión compartida o alertar de cambios pendientes de sincronización offline.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>SessionReadView.jsx, SessionDetailView.jsx, Session.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/plan/session-detail, /session — Detalle de sesión y Sesión activa</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>SessionReadView, SessionDetailView, Session (banner offline)</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Publicar sesión (UploadCloud) y banner de aviso de conectividad (CloudUpload).</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">UploadCloud (2), CloudUpload (1)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">UploadCloud y CloudUpload son dos nombres distintos en Lucide para el mismo concepto</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">DUP-CLOUD: Inconsistencia de nombre entre componentes</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Ambos dibujan una nube con flecha hacia arriba pero tienen nombres invertidos.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="data-03" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="share"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">share</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="share-2"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">share-2</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Compartir sesión (Share vs Share2)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Exportar resumen de entrenamiento vía Web Share API o WhatsApp.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>ExportSessionModal.jsx, Session.jsx, Evolution.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">Modal exportación, /session, /evolution — Fin de sesión y modal de compartir</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>ExportSessionModal, Session, Evolution</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Abrir hoja de compartir nativa del dispositivo con el texto formateado de la sesión.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">Share2 (3 renders), Share (1 render)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Share (flecha saliente de caja) vs Share2 (nodos de red conectados)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">DUP-SHARE: Ambos coexisten en ExportSessionModal.jsx</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Share2 es más prevalente pero Share sigue presente en el modal de exportación.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="data-04" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        <i data-lucide="save" class="lucide-icon"></i>
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Guardar cambios (Save)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Persistir en base de datos local / Firebase la sesión o el circuito creado.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>CircuitConfigurator.jsx, SessionEditor.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/plan/session/new, /timer — Editor de sesión y editor de circuitos</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>CircuitConfigurator, SessionEditor</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Botón de confirmación de guardado estructural.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">Save (2 renders)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Sin variantes</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Ninguno</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Metáfora clásica del disquete.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="data-05" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        <i data-lucide="trash-2" class="lucide-icon"></i>
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Eliminación universal de elementos (Trash2)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Eliminación definitiva de sesiones, bloques, ejercicios, atletas o filtros.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>EditableBlock, EditableExercise, SessionReadView, BlockTypeSelector, CircuitConfigurator, AthleteDetail, Plan</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">Múltiples rutas de edición — Toda la app</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>7 componentes distintos</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Eliminar elementos con confirmación.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">Trash2 (8 renders en 7 archivos)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Consistencia absoluta: nunca se usa Trash estándar, siempre Trash2</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Convención más sólida de todo el proyecto</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Ejemplo de máxima coherencia en la interfaz de TrainingOS.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="data-06" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        <i data-lucide="search" class="lucide-icon"></i>
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Buscador de ejercicios y sesiones (Search)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Campo de texto con filtrado en tiempo real.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>ExerciseLibrarySheet.jsx, Evolution.jsx, ImportSession.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/plan/session/new, /evolution, /import/:code — Sheet de librería, Evolución, Importar</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Librería de ejercicios, Buscador de evolución, Input de código</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Filtrar biblioteca de ejercicios o buscar sesiones por código/nombre.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">Search (3 renders)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Sin variantes</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Ninguno</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Uso uniforme para affordances de búsqueda.</div>
+      </div>
+    </div>
+  
+        </div>
+      </section>
+    
+      <section class="family-block" id="fam-08" data-family-name="Feedback, Alerts & System State">
+        <div class="family-header">
+          <div class="family-title">
+            <span class="num-badge">FAMILIA 08</span>
+            <h2>Feedback, Alerts & System State <span style="color: var(--text-dim); font-size: 16px; font-weight: normal;">(Feedback, Alertas y Estado del Sistema)</span></h2>
+          </div>
+          <span class="family-count">5 recursos</span>
+        </div>
+        <div class="family-desc">Marcas de verificación, alertas críticas, advertencias de planificación, spinners y botón universal de cierre.</div>
+        
+        <div class="asset-grid" style="margin-top: 18px;">
+          
+    <div class="asset-card" data-id="feed-01" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="check"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">check</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="check-circle"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">check-circle</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="check-circle-2"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">check-circle-2</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Sistema de verificación y confirmación (Check, CheckCircle, CheckCircle2)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Acción completada con éxito, serie registrada o validación de formulario.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>14 archivos distintos a lo largo de la app</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">Global — Toda la app</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>ExerciseRow, ReadinessModal, SetLoggerSheet, SessionReadView, Onboarding, Profile, etc.</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Check simple para micro-acciones (10), CheckCircle para éxito de guardado (2), CheckCircle2 para onboarding/perfil (5).</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">17 renders en total combinados</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Check (simple) vs CheckCircle (círculo estándar) vs CheckCircle2 (círculo estilizado)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">DUP-01: Tres variantes para el concepto de éxito/verificación</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Check es el micro-icono de fila; CheckCircle/2 son badges de estado mayor.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="feed-02" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="alert-circle"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">alert-circle</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="alert-triangle"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">alert-triangle</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Alertas de error vs advertencias (AlertCircle vs AlertTriangle)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Errores bloqueantes en autenticación (AlertCircle) vs advertencias suaves en planificación (AlertTriangle).</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>Login.jsx, Register.jsx (AlertCircle), WeekRepetitionModal.jsx, ExerciseReview.jsx, ImportSession.jsx (AlertTriangle)</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/login, /register, /plan, /exercises/review, /import/:code — Auth, Planificador, Revisión de coach</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Formularios auth y modales de plan</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">AlertCircle para fallos de login; AlertTriangle para sobreescritura de sesiones o datos incompletos.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">AlertCircle (2 renders), AlertTriangle (3 renders)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Círculo con ! (error crítico) vs Triángulo con ! (warning)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">DUP-08: Distinción semántica implícita error vs warning</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Sigue convenciones estándar de severidad de mensajes.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="feed-03" data-type="Icono de librería animado" data-format="SVG via Lucide + Tailwind animate-spin" data-library="lucide-react">
+      <div class="preview-container">
+        <i data-lucide="loader-2" class="lucide-icon" style="animation: spin 1s linear infinite;"></i><style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Spinner de carga asíncrona (Loader2)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería animado</span>
+          <span class="badge-tag format">SVG via Lucide + Tailwind animate-spin</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Operación asíncrona en curso (login, registro, comunicación con Firebase).</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/pages/Login.jsx, src/pages/Register.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/login, /register — Pantallas de acceso</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Botones submit de auth</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Reemplaza el texto del botón mientras la petición está en vuelo.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">Loader2 (2 renders)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Sin variantes</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Único spinner visual del proyecto</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Utiliza la clase animate-spin de Tailwind.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="feed-04" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        <i data-lucide="x" class="lucide-icon"></i>
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Cierre universal de modales y sheets (X)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Descartar o cerrar cualquier superficie superpuesta (modal, bottom sheet, filtro, badge).</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>18 archivos distintos</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">Global — Toda la aplicación</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Todos los modales y sheets</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Cerrar ReadinessModal, SetLoggerSheet, WeekRepetitionModal, ExportSessionModal, etc.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">X (24 renders — el icono más utilizado de toda la app)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Consistencia absoluta</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">El icono con mayor frecuencia de renderizado del repositorio</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Convención intachable en todo el frontend.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="feed-05" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="bell"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">bell</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="message-circle"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">message-circle</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="send"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">send</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Notificaciones, mensajes y envío (Bell, MessageCircle, Send)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Avisos del sistema (Bell), hilos de soporte/coach (MessageCircle) y envío de feedback (Send).</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>Profile.jsx, FeedbackSection.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/profile, fin de sesión — Perfil y feedback de sesión</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Profile, FeedbackSection</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Configurar notificaciones, ver mensajes pendientes y enviar notas post-entrenamiento.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">Bell (1), MessageCircle (2), Send (1)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Sin variantes</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Ninguno</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Conjunto de affordances de comunicación.</div>
+      </div>
+    </div>
+  
+        </div>
+      </section>
+    
+      <section class="family-block" id="fam-09" data-family-name="Sports & Wellness Vocabulary">
+        <div class="family-header">
+          <div class="family-title">
+            <span class="num-badge">FAMILIA 09</span>
+            <h2>Sports & Wellness Vocabulary <span style="color: var(--text-dim); font-size: 16px; font-weight: normal;">(Vocabulario de Deportes y Bienestar)</span></h2>
+          </div>
+          <span class="family-count">3 recursos</span>
+        </div>
+        <div class="family-desc">Catálogo de deportes, disciplinas de combate, escalas de check-in de bienestar y métricas subjetivas.</div>
+        
+        <div class="asset-grid" style="margin-top: 18px;">
+          
+    <div class="asset-card" data-id="sport-01" data-type="Emoji + Metadata" data-format="Unicode Emojis estructurados" data-library="Unicode Emojis">
+      <div class="preview-container">
+        
+        <div class="sports-grid-preview">
+          <span class="emoji-chip">🏋️ Gym</span>
+          <span class="emoji-chip">🥋 TKD</span>
+          <span class="emoji-chip">🥊 Box</span>
+          <span class="emoji-chip">🤼 Judo</span>
+          <span class="emoji-chip">🏊 Swim</span>
+          <span class="emoji-chip">🚴 Cycle</span>
+          <span class="emoji-chip">🏃 Run</span>
+          <span class="emoji-chip">⚔️ CF</span>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Catálogo oficial de deportes (DEFAULT_SPORTS)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Emoji + Metadata</span>
+          <span class="badge-tag format">Unicode Emojis estructurados</span>
+          <span class="badge-tag lib">Unicode Emojis</span>
+        </div>
+
+        <div class="card-desc">Disciplinas configurables para el perfil del atleta y motor de planificación.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/pages/Onboarding.jsx (L19-27)</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/onboarding, /profile — Onboarding y Configuración de perfil</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Onboarding.jsx, SportSelector.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Gimnasio 🏋️, Taekwondo 🥋, Boxeo 🥊, Judo 🤼, Natación 🏊, Ciclismo 🚴, Running 🏃, Crossfit ⚔️, Custom 🎯.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">9 deportes estándar</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Deporte custom asigna 🎯</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Reutilizados en SESSION_TYPES</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> El deporte activo condiciona los tipos de sesión disponibles en el planificador.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="sport-02" data-type="Matriz de Emojis (5 niveles por métrica)" data-format="Unicode Emojis en escala de 5 pasos" data-library="Unicode Emojis">
+      <div class="preview-container">
+        
+        <div style="display:flex; flex-direction:column; gap:4px; font-size:12px;">
+          <div>😴 Sueño: 😴 😐 🙂 😊 🤩</div>
+          <div>😤 Estrés: 😤 😟 😐 🙂 😊</div>
+          <div>⚡ Energía: 😴 😐 🙂 😊 🤩</div>
+          <div>🦵 DOMS: 🤩 😊 😐 😟 😤</div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Escalas de check-in de bienestar (WellnessCheckIn)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Matriz de Emojis (5 niveles por métrica)</span>
+          <span class="badge-tag format">Unicode Emojis en escala de 5 pasos</span>
+          <span class="badge-tag lib">Unicode Emojis</span>
+        </div>
+
+        <div class="card-desc">Valoración diaria de 4 dimensiones: Sueño 😴, Estrés 😤, Energía ⚡, Dolor Muscular (DOMS) 🦵.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/components/performance/WellnessCheckIn.jsx (L4-34)</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">Pre-sesión / Readiness — Modal de preparación diaria</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>WellnessCheckIn.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Capturar el estado subjetivo pre-entrenamiento. Alimenta el semáforo y volumen recomendado.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">4 métricas x 5 niveles = 20 estados de emoji</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">DOMS utiliza escala invertida (menos dolor = mejor)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">😴 colisiona con día de descanso; ⚡ con potencia y carga aguda</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Matriz de evaluación de fatiga y recuperación basada en escalas perceptivas.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="sport-03" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        <i data-lucide="dumbbell" class="lucide-icon"></i>
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Icono de halteras / fuerza (Dumbbell)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Entrenamiento de fuerza con pesas y contador de ejercicios en cabeceras.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>SessionReadView, Login, Register, AthleteDetail, CoachDashboard, MyRoutines, ImportSession, SessionDetailView</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">Toda la aplicación — Auth, Sesión, Coach, Plan</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>8 componentes distintos</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Icono de marca en login/registro y contador de número de ejercicios en vistas de sesión.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">Dumbbell (11 renders activos)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Coexiste con el emoji 🏋️</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Doble rol: identidad de fuerza en auth y contador numérico en plan</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> El icono de equipamiento deportivo más extendido en la interfaz.</div>
+      </div>
+    </div>
+  
+        </div>
+      </section>
+    
+      <section class="family-block" id="fam-10" data-family-name="Form & Input Affordances">
+        <div class="family-header">
+          <div class="family-title">
+            <span class="num-badge">FAMILIA 10</span>
+            <h2>Form & Input Affordances <span style="color: var(--text-dim); font-size: 16px; font-weight: normal;">(Affordances de Formularios e Inputs)</span></h2>
+          </div>
+          <span class="family-count">2 recursos</span>
+        </div>
+        <div class="family-desc">Iconos decorativos de prefijo en campos de entrada, indicadores de duración y fecha.</div>
+        
+        <div class="asset-grid" style="margin-top: 18px;">
+          
+    <div class="asset-card" data-id="form-01" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="mail"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">mail</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="lock"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">lock</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="user"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">user</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Prefijos de campos de autenticación (Mail, Lock, User)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Affordance visual para identificar inputs de email, contraseña y nombre completo.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/pages/Login.jsx, src/pages/Register.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/login, /register — Login y Registro</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Inputs de formulario de auth</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Icono fijo a la izquierda dentro del campo de texto.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">Mail (2), Lock (2), User (1)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">User compartido con rol de atleta</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Ninguno</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Patrón clásico de formulario flotante.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="form-02" data-type="Icono de librería" data-format="SVG via Lucide" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="clock"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">clock</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:4px;"><i data-lucide="calendar-days"></i><span style="font-size:10px; color:#6B7280; font-family:monospace;">calendar-days</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Metadatos de sesión en cabeceras (Clock, CalendarDays)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Icono de librería</span>
+          <span class="badge-tag format">SVG via Lucide</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">Indicador de duración estimada (Clock) y fecha asignada (CalendarDays) en cabeceras de sesión.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>SessionReadView.jsx, ImportSession.jsx, SessionDetailView.jsx, SessionEditor.jsx, Home.jsx</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">/plan/session-detail, /import/:code, /plan/session/new, / — Vistas de sesión y planificador</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Cabeceras y tarjetas de sesión</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Etiquetar la duración prevista (ej. "45 min") y la fecha de ejecución.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">Clock (3 renders), CalendarDays (3 renders)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Clock (duración estática) vs Timer (temporizador activo)</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">CalendarDays también es el icono de la pestaña Plan en BottomNav</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Clock representa metadatos estáticos de tiempo, no una herramienta de cronometraje.</div>
+      </div>
+    </div>
+  
+        </div>
+      </section>
+    
+      <section class="family-block" id="fam-unclassified" data-family-name="Unclassified & Dormant Assets">
+        <div class="family-header">
+          <div class="family-title">
+            <span class="num-badge">FAMILIA 11</span>
+            <h2>Unclassified & Dormant Assets <span style="color: var(--text-dim); font-size: 16px; font-weight: normal;">(Activos No Clasificados y Dormidos)</span></h2>
+          </div>
+          <span class="family-count">3 recursos</span>
+        </div>
+        <div class="family-desc">Archivos huérfanos sin referencias activas, imports de iconos sin renderizar en JSX y utilidades CSS no enlazadas.</div>
+        
+        <div class="asset-grid" style="margin-top: 18px;">
+          
+    <div class="asset-card" data-id="unclass-01" data-type="Archivos físicos huérfanos" data-format="PNG / SVG" data-library="Scaffold / Plantillas Vite">
+      <div class="preview-container">
+        <div class="unavailable-preview" style="color:#EF4444;">Archivos huérfanos sin llamada activa en runtime</div>
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Archivos gráficos huérfanos en bundle (hero.png, react.svg, vite.svg, icons.svg, favicon.svg)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Archivos físicos huérfanos</span>
+          <span class="badge-tag format">PNG / SVG</span>
+          <span class="badge-tag lib">Scaffold / Plantillas Vite</span>
+        </div>
+
+        <div class="card-desc">Restos de plantillas de scaffold o assets publicitarios sin enlace activo en la aplicación.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/assets/hero.png, react.svg, vite.svg, public/icons.svg, favicon.svg</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">— (Sin uso en runtime) — Ninguna</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Ninguno</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Sin referencias en JSX, index.html o manifest.json.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">0 referencias</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Ninguna</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">icons.svg contiene logos de redes sociales (Bluesky, Discord, GitHub, X) nunca invocados</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Candidatos a limpieza técnica en fases posteriores.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="unclass-02" data-type="Importaciones inactivas" data-format="JavaScript Imports" data-library="lucide-react">
+      <div class="preview-container">
+        
+        <div class="icon-group" style="opacity: 0.6;">
+          <div style="display:flex; flex-direction:column; align-items:center; gap:2px;"><i data-lucide="heart" style="width:20px; height:20px; color:#9CA3AF;"></i><span style="font-size:9px; color:#6B7280;">heart</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:2px;"><i data-lucide="clipboard-list" style="width:20px; height:20px; color:#9CA3AF;"></i><span style="font-size:9px; color:#6B7280;">clipboard-list</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:2px;"><i data-lucide="activity" style="width:20px; height:20px; color:#9CA3AF;"></i><span style="font-size:9px; color:#6B7280;">activity</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:2px;"><i data-lucide="trophy" style="width:20px; height:20px; color:#9CA3AF;"></i><span style="font-size:9px; color:#6B7280;">trophy</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:2px;"><i data-lucide="trending-up" style="width:20px; height:20px; color:#9CA3AF;"></i><span style="font-size:9px; color:#6B7280;">trending-up</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:2px;"><i data-lucide="eye" style="width:20px; height:20px; color:#9CA3AF;"></i><span style="font-size:9px; color:#6B7280;">eye</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:2px;"><i data-lucide="award" style="width:20px; height:20px; color:#9CA3AF;"></i><span style="font-size:9px; color:#6B7280;">award</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:2px;"><i data-lucide="refresh-cw" style="width:20px; height:20px; color:#9CA3AF;"></i><span style="font-size:9px; color:#6B7280;">refresh-cw</span></div><div style="display:flex; flex-direction:column; align-items:center; gap:2px;"><i data-lucide="user-circle" style="width:20px; height:20px; color:#9CA3AF;"></i><span style="font-size:9px; color:#6B7280;">user-circle</span></div>
+        </div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Iconos de librería importados pero dormidos (0 renders JSX)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Importaciones inactivas</span>
+          <span class="badge-tag format">JavaScript Imports</span>
+          <span class="badge-tag lib">lucide-react</span>
+        </div>
+
+        <div class="card-desc">14 importaciones de Lucide presentes en cabeceras de archivo pero sin invocación JSX.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>Evolution (Heart, ClipboardList, Activity, Trophy, TrendingUp), SessionEditor (Eye), Onboarding (Award, Dumbbell), Profile (RefreshCw), etc.</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">— (Dormidos en archivo) — —</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>7 componentes/páginas distintas</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Restos de refactorizaciones previas o sustitución por emojis (como Eye por 👁).</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">14 imports con 0 renders</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Ninguna</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Eye en SessionEditor.jsx fue reemplazado por <span>👁</span></td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Concentrados especialmente en Evolution.jsx tras iteraciones de diseño.</div>
+      </div>
+    </div>
+  
+    <div class="asset-card" data-id="unclass-03" data-type="Clases CSS sin aplicar" data-format="Tailwind / CSS rules en src/index.css" data-library="CSS nativo">
+      <div class="preview-container">
+        
+        <div style="width: 140px; height: 30px; background: repeating-linear-gradient(90deg, #FFF, #FFF 2px, transparent 2px, transparent 4px, #FFF 4px, #FFF 7px, transparent 7px, transparent 9px); opacity: 0.7;"></div>
+      
+      </div>
+      <div class="card-body">
+        <div class="card-title-area">
+          <h3>Utilidades CSS decorativas no enlazadas (.barcode-sim, .dossier-header-border)</h3>
+        </div>
+        
+        <div class="card-badges">
+          <span class="badge-tag type">Clases CSS sin aplicar</span>
+          <span class="badge-tag format">Tailwind / CSS rules en src/index.css</span>
+          <span class="badge-tag lib">CSS nativo</span>
+        </div>
+
+        <div class="card-desc">Generador de código de barras simulado mediante gradientes y borde técnico de estilo dossier.</div>
+
+        <table class="meta-table">
+          <tr>
+            <td class="field">Archivo:</td>
+            <td class="val"><code>src/index.css (L249-262)</code></td>
+          </tr>
+          <tr>
+            <td class="field">Ruta / Pantalla:</td>
+            <td class="val">— — —</td>
+          </tr>
+          <tr>
+            <td class="field">Componente:</td>
+            <td class="val"><code>Ninguno en JSX actual</code></td>
+          </tr>
+          <tr>
+            <td class="field">Uso:</td>
+            <td class="val">Posible experimento de estética técnica o dorsal de competición sin uso actual.</td>
+          </tr>
+          <tr>
+            <td class="field">Referencias:</td>
+            <td class="val">0 referencias en JSX</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Variantes:</td>
+            <td class="val">Ninguna</td>
+          </tr>
+          
+          <tr>
+            <td class="field">Duplicados:</td>
+            <td class="val">Ninguno</td>
+          </tr>
+        </table>
+
+        <div class="card-notes"><strong>Nota:</strong> Reglas CSS válidas pero inactivas en la interfaz actual.</div>
+      </div>
+    </div>
+  
+        </div>
+      </section>
+    
+  </main>
+
+  <!-- Footer -->
+  <footer>
+    <p>TrainingOS Visual Asset Inventory — Fase 3: Catálogo Visual Interactivo</p>
+    <p style="margin-top: 4px; font-size: 11px;">Documento generado automáticamente como auditoría independiente. Ningún archivo de producción ha sido modificado.</p>
+  </footer>
+</div>
+
+<script>
+  // Initialize Lucide icons on page load
+  document.addEventListener('DOMContentLoaded', () => {
+    lucide.createIcons();
+  });
+
+  // Dynamic search and filter function
+  function filterAssets() {
+    const query = document.getElementById('searchInput').value.toLowerCase().trim();
+    const selectedFamily = document.getElementById('familyFilter').value;
+    const selectedType = document.getElementById('typeFilter').value.toLowerCase();
+    const selectedLib = document.getElementById('libraryFilter').value.toLowerCase();
+
+    const familyBlocks = document.querySelectorAll('.family-block');
+
+    familyBlocks.forEach(block => {
+      const familyId = block.id;
+      if (selectedFamily && familyId !== selectedFamily) {
+        block.style.display = 'none';
+        return;
+      }
+
+      const cards = block.querySelectorAll('.asset-card');
+      let visibleCount = 0;
+
+      cards.forEach(card => {
+        const text = card.textContent.toLowerCase();
+        const cardType = (card.getAttribute('data-type') || '').toLowerCase();
+        const cardLib = (card.getAttribute('data-library') || '').toLowerCase();
+
+        const matchesQuery = !query || text.includes(query);
+        const matchesType = !selectedType || cardType.includes(selectedType);
+        const matchesLib = !selectedLib || cardLib.includes(selectedLib);
+
+        if (matchesQuery && matchesType && matchesLib) {
+          card.style.display = 'flex';
+          visibleCount++;
+        } else {
+          card.style.display = 'none';
+        }
+      });
+
+      if (visibleCount > 0) {
+        block.style.display = 'block';
+        const countSpan = block.querySelector('.family-count');
+        if (countSpan) {
+          countSpan.textContent = visibleCount + ' de ' + cards.length + ' recursos';
+        }
+      } else {
+        block.style.display = 'none';
+      }
+    });
+  }
+
+  function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('familyFilter').value = '';
+    document.getElementById('typeFilter').value = '';
+    document.getElementById('libraryFilter').value = '';
+    filterAssets();
+  }
+</script>
+
+</body>
+</html>

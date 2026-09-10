@@ -2,25 +2,31 @@ import { PERFORMANCE_CONFIG } from '../performanceConfig.js';
 
 /**
  * Sport Transfer Index (ITD)
- * Solo activo si athlete.sport === 'tkd' | 'both'
- * Depende de: stimulusIndex (series efectivas)
+ *
+ * Calcula la transferencia deportiva en función del historial de ejercicios
+ * y el perfil del deporte activo del atleta.
+ *
+ * @param {Object}      input        - PerformanceInput validado
+ * @param {Object}      config       - PERFORMANCE_CONFIG
+ * @param {Object}      wave1        - { fatigue, recovery, stimulus }
+ * @param {Object|null} sportProfile - Perfil del deporte (de getSportProfile()).
+ *                                     Si es null, devuelve null (sin índice ITD).
  */
 export function computeSportTransferIndex(
-  input, config = PERFORMANCE_CONFIG, wave1) {
+  input, config = PERFORMANCE_CONFIG, wave1, sportProfile) {
 
-  if (input.athlete.sport === 'gym') return null;
+  // Sin perfil deportivo definido (ej. 'gym' puro) → no hay índice ITD
+  if (!sportProfile) return null;
 
   const cfg = config.sportTransfer;
   const windowMs = cfg.windowWeeks * 7 * 24 * 60 * 60 * 1000;
   const cutoff = Date.now() - windowMs;
 
-  // Calcular contribución por pilar
-  const pillarScores = {
-    explosiveness: 0,
-    unilateral: 0,
-    mobility: 0,
-    coreRotation: 0
-  };
+  // Inicializar scores por pilar desde el perfil (dinámico, no hardcodeado)
+  const pillarScores = {};
+  for (const pilar of Object.keys(sportProfile.pillarWeights)) {
+    pillarScores[pilar] = 0;
+  }
 
   for (const exercise of input.exerciseHistory) {
     if ((exercise.sportTransfer ?? 0) < cfg.minTransferScore) continue;
@@ -41,29 +47,27 @@ export function computeSportTransferIndex(
       const qualityFactor = getQualityFactor(session.sets);
       const transferNorm = exercise.sportTransfer / 10;
 
-      for (const [pilar, contrib] of Object.entries(pillarContrib)) {
+      for (const pilar of Object.keys(pillarScores)) {
+        const contrib = pillarContrib[pilar] ?? 0;
         pillarScores[pilar] +=
           contrib * effectiveSets * qualityFactor * transferNorm;
       }
     }
   }
 
-  // Calcular cobertura por pilar
-  const targets = cfg.pillarTargets;
+  // Calcular cobertura por pilar usando targets del perfil
   const pillarCoverage = {};
-
   for (const [pilar, score] of Object.entries(pillarScores)) {
-    const target = targets[pilar] ?? 8;
+    const target = sportProfile.pillarTargets[pilar] ?? 8;
     pillarCoverage[pilar] = Math.min(score / target, 1.5);
   }
 
-  // ITD final ponderado
-  const ITD = (
-    cfg.weights.explosiveness * pillarCoverage.explosiveness +
-    cfg.weights.unilateral    * pillarCoverage.unilateral +
-    cfg.weights.mobility      * pillarCoverage.mobility +
-    cfg.weights.coreRotation  * pillarCoverage.coreRotation
-  ) * 100;
+  // ITD final ponderado usando pesos del perfil (no hardcodeados)
+  let ITD = 0;
+  for (const [pilar, weight] of Object.entries(sportProfile.pillarWeights)) {
+    ITD += weight * (pillarCoverage[pilar] ?? 0);
+  }
+  ITD *= 100;
 
   const value = Math.round(Math.min(ITD, 100));
 
@@ -72,9 +76,9 @@ export function computeSportTransferIndex(
     .filter(([, v]) => v < 0.5)
     .map(([p]) => p);
 
-  // Generar recomendaciones
-  const recommendations = generateTKDRecommendations(
-    weakPillars, pillarCoverage, cfg
+  // Recomendaciones: delegadas al perfil (sin lógica TKD-específica aquí)
+  const recommendations = sportProfile.generateRecommendations(
+    weakPillars, pillarCoverage
   );
 
   const detail = Object.entries(pillarCoverage)
@@ -145,56 +149,12 @@ function getQualityFactor(sets) {
   return avg / 5;
 }
 
-function generateTKDRecommendations(weakPillars, coverage, cfg) {
-  const recs = [];
-
-  if (weakPillars.includes('unilateral')) {
-    recs.push({
-      type: 'pattern',
-      priority: 'high',
-      action: 'Añadir Split Jumps, Step-ups o Skater Jumps (trabajo unilateral)',
-      reason: `El TKD requiere potencia y estabilidad sobre una pierna. ` +
-        `Cobertura actual: ${Math.round(coverage.unilateral * 100)}%`
-    });
-  }
-
-  if (weakPillars.includes('coreRotation')) {
-    recs.push({
-      type: 'pattern',
-      priority: 'high',
-      action: 'Añadir Landmine Rotación o Pallof Press (core rotacional)',
-      reason: `La transferencia de fuerza en patadas rotacionales requiere core ` +
-        `rotacional fuerte. Cobertura: ${Math.round(coverage.coreRotation * 100)}%`
-    });
-  }
-
-  if (weakPillars.includes('explosiveness')) {
-    recs.push({
-      type: 'pattern',
-      priority: 'medium',
-      action: 'Añadir Pogos, Salidas Explosivas o Split Jumps (explosividad)',
-      reason: `Cobertura explosividad: ${Math.round(coverage.explosiveness * 100)}%`
-    });
-  }
-
-  if (weakPillars.includes('mobility')) {
-    recs.push({
-      type: 'pattern',
-      priority: 'medium',
-      action: 'Añadir Leg Swings, Círculos de Cadera o Sentadilla Profunda (movilidad)',
-      reason: `Cobertura movilidad: ${Math.round(coverage.mobility * 100)}%`
-    });
-  }
-
-  return recs;
-}
-
 function formatPilar(pilar) {
   const labels = {
     explosiveness: 'Explosividad',
-    unilateral: 'Unilateral',
-    mobility: 'Movilidad',
-    coreRotation: 'Core rot.'
+    unilateral:    'Unilateral',
+    mobility:      'Movilidad',
+    coreRotation:  'Core rot.'
   };
   return labels[pilar] || pilar;
 }

@@ -3,6 +3,7 @@
 @theme {
   /* Colores de Fondo y Bordes (Dossier Técnico de Alto Rendimiento) */
   --color-bg: #F3F4F6;            /* Gris claro neutro y limpio */
+  --color-surface: #FFFFFF;       /* Superficies elevadas / modales */
   --color-card: #FFFFFF;          /* Blanco puro */
   --color-border: #E5E7EB;        /* Gris de precisión de 1px */
 

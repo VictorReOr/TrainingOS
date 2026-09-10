@@ -7,6 +7,14 @@ import { computeProgressionIndex } from '../indices/progressionIndex.js';
 import { computePatternBalanceIndex } from '../indices/patternBalanceIndex.js';
 import { computeSportTransferIndex } from '../indices/sportTransferIndex.js';
 import { computeDecisions } from './decisionEngine.js';
+import { getSportProfile } from '../../../sportProfiles/index.js';
+
+// Mapeo: strings normalizados por inputBuilder → IDs de perfil deportivo
+// El engine no sabe qué perfiles existen — solo delega al registro.
+const SPORT_TO_PROFILE_ID = {
+  tkd:  'taekwondo',
+  both: 'taekwondo',
+};
 
 export function evaluate(
   input, config = PERFORMANCE_CONFIG) {
@@ -45,12 +53,14 @@ export function evaluate(
   const patternBalance = computePatternBalanceIndex(
     validated, config, wave1
   );
-  const sportTransfer = 
-    validated.athlete.sport === 'gym'
-      ? null
-      : computeSportTransferIndex(
-          validated, config, wave1
-        );
+
+  // Resolver perfil deportivo (null para 'gym' u otros sin perfil registrado)
+  const profileId = SPORT_TO_PROFILE_ID[validated.athlete.sport] ?? null;
+  const sportProfile = profileId ? getSportProfile(profileId) : null;
+
+  const sportTransfer = computeSportTransferIndex(
+    validated, config, wave1, sportProfile
+  );
   
   const indices = {
     fatigue:        applyConfidence(fatigue, confidenceMultiplier),
@@ -68,7 +78,10 @@ export function evaluate(
     recommendations, 
     globalTrafficLight,
     exerciseDecisions 
-  } = computeDecisions(validated, indices, config);
+  } = computeDecisions(
+    validated, indices, config,
+    validated.sessionPlan?.sessionIntent ?? null
+  );
   
   // 6. Output inmutable
   return Object.freeze({

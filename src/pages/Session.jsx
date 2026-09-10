@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useSession } from '../context/SessionContext';
 import { useAthlete } from '../context/AthleteContext';
+import { useReadiness } from '../context/ReadinessContext';
 import { usePlanner } from '../context/PlannerContext';
 import { useTimer } from '../context/TimerContext';
+import { resolveRestSeconds } from '../utils/blockExecutionResolver';
 import ProgressBar from '../components/ProgressBar';
 import ExerciseRow from '../components/ExerciseRow';
 import SetLoggerSheet from '../components/SetLoggerSheet';
@@ -42,9 +44,10 @@ export default function Session() {
     restoreFromDraft,
   } = useSession();
 
-  const { todayCheckIn } = useAthlete();
   const { activeMesocycle } = usePlanner();
+  const { athlete } = useAthlete();
   const { startRest } = useTimer();
+  const { todayCheckIn } = useReadiness();
 
   // Calcular semana dentro del mesociclo
   const mesoWeek = useMemo(() => {
@@ -133,8 +136,34 @@ export default function Session() {
     return logs.every(log => log.done);
   };
 
-  // ── Superset round-by-round queue ──────────────────────────────────────────
+  // ── Block execution queue (superset legacy + execution.type blocks) ──────────
+  // Generalized from the legacy _buildSupersetQueue.
+  // - If block has block.execution?.type in (SUPERSET, CONTRAST, COMPLEX):
+  //   builds a round-interleaved queue from block.exercises in natural order,
+  //   using each exercise's series/targetSets for per-exercise set count.
+  // - If block does NOT have execution (legacy): requires block.supersets and
+  //   a supersetId, identical behavior to the previous _buildSupersetQueue.
   const _buildSupersetQueue = (block, supersetId) => {
+    // ── NEW PATH: execution-typed block ──────────────────────────────────────
+    const executionType = block?.execution?.type;
+    const MULTI_EX_TYPES = ['SUPERSET', 'CONTRAST', 'COMPLEX'];
+    if (executionType && MULTI_EX_TYPES.includes(executionType)) {
+      const exercises = block.exercises || [];
+      if (exercises.length === 0) return [];
+      const maxSets = Math.max(...exercises.map(e => parseInt(e.series || e.targetSets || 1, 10)));
+      const queue = [];
+      for (let setIdx = 0; setIdx < maxSets; setIdx++) {
+        for (const ex of exercises) {
+          const exSets = parseInt(ex.series || ex.targetSets || 1, 10);
+          if (setIdx < exSets) {
+            queue.push({ exerciseId: ex.id, setIndex: setIdx });
+          }
+        }
+      }
+      return queue;
+    }
+
+    // ── LEGACY PATH: block.supersets ─────────────────────────────────────────
     const group = block.supersets?.find(s => s.id === supersetId);
     if (!group) return [];
     const exercises = group.exerciseIds
@@ -165,15 +194,29 @@ export default function Session() {
     const block = getCurrentBlock();
     if (!block) return null;
 
-    const group = block.supersets?.find(s => s.id === selectedExercise?.supersetId);
-    if (!group) return null;
-
     const nextTurn = currentIndex + 1 < queue.length ? queue[currentIndex + 1] : null;
     const nextEx = nextTurn ? block.exercises.find(e => e.id === nextTurn.exerciseId) : null;
 
+    // For execution blocks, derive exercisePosition from exercises array order
+    const executionType = block?.execution?.type;
+    const MULTI_EX_TYPES = ['SUPERSET', 'CONTRAST', 'COMPLEX'];
+    const isExecutionBlock = executionType && MULTI_EX_TYPES.includes(executionType);
+
+    let exercisePosition, totalExercises;
+    if (isExecutionBlock) {
+      exercisePosition = block.exercises.findIndex(e => e.id === turn.exerciseId) + 1;
+      totalExercises = block.exercises.length;
+    } else {
+      // Legacy: use block.supersets group
+      const group = block.supersets?.find(s => s.id === selectedExercise?.supersetId);
+      if (!group) return null;
+      exercisePosition = group.exerciseIds.indexOf(turn.exerciseId) + 1;
+      totalExercises = group.exerciseIds.length;
+    }
+
     return {
-      exercisePosition: group.exerciseIds.indexOf(turn.exerciseId) + 1,
-      totalExercises: group.exerciseIds.length,
+      exercisePosition,
+      totalExercises,
       currentRound: turn.setIndex + 1,
       totalRounds: Math.max(...queue.map(t => t.setIndex)) + 1,
       currentSetIndex: turn.setIndex,
@@ -185,6 +228,34 @@ export default function Session() {
   };
 
   const handleOpenExercise = (exercise, block) => {
+    // Activate queue mode for execution-typed multi-exercise blocks
+    const executionType = block?.execution?.type;
+    const MULTI_EX_TYPES = ['SUPERSET', 'CONTRAST', 'COMPLEX'];
+    const isExecutionBlock = executionType && MULTI_EX_TYPES.includes(executionType);
+
+    if (isExecutionBlock && block.exercises.length >= 2) {
+      const queue = _buildSupersetQueue(block, null);
+      if (queue.length > 0) {
+        // Smart positioning: primer turno incompleto
+        let startIndex = queue.findIndex(turn => {
+          const turnLogs = exerciseLogs[turn.exerciseId];
+          return !turnLogs?.[turn.setIndex]?.done;
+        });
+        if (startIndex === -1) startIndex = queue.length - 1;
+
+        _setSsRoundState({ queue, currentIndex: startIndex });
+        const firstTurn = queue[startIndex];
+        const firstEx = block.exercises.find(e => e.id === firstTurn.exerciseId);
+        setSelectedExercise({
+          ...(firstEx || exercise),
+          sessionType: block.goal || sessionData.type || 'gym',
+          _blockId: block.id,
+        });
+        return;
+      }
+    }
+
+    // Legacy path: block.supersets-based superset
     if (exercise.supersetId) {
       const queue = _buildSupersetQueue(block, exercise.supersetId);
       if (queue.length > 0) {
@@ -206,6 +277,7 @@ export default function Session() {
         return;
       }
     }
+
     _setSsRoundState(null);
     setSelectedExercise({
       ...exercise,
@@ -239,20 +311,40 @@ export default function Session() {
 
     const currentTurn = queue[currentIndex];
     const nextTurn = queue[nextIndex];
+    const block = getCurrentBlock();
+    const isSameRound = currentTurn.setIndex === nextTurn.setIndex;
 
-    // Round boundary → rest timer
-    if (currentTurn.setIndex !== nextTurn.setIndex) {
-      const block = getCurrentBlock();
-      const lastEx = block?.exercises.find(e => e.id === currentTurn.exerciseId);
-      if (lastEx?.restSeconds) {
-        startRest(lastEx.restSeconds);
+    if (isSameRound) {
+      // ── TRANSITION: mismo setIndex, ejercicio distinto ──────────────────────
+      // Solo aplica en bloques con execution (CONTRAST, SUPERSET, etc.)
+      const transitionRest = resolveRestSeconds(block, 'exercise');
+      if (transitionRest !== null) {
+        // transitionRest === 0 → no disparar startRest (ej. SUPERSET sin pausa)
+        if (transitionRest > 0) {
+          startRest(transitionRest);
+        }
+      }
+      // legacy (transitionRest === null): sin descanso de transición (comportamiento anterior)
+    } else {
+      // ── FIN DE RONDA: setIndex incrementa ────────────────────────────────────
+      const blockRest = resolveRestSeconds(block, 'block');
+      if (blockRest !== null) {
+        // Descanso de bloque desde el restProfile configurado
+        if (blockRest > 0) {
+          startRest(blockRest);
+        }
+      } else {
+        // Legacy: usar ex.restSeconds del último ejercicio de la ronda
+        const lastEx = block?.exercises.find(e => e.id === currentTurn.exerciseId);
+        if (lastEx?.restSeconds) {
+          startRest(lastEx.restSeconds);
+        }
       }
     }
 
     _setSsRoundState(prev => ({ ...prev, currentIndex: nextIndex }));
 
     if (nextTurn.exerciseId !== currentTurn.exerciseId) {
-      const block = getCurrentBlock();
       const nextEx = block?.exercises.find(e => e.id === nextTurn.exerciseId);
       if (nextEx && block) {
         setSelectedExercise({
@@ -263,6 +355,7 @@ export default function Session() {
       }
     }
   };
+
 
   const handleResetSession = () => {
     if (window.confirm('¿Seguro que quieres reiniciar la sesión actual? Perderás las series registradas.')) {
@@ -462,7 +555,7 @@ export default function Session() {
                </span>
               <FeedbackSection
                 sessionId={sessionData.id || sessionData.sessionId || 'unknown'}
-                atletaId={import.meta.env.VITE_ATLETA_ID || 'v-atleta-1'}
+                atletaId={athlete?.id || import.meta.env.VITE_ATLETA_ID || 'v-atleta-1'}
                 forceRole="athlete"
               />
             </div>
@@ -471,18 +564,33 @@ export default function Session() {
       </div>
 
       {/* BOTTOM SHEET LOGGER */}
-      {selectedExercise && (
-        <SetLoggerSheet
-          exercise={selectedExercise}
-          sessionType={selectedExercise.sessionType || sessionData.type || 'gym'}
-          logs={exerciseLogs[selectedExercise.id]}
-          onLogChange={handleLogChange}
-          onToggleSet={handleToggleSet}
-          onClose={() => { setSelectedExercise(null); _setSsRoundState(null); }}
-          supersetRound={getSupersetRound()}
-          onSupersetRoundAdvance={handleSupersetRoundAdvance}
-        />
-      )}
+      {selectedExercise && (() => {
+        const activeBlock = selectedExercise._blockId
+          ? sessionData.blocks.find(b => b.id === selectedExercise._blockId)
+          : null;
+        const execType = activeBlock?.execution?.type;
+        const EXEC_LABELS = {
+          CONTRAST: 'CONTRASTE',
+          SUPERSET: 'SUPERSERIE',
+          COMPLEX: 'COMPLEJO',
+          STRAIGHT_SET: 'SERIE RECTA',
+          INTERVAL: 'INTERVALO',
+        };
+        const blockExecutionLabel = execType ? (EXEC_LABELS[execType] ?? execType) : null;
+        return (
+          <SetLoggerSheet
+            exercise={selectedExercise}
+            sessionType={selectedExercise.sessionType || sessionData.type || 'gym'}
+            logs={exerciseLogs[selectedExercise.id]}
+            onLogChange={handleLogChange}
+            onToggleSet={handleToggleSet}
+            onClose={() => { setSelectedExercise(null); _setSsRoundState(null); }}
+            supersetRound={getSupersetRound()}
+            onSupersetRoundAdvance={handleSupersetRoundAdvance}
+            blockExecutionLabel={blockExecutionLabel}
+          />
+        );
+      })()}
 
       {/* FAB TIMER */}
       <button

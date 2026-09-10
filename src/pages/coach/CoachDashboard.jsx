@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Plus, ChevronRight, X, Dumbbell } from 'lucide-react';
+import { Users, Plus, ChevronRight, X, Dumbbell, ClipboardList } from 'lucide-react';
 import { useCoach } from '../../context/CoachContext';
+import { getPendingCustomExercises } from '../../utils/getPendingCustomExercises';
 
 export default function CoachDashboard() {
   const navigate = useNavigate();
@@ -43,6 +44,23 @@ export default function CoachDashboard() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          {(() => {
+            const pendingCount = getPendingCustomExercises().length;
+            return (
+              <button 
+                onClick={() => navigate('/exercises/review')}
+                className="relative flex items-center gap-1.5 px-3 py-2 bg-[#F5F5F0] text-[#1C1C1E] border border-[#E8E8E4] rounded-xl font-condensed font-bold text-xs uppercase hover:border-[#FF6B00] transition-all cursor-pointer active:scale-95"
+                title="Revisar Ejercicios Custom"
+              >
+                <ClipboardList size={16} className="text-[#FF6B00]" /> Revisar
+                {pendingCount > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-[#E8510A] text-white text-[10px] font-black flex items-center justify-center -ml-0.5 shadow-sm">
+                    {pendingCount}
+                  </span>
+                )}
+              </button>
+            );
+          })()}
           <button 
             onClick={() => navigate('/coach/routines')}
             className="flex items-center gap-1.5 px-3 py-2 bg-[#F5F5F0] text-[#1C1C1E] border border-[#E8E8E4] rounded-xl font-condensed font-bold text-xs uppercase hover:border-[#FF6B00] transition-all cursor-pointer active:scale-95"

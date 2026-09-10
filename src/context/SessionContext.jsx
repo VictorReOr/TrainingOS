@@ -3,9 +3,11 @@ import { saveLog as _saveLog } from '../services/sheets';
 import { usePR } from './PRContext';
 import { useAuth } from './AuthContext';
 import { estimate1RM } from '../engine/performance/utils/oneRMEstimators';
+import { humanizeExerciseSlug } from '../utils/exerciseNaming';
 
 const LS_SESSION_LOGS = 'trainingos_session_logs';
 const LS_DRAFT = 'trainingos_active_session_draft';
+const MAX_REASONABLE_LOAD_KG = 500; // Series con carga > 500 kg se excluyen del cálculo de PR
 const SessionContext = createContext();
 
 export function SessionProvider({ children }) {
@@ -43,7 +45,7 @@ export function SessionProvider({ children }) {
           block.exercises.forEach(ex => {
             const numSets = parseInt(ex.series || ex.sets || '3') || 3;
             initialLogs[ex.id] = Array.from({ length: numSets }, () => ({
-              carga: ex.loadRef ? parseFloat(ex.loadRef) : '',
+              carga: ex.prescribedLoad != null ? parseFloat(ex.prescribedLoad) : (ex.loadRef ? parseFloat(ex.loadRef) : (ex.carga != null ? parseFloat(ex.carga) : '')),
               reps: ex.reps || ex.targetReps || '',
               rpe: null,
               velocidad: null,
@@ -206,7 +208,8 @@ export function SessionProvider({ children }) {
               const logs = exerciseLogs[ex.id] || [];
               ejerciciosArray.push({
                 id: ex.id,
-                nombre: ex.name,
+                nombre: ex.name || ex.nombre || humanizeExerciseSlug(ex.id),
+                category: ex.category || ex.type || null,
                 seriesLog: logs
               });
             });
@@ -229,7 +232,18 @@ export function SessionProvider({ children }) {
       // Generar y guardar PRs para ejercicios con series completadas con carga > 0 (A.1)
       ejerciciosArray.forEach(ex => {
         if (!ex || !ex.id || !Array.isArray(ex.seriesLog)) return;
-        const validSets = ex.seriesLog.filter(s => s && s.done && parseFloat(s.carga) > 0 && parseInt(s.reps) > 0);
+
+        // Separar series con carga fuera de rango antes de filtrar las válidas para PR
+        const overLimitSets = ex.seriesLog.filter(s => s && s.done && parseFloat(s.carga) > MAX_REASONABLE_LOAD_KG);
+        overLimitSets.forEach(s => {
+          console.warn(
+            `[SessionContext] Serie excluida del cálculo de PR por carga fuera de rango: ` +
+            `ejercicio="${ex.nombre || ex.id}", carga=${s.carga} kg (máximo permitido: ${MAX_REASONABLE_LOAD_KG} kg). ` +
+            `La sesión se ha guardado correctamente.`
+          );
+        });
+
+        const validSets = ex.seriesLog.filter(s => s && s.done && parseFloat(s.carga) > 0 && parseFloat(s.carga) <= MAX_REASONABLE_LOAD_KG && parseInt(s.reps) > 0);
         if (validSets.length === 0) return;
 
         let max1RM = 0;

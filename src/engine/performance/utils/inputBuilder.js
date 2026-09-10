@@ -1,5 +1,6 @@
 import { EXERCISE_LIBRARY } from '../../../data/exerciseLibrary.js';
 import { getExerciseMetadata } from '../../../data/exerciseMetadata.js';
+import { resolveSessionIntent } from '../../../utils/resolveSessionIntent.js';
 
 /**
  * buildPerformanceInput
@@ -22,14 +23,20 @@ export function buildPerformanceInput({
   sessionLogs,
   todayCheckIn,
   wellnessLogs,
-  latestWeight
+  latestWeight,
+  todaySession = null,
 }) {
   return {
-    athlete:         mapAthlete(athlete),
+    athlete:          mapAthlete(athlete),
     currentMesocycle: mapMesocycle(activeMesocycle),
-    exerciseHistory: buildExerciseHistory(sessionLogs),
-    wellbeing:       mapWellbeing(todayCheckIn, latestWeight),
-    sessionPlan:     null
+    exerciseHistory:  buildExerciseHistory(sessionLogs),
+    wellbeing:        mapWellbeing(todayCheckIn, latestWeight),
+    sessionPlan:      todaySession
+      ? {
+          sessionIntent: resolveSessionIntent(todaySession),
+          type:          todaySession.type ?? null,
+        }
+      : null,
   };
 }
 
@@ -133,26 +140,25 @@ function buildExerciseHistory(sessionLogs) {
         if (libEx) {
           metadata = getExerciseMetadata(libEx);
         } else {
-          const fallbackMetadata = getExerciseMetadata({ id: exId });
-          if (fallbackMetadata._source === 'coach_override') {
-            metadata = fallbackMetadata;
-          } else {
-            metadata = {
-              pattern:       'knee_dominant',
-              systemicCost:  5,
-              sportTransfer: 5,
-              priority:      'accessory'
-            };
-          }
+          // Use getExerciseMetadata() for both coach_override AND category_default:
+          // passing category/type ensures custom exercises resolve their proper category defaults.
+          metadata = getExerciseMetadata({ 
+            id: exId,
+            category: ejercicio.category || ejercicio.type
+          });
         }
 
         byExercise[exId] = {
-          exerciseId:    exId,
-          exerciseName:  ejercicio.nombre ?? exId,
-          pattern:       metadata.pattern,
-          systemicCost:  metadata.systemicCost,
-          sportTransfer: metadata.sportTransfer,
-          sessions:      []
+          exerciseId:       exId,
+          exerciseName:     ejercicio.nombre ?? exId,
+          pattern:          metadata.pattern,
+          systemicCost:     metadata.systemicCost,
+          sportTransfer:    metadata.sportTransfer,
+          // Campos de modelo de progresión: libEx tiene prioridad (librería canónica),
+          // metadata como fallback (coach_override o category_default via CATEGORY_DEFAULTS).
+          progressionModel: libEx?.progressionModel ?? metadata.progressionModel ?? null,
+          exerciseType:     libEx?.exerciseType     ?? metadata.exerciseType     ?? null,
+          sessions:         []
         };
       }
 
@@ -202,10 +208,7 @@ function mapWellbeing(checkIn, latestWeight) {
   return {
     sleep:          checkIn.sleep   ?? 3,
     stress:         checkIn.stress  ?? 3,
-    // ReadinessContext stores 'fatigue' as energy proxy (inverse)
-    energy:         checkIn.fatigue != null
-                      ? 10 - checkIn.fatigue   // higher fatigue = lower energy
-                      : 5,
+    energy:         checkIn.fatigue ?? checkIn.energy ?? 3,
     muscleSoreness: checkIn.doms    ?? 3,
     bodyWeight:     latestWeight    ?? null
   };

@@ -18,7 +18,35 @@ const parseDurationToSeconds = (durStr) => {
   return match ? parseInt(match[1]) * 60 : 60;
 };
 
-export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChange, onToggleSet, onClose, onOpenTimerGlobal, supersetRound, onSupersetRoundAdvance }) {
+const ACTION_TYPE_LABELS = {
+  velocity: 'Velocidad',
+  quality:  'Calidad técnica',
+  volume:   'Volumen',
+  density:  'Densidad',
+  effort:   'Esfuerzo (RPE/RIR)',
+  none:     'Ejecución técnica',
+};
+
+const DIRECTION_LABELS = {
+  progress: { text: '↑ Progresar', cls: 'text-[#27ae60]' },
+  maintain: { text: '→ Mantener',  cls: 'text-muted' },
+  reduce:   { text: '↓ Reducir',   cls: 'text-signal-orange' },
+};
+
+const AUTOREG_GUIDANCE = {
+  quality:  { fatiga_alta: 'Reduce el número de repeticiones/contactos. Prioriza velocidad y calidad de ejecución sobre cantidad.',
+              fatiga_leve: 'Mantén la calidad de ejecución; considera 1 serie menos si notas pérdida de altura o velocidad.' },
+  velocity: { fatiga_alta: 'Reduce la exigencia hoy; detén la serie si la velocidad cae notablemente.',
+              fatiga_leve: 'Mantén el objetivo; vigila que la velocidad de ejecución no caiga.' },
+  volume:   { fatiga_alta: 'Reduce 1-2 series o el tiempo bajo tensión.',
+              fatiga_leve: 'Mantén el volumen; ajusta si notas fatiga durante la serie.' },
+  density:  { fatiga_alta: 'Reduce el número de intervalos; mantén la estructura del bloque.',
+              fatiga_leve: 'Mantén la estructura; puedes ampliar ligeramente el descanso.' },
+  effort:   { fatiga_alta: 'Reduce el esfuerzo objetivo (RPE/RIR) hoy.',
+              fatiga_leve: 'Mantén el esfuerzo objetivo, sin forzar.' },
+};
+
+export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChange, onToggleSet, onClose, onOpenTimerGlobal, supersetRound, onSupersetRoundAdvance, blockExecutionLabel }) {
   const [isVisible, setIsVisible] = useState(false);
   const [showMiniTimer, setShowMiniTimer] = useState(false);
   const prevTurnKey = useRef('');
@@ -67,12 +95,16 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
   // Calcular sugerencia dinámica
   const suggestion = useMemo(() => suggestLoad({
     exerciseId: exercise.id,
+    exerciseName: exercise.name || exercise.nombre,
     targetReps: exercise.reps || exercise.targetReps,
     prs,
     sessionLogs,
     mesoType: activeMesocycle?.type || null,
     mesoWeek
-  }), [exercise.id, exercise.reps, exercise.targetReps, prs, sessionLogs, activeMesocycle, mesoWeek]);
+  }), [exercise.id, exercise.name, exercise.nombre, exercise.reps, exercise.targetReps, prs, sessionLogs, activeMesocycle, mesoWeek]);
+
+  const isLoadSuggestion = suggestion && suggestion.actionType === undefined;
+  const isNonLoadSuggestion = suggestion && suggestion.actionType !== undefined;
 
   const [readiness, setReadiness] = useState(() => {
     try {
@@ -96,11 +128,11 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
   const seriesModifier = readiness ? readiness.modifier : 0;
 
   const suggestedVal = useMemo(() => {
-    if (!suggestion) return 0;
+    if (!suggestion || !isLoadSuggestion) return 0;
     const base = suggestion.suggested;
     if (exercise.isTest) return base > 0 ? base : (parseFloat(exercise.loadRef) || 0);
     return Math.round((base * loadFactor) / 1.25) * 1.25;
-  }, [suggestion, loadFactor, exercise.isTest, exercise.loadRef]);
+  }, [suggestion, isLoadSuggestion, loadFactor, exercise.isTest, exercise.loadRef]);
 
   useEffect(() => {
     const turnKey = supersetRound
@@ -222,6 +254,7 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
   const getConfidenceBadge = (confidence) => {
     if (confidence === 'alta') return { label: '🎯 Alta confianza', cls: 'text-[#27ae60] border-[#27ae60]/30 bg-[#27ae60]/10' };
     if (confidence === 'media') return { label: '📊 Estimación', cls: 'text-[#FF6B00] border-[#FF6B00]/30 bg-[#FF6B00]/10' };
+    if (confidence === 'n/a') return { label: '📋 Ejecución técnica', cls: 'text-muted border-border bg-bg/20' };
     return { label: '⚠️ Pocos datos', cls: 'text-[#EF4444] border-[#EF4444]/30 bg-[#EF4444]/10' };
   };
 
@@ -270,15 +303,23 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
           </div>
 
           {supersetRound && (
-            <div className="mt-3 bg-signal-orange/10 border border-signal-orange/25 rounded-xl px-3.5 py-2.5 flex items-center justify-between">
-              <span className="font-mono text-[9px] font-black text-signal-orange uppercase tracking-widest">
-                ⚡ RONDA {supersetRound.currentRound}/{supersetRound.totalRounds}
-              </span>
-              <span className="font-mono text-[9px] text-muted uppercase tracking-wider">
+            <div className="mt-3 bg-signal-orange/10 border border-signal-orange/25 rounded-xl px-3.5 py-2.5 flex items-center justify-between gap-2">
+              <div className="flex flex-col gap-0.5">
+                {blockExecutionLabel && (
+                  <span className="font-mono text-[8px] font-black text-signal-orange/70 uppercase tracking-widest leading-none">
+                    {blockExecutionLabel}
+                  </span>
+                )}
+                <span className="font-mono text-[9px] font-black text-signal-orange uppercase tracking-widest">
+                  ⚡ RONDA {supersetRound.currentRound}/{supersetRound.totalRounds}
+                </span>
+              </div>
+              <span className="font-mono text-[9px] text-muted uppercase tracking-wider shrink-0">
                 Ejercicio {supersetRound.exercisePosition}/{supersetRound.totalExercises}
               </span>
             </div>
           )}
+
 
           {/* Auto Timer Toggle */}
           {exercise.duration && (
@@ -380,7 +421,7 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
                 Aplicar peso de test
               </button>
             </div>
-          ) : suggestion !== null ? (
+          ) : isLoadSuggestion ? (
             <div className="bg-card border border-signal-orange/20 rounded-xl p-4 flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <div>
@@ -447,8 +488,77 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
               {readiness && (
                 <div className="bg-bg/40 border border-border rounded-lg p-2.5 space-y-0.5 text-[9px] font-mono uppercase tracking-wider">
                   <p className="font-bold text-corner-blue">⚠️ AUTORREGULACIÓN ({Math.round(readiness.score * 100)}%):</p>
-                  <p className="text-muted">{readiness.message.toUpperCase()}</p>
+                  <p className="text-muted">{readiness.message?.toUpperCase() ?? 'Ajuste aplicado según tu estado de hoy'}</p>
                 </div>
+              )}
+            </div>
+          ) : isNonLoadSuggestion ? (
+            <div className="bg-card border border-signal-orange/20 rounded-xl p-4 flex flex-col gap-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-condensed font-black text-ink text-base leading-none uppercase tracking-wide">
+                    🤖 TRAININGOS SUGIERE
+                  </h4>
+                  <p className="font-mono text-[8px] text-muted font-bold uppercase tracking-wider mt-1.5">
+                    Progresión por {ACTION_TYPE_LABELS[suggestion.actionType] ?? 'Criterio técnico'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Action type & Direction */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-[10px] text-muted uppercase tracking-wider font-bold">Criterio:</span>
+                  <span className="font-condensed font-black text-lg text-ink uppercase tracking-wide">
+                    {ACTION_TYPE_LABELS[suggestion.actionType] ?? suggestion.actionType}
+                  </span>
+                </div>
+                {suggestion.direction && DIRECTION_LABELS[suggestion.direction] && (
+                  <span className={`font-mono font-black text-xs px-2.5 py-1 rounded-lg border border-border bg-bg/20 ${DIRECTION_LABELS[suggestion.direction].cls}`}>
+                    {DIRECTION_LABELS[suggestion.direction].text}
+                  </span>
+                )}
+              </div>
+
+              {/* Mensaje de progresión de _suggestNonLoad */}
+              <div className="bg-bg/25 border border-border rounded-lg p-3">
+                <p className="font-mono text-xs text-ink leading-relaxed tracking-wider font-bold">
+                  {suggestion.message}
+                </p>
+              </div>
+
+              {/* Confidence badge & Helper text */}
+              <div className="flex items-center justify-between">
+                {(() => {
+                  const badge = getConfidenceBadge(suggestion.confidence);
+                  return (
+                    <span className={`font-mono font-bold text-[9px] px-2.5 py-1 rounded-lg border ${badge.cls}`}>
+                      {badge.label}
+                    </span>
+                  );
+                })()}
+                {suggestion.actionType !== 'none' && (
+                  <span className="font-mono text-[9px] text-muted uppercase tracking-wider">
+                    Registra tu serie con estos criterios
+                  </span>
+                )}
+              </div>
+
+              {/* AUTORREGULACIÓN DIFERENCIADA (no-LOAD) */}
+              {suggestion.actionType !== 'none' && readiness && (
+                (() => {
+                  const isFatigue = readiness.status === 'fatiga_alta' || readiness.status === 'fatiga_leve';
+                  if (!isFatigue) return null;
+
+                  const guidance = AUTOREG_GUIDANCE[suggestion.actionType]?.[readiness.status] ?? readiness.message;
+
+                  return (
+                    <div className="bg-bg/40 border border-border rounded-lg p-2.5 space-y-0.5 text-[9px] font-mono uppercase tracking-wider">
+                      <p className="font-bold text-corner-blue">⚠️ AUTORREGULACIÓN ({Math.round(readiness.score * 100)}%):</p>
+                      <p className="text-muted">{guidance}</p>
+                    </div>
+                  );
+                })()
               )}
             </div>
           ) : (
@@ -526,6 +636,8 @@ export default function SetLoggerSheet({ exercise, sessionType, logs, onLogChang
                         value={log.carga}
                         onChange={e => onLogChange(index, 'carga', e.target.value)}
                         placeholder="0.0"
+                        min="0"
+                        max="500"
                         className="w-full bg-card border border-border rounded-lg px-3 py-2 text-sm font-mono font-bold text-ink focus:border-signal-orange outline-none transition-colors"
                       />
                     </div>

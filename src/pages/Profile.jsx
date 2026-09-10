@@ -8,9 +8,12 @@ import { useFeedback } from '../context/FeedbackContext';
 import { useAuth } from '../context/AuthContext';
 import { useRole } from '../hooks/useRole';
 import { useTimer } from '../context/TimerContext';
-import { ChevronLeft, Pencil, Star, Plus, ShieldCheck, RefreshCw, Bell, Users, DownloadCloud, MessageCircle, LogOut, CheckCircle2, PlayCircle, Volume2 } from 'lucide-react';
-import { getSeasons, getSessions, getRoutineAssignments, activateRoutine, fetchWorkouts } from '../services/sheets';
+import { ChevronLeft, Pencil, Star, Plus, ShieldCheck, RefreshCw, Bell, Users, DownloadCloud, MessageCircle, LogOut, CheckCircle2, PlayCircle, Volume2, ClipboardList, Copy, Check } from 'lucide-react';
+import { getSeasons, getSessions, getRoutineAssignments, activateRoutine, fetchWorkouts, getAtletaId } from '../services/sheets';
 import { parseWorkouts } from '../utils/workoutParser';
+import { getPendingCustomExercises } from '../utils/getPendingCustomExercises';
+import { useRemoteLogSync } from '../hooks/useRemoteLogSync';
+import { requestNotificationPermission } from '../utils/notifications';
 
 export default function Profile() {
   const navigate = useNavigate();
@@ -20,8 +23,10 @@ export default function Profile() {
   const { prs } = usePR();
   const { unreadCount, sessionsWithUnread } = useFeedback();
   const { logout, currentUser } = useAuth();
-  const { isBoth } = useRole();
+  const { isBoth, isCoach } = useRole();
+
   const { completionSound, setCompletionSound, SOUND_PRESETS, playSound } = useTimer();
+  const { syncNow, isSyncing, lastSyncedAt } = useRemoteLogSync();
 
   const [assignedRoutines, setAssignedRoutines] = useState([]);
   const [loadingAssignments, setLoadingAssignments] = useState(true);
@@ -37,7 +42,29 @@ export default function Profile() {
 
   // Settings State
   const [demoMode, setDemoMode] = useState(() => localStorage.getItem('trainingos_demo_mode') === 'true');
-  const [notifications, setNotifications] = useState(true);
+  const [notifications, setNotifications] = useState(() => typeof Notification !== 'undefined' && Notification.permission === 'granted');
+
+  const handleToggleNotifications = async () => {
+    if (!notifications) {
+      const granted = await requestNotificationPermission();
+      setNotifications(granted);
+    } else {
+      setNotifications(false);
+    }
+  };
+
+  // Atleta ID State
+  const [copiedId, setCopiedId] = useState(false);
+  const athleteIdDisplay = currentUser?.uid || athlete?.id || getAtletaId() || 'Sin ID';
+
+  const handleCopyAtletaId = () => {
+    if (!athleteIdDisplay || athleteIdDisplay === 'Sin ID') return;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(athleteIdDisplay);
+      setCopiedId(true);
+      setTimeout(() => setCopiedId(false), 2000);
+    }
+  };
 
   // Derived Identity
   const initial = currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : athlete.name ? athlete.name.charAt(0).toUpperCase() : 'A';
@@ -214,6 +241,25 @@ export default function Profile() {
               <ShieldCheck size={14} className="text-corner-red" />
               <span className="font-mono text-[9px] font-bold text-muted tracking-widest uppercase">{roleLabel}</span>
             </div>
+
+            {/* Atleta ID & Copiar */}
+            <div className="mt-3 flex items-center justify-center gap-2">
+              <span className="font-mono text-[10px] text-muted tracking-wider bg-bg/80 px-2.5 py-1 rounded-md border border-border flex items-center gap-1.5 select-all">
+                <span className="text-muted/60">ID:</span>
+                <span className="font-bold text-ink truncate max-w-[180px] sm:max-w-[260px]">
+                  {athleteIdDisplay}
+                </span>
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyAtletaId}
+                className="px-2 py-1 bg-card hover:bg-bg border border-border hover:border-signal-orange text-muted hover:text-signal-orange rounded-md font-mono text-[10px] uppercase font-bold transition-all cursor-pointer flex items-center gap-1 active:scale-95"
+                title="Copiar Atleta ID"
+              >
+                {copiedId ? <Check size={11} className="text-success-green" /> : <Copy size={11} />}
+                {copiedId ? 'Copiado' : 'Copiar'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -240,6 +286,73 @@ export default function Profile() {
                 }`}
               >
                 Coach
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ACCESOS RÁPIDOS DE COACH (para rol coach o ambos) */}
+        {(isCoach || isBoth) && (
+          <div className="bg-card border border-border rounded-xl p-5 shadow-none space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-condensed font-black text-lg text-ink tracking-wider uppercase">Herramientas de Coach</h3>
+                <p className="font-mono text-[10px] text-muted uppercase tracking-wider mt-0.5">Gestión de biblioteca y atletas</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+              {(() => {
+                const pendingCount = getPendingCustomExercises().length;
+                return (
+                  <button
+                    onClick={() => navigate('/exercises/review')}
+                    className="flex items-center justify-between p-3.5 bg-bg/40 border border-border hover:border-signal-orange rounded-xl text-left transition-all active:scale-[0.98] cursor-pointer group"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-lg bg-signal-orange/10 flex items-center justify-center text-signal-orange shrink-0">
+                        <ClipboardList size={18} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-condensed font-black text-sm text-ink uppercase tracking-wide group-hover:text-signal-orange transition-colors">
+                          Revisar Ejercicios
+                        </p>
+                        <p className="font-mono text-[9px] text-muted uppercase tracking-wider">
+                          Ejercicios custom
+                        </p>
+                      </div>
+                    </div>
+                    {pendingCount > 0 ? (
+                      <span className="px-2 py-0.5 rounded-full bg-signal-orange text-white font-mono text-[10px] font-black tracking-wider">
+                        {pendingCount} PENDIENTE{pendingCount !== 1 ? 'S' : ''}
+                      </span>
+                    ) : (
+                      <span className="font-mono text-[9px] text-muted uppercase tracking-wider">
+                        Al día ✓
+                      </span>
+                    )}
+                  </button>
+                );
+              })()}
+
+              <button
+                onClick={() => navigate('/coach')}
+                className="flex items-center justify-between p-3.5 bg-bg/40 border border-border hover:border-signal-orange rounded-xl text-left transition-all active:scale-[0.98] cursor-pointer group"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-9 h-9 rounded-lg bg-ink/5 flex items-center justify-center text-ink shrink-0">
+                    <Users size={18} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-condensed font-black text-sm text-ink uppercase tracking-wide group-hover:text-signal-orange transition-colors">
+                      Panel de Coach
+                    </p>
+                    <p className="font-mono text-[9px] text-muted uppercase tracking-wider">
+                      Atletas y asignaciones
+                    </p>
+                  </div>
+                </div>
+                <span className="text-muted group-hover:text-signal-orange transition-colors">→</span>
               </button>
             </div>
           </div>
@@ -509,6 +622,28 @@ export default function Profile() {
               </select>
             </div>
             
+            {/* Sincronización Remota (Cross-Device) */}
+            <div className="flex justify-between items-center pt-3 border-t border-border">
+              <div className="flex items-center gap-3">
+                <RefreshCw size={18} className={`text-signal-orange ${isSyncing ? 'animate-spin' : ''}`} />
+                <div>
+                  <div className="font-bold text-sm uppercase font-condensed tracking-wide">Sincronización Nube</div>
+                  <div className="font-mono text-[9px] text-muted uppercase tracking-wider mt-0.5">
+                    {isSyncing ? 'Sincronizando registros...' : lastSyncedAt ? `Última: hace ${Math.max(1, Math.round((Date.now() - lastSyncedAt)/60000))}m` : 'Sincronizado'}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={syncNow}
+                disabled={isSyncing}
+                className="font-mono text-xs font-bold text-signal-orange hover:underline cursor-pointer bg-signal-orange/10 px-3 py-1.5 rounded-lg border border-signal-orange/20 disabled:opacity-50 flex items-center gap-1.5 active:scale-95 transition-all"
+              >
+                <RefreshCw size={12} className={isSyncing ? 'animate-spin' : ''} />
+                {isSyncing ? 'Sincronizando...' : 'Sincronizar'}
+              </button>
+            </div>
+
             <div className="flex justify-between items-center pt-3 border-t border-border">
               <div className="flex items-center gap-3">
                 <Bell size={18} className="text-muted" />
@@ -518,7 +653,7 @@ export default function Profile() {
                 </div>
               </div>
               <button
-                onClick={() => setNotifications(!notifications)}
+                onClick={handleToggleNotifications}
                 className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors cursor-pointer ${notifications ? 'bg-signal-orange' : 'bg-border'}`}
               >
                 <div className={`w-4 h-4 bg-white rounded-full transition-transform ${notifications ? 'translate-x-6' : 'translate-x-0'}`} />
@@ -551,6 +686,13 @@ export default function Profile() {
         >
           <LogOut size={16} /> Cerrar Sesión
         </button>
+
+        {/* VERSION */}
+        <div className="text-center pt-2 pb-6">
+          <p className="font-mono text-[10px] text-muted uppercase tracking-widest font-bold">
+            TrainingOS v2.0.0
+          </p>
+        </div>
 
       </div>
     </div>

@@ -43,10 +43,11 @@ export function computeFatigueIndex(input, config = PERFORMANCE_CONFIG) {
     }
   }
 
-  // maxTheoretical: max possible fatigue in the window
-  // weeklyAvailability × maxCost(10) × maxSets(5) × maxIntensityFactor(1.3)
+  // maxTheoretical: fatiga máxima teórica en la ventana de 7 días.
+  // weeklyAvailability × ejerciciosPorSesión(4) × maxCost(10) × maxSets(4) × maxIntensityFactor(1.3)
   const weeklyAvail = input.athlete.weeklyAvailability ?? 4;
-  const maxTheoretical = weeklyAvail * 10 * 5 * 1.3;
+  const exercisesPerSession = 4;
+  const maxTheoretical = weeklyAvail * exercisesPerSession * 10 * 4 * 1.3;
 
   const value = Math.min(100, (totalFatigue / maxTheoretical) * 100);
 

@@ -1,3 +1,6 @@
+import { estimate1RM } from '../engine/performance/utils/oneRMEstimators.js';
+import { EXERCISE_LIBRARY } from '../data/exerciseLibrary.js';
+
 // ═══════════════════════════════════
 // TABLA RPE OBJETIVO POR MESOCICLO
 // ═══════════════════════════════════
@@ -117,28 +120,264 @@ function parseReps(repsVal) {
   return isNaN(num) ? null : num;
 }
 
+// Helper de normalización para matching consistente con getPreviousWeekReference.js
+const normalize = (name) => {
+  if (!name) return '';
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ');
+};
+
+// ═══════════════════════════════════
+// MAPEO: progressionModel → tipo de acción sugerida
+// ═══════════════════════════════════
+const ACTION_TYPE_MAP = {
+  VELOCITY: 'velocity',
+  QUALITY:  'quality',
+  VOLUME:   'volume',
+  DENSITY:  'density',
+  RPE:      'effort',
+  RIR:      'effort',
+  NONE:     'none',
+};
+
+// ─── Función auxiliar: genera respuesta para modelos no-LOAD ─────────────────
+function _suggestNonLoad({ progressionModel, exerciseId, exerciseName, sessionLogs }) {
+  const actionType = ACTION_TYPE_MAP[progressionModel] ?? 'none';
+
+  // Si es NONE (movilidad, etc.), no hay sugerencia numérica ni cualitativa
+  if (actionType === 'none') {
+    return {
+      progressionModel,
+      actionType: 'none',
+      direction: null,
+      message: 'Sin progresión numérica (ejecución técnica)',
+      confidence: 'n/a',
+      hasHistory: false,
+    };
+  }
+
+  // Recoger historial reciente (misma lógica que en suggestLoad LOAD)
+  const targetNorm = exerciseName ? normalize(exerciseName) : '';
+  const safeLogs = Array.isArray(sessionLogs) ? sessionLogs : [];
+  const recentLogs = [];
+  for (const log of safeLogs) {
+    if (recentLogs.length >= 3) break;
+    const ex = log.ejercicios?.find(
+      e => e && (e.id === exerciseId || (targetNorm && normalize(e.nombre || e.name || '') === targetNorm))
+    );
+    if (ex?.seriesLog?.length > 0) recentLogs.push(ex);
+  }
+
+  const hasHistory = recentLogs.length > 0;
+
+  // ── Lógica por actionType ────────────────────────────────────────────────
+  if (actionType === 'velocity') {
+    // Leer velocidadPercibida de series recientes
+    const scores = recentLogs.flatMap(ex =>
+      ex.seriesLog
+        .filter(s => s.velocidad != null)
+        .map(s =>
+          s.velocidad === 'rapida' ? 3 :
+          s.velocidad === 'media'  ? 2 : 1
+        )
+    );
+    const avgVel = scores.length > 0
+      ? scores.reduce((a, b) => a + b, 0) / scores.length
+      : null;
+
+    let direction = 'maintain';
+    let message   = 'Mantener carga/altura actual';
+    if (avgVel !== null) {
+      if (avgVel >= 2.5)      { direction = 'progress'; message = '↑ Aumentar exigencia (velocidad alta)'; }
+      else if (avgVel < 1.5)  { direction = 'reduce';   message = '↓ Reducir exigencia (movimiento lento)'; }
+    }
+
+    return { progressionModel, actionType, direction, message,
+             confidence: hasHistory ? 'media' : 'baja', hasHistory };
+  }
+
+  if (actionType === 'quality') {
+    // Leer calidadTecnica
+    const quals = recentLogs.flatMap(ex =>
+      ex.seriesLog
+        .filter(s => s.calidadTecnica != null)
+        .map(s => Number(s.calidadTecnica))
+    );
+    const avgQual = quals.length > 0
+      ? quals.reduce((a, b) => a + b, 0) / quals.length
+      : null;
+
+    let direction = 'maintain';
+    let message   = 'Consolidar técnica actual';
+    if (avgQual !== null) {
+      if (avgQual >= 4)      { direction = 'progress'; message = '↑ Aumentar dificultad técnica (calidad alta)'; }
+      else if (avgQual < 3)  { direction = 'reduce';   message = '↓ Simplificar movimiento (calidad baja)'; }
+    }
+
+    return { progressionModel, actionType, direction, message,
+             confidence: hasHistory ? 'media' : 'baja', hasHistory };
+  }
+
+  if (actionType === 'volume') {
+    // Contar series completadas recientes
+    const doneSets = recentLogs.flatMap(ex =>
+      ex.seriesLog.filter(s => s.done)
+    ).length;
+    const avgSets = hasHistory
+      ? doneSets / recentLogs.length
+      : null;
+
+    let direction = 'maintain';
+    let message   = 'Mantener volumen actual';
+    if (avgSets !== null && avgSets >= 3) {
+      direction = 'progress';
+      message   = `↑ Añadir 1 serie (media: ${avgSets.toFixed(1)} series/sesión)`;
+    }
+
+    return { progressionModel, actionType, direction, message,
+             confidence: hasHistory ? 'media' : 'baja', hasHistory };
+  }
+
+  if (actionType === 'density') {
+    // Sin datos de densidad aún: señal cualitativa basada en RPE
+    const rpes = recentLogs.flatMap(ex =>
+      ex.seriesLog
+        .filter(s => s.rpe != null)
+        .map(s => parseFloat(s.rpe))
+    );
+    const avgRpe = rpes.length > 0
+      ? rpes.reduce((a, b) => a + b, 0) / rpes.length
+      : null;
+
+    let direction = 'maintain';
+    let message   = 'Mantener densidad actual';
+    if (avgRpe !== null) {
+      if (avgRpe < 7)      { direction = 'progress'; message = '↑ Reducir descanso entre series'; }
+      else if (avgRpe > 9) { direction = 'reduce';   message = '↓ Aumentar descanso entre series'; }
+    }
+
+    return { progressionModel, actionType, direction, message,
+             confidence: hasHistory ? 'media' : 'baja', hasHistory };
+  }
+
+  if (actionType === 'effort') {
+    // RPE/RIR: comparar esfuerzo reciente con objetivo
+    const rpes = recentLogs.flatMap(ex =>
+      ex.seriesLog
+        .filter(s => s.rpe != null)
+        .map(s => parseFloat(s.rpe))
+    );
+    const avgRpe = rpes.length > 0
+      ? rpes.reduce((a, b) => a + b, 0) / rpes.length
+      : null;
+
+    let direction = 'maintain';
+    let message   = 'Mantener esfuerzo objetivo';
+    if (avgRpe !== null) {
+      if (avgRpe < 7)      { direction = 'progress'; message = '↑ Aumentar esfuerzo percibido (RPE bajo)'; }
+      else if (avgRpe > 9) { direction = 'reduce';   message = '↓ Reducir esfuerzo (RPE muy alto)'; }
+    }
+
+    return { progressionModel, actionType, direction, message,
+             confidence: hasHistory ? 'media' : 'baja', hasHistory };
+  }
+
+  // Fallback genérico
+  return { progressionModel, actionType, direction: 'maintain',
+           message: 'Sin lógica específica para este modelo', confidence: 'baja', hasHistory };
+}
+
 // ═══════════════════════════════════
 // FUNCIÓN PRINCIPAL
 // ═══════════════════════════════════
 export function suggestLoad({
   exerciseId,
+  exerciseName = null,
   targetReps,
   prs,
   sessionLogs,
   mesoType = null,
   mesoWeek = null,
+  progressionModel: _progressionModelArg = null,
 }) {
+  // ─── Resolver progressionModel ────────────────────────────────────────────
+  // Si el caller lo pasa explícitamente, úsalo.
+  // Si no, buscarlo en EXERCISE_LIBRARY por exerciseId.
+  // Default final: 'LOAD' (preserva 100% el comportamiento existente).
+  let progressionModel = _progressionModelArg;
+  if (!progressionModel && exerciseId) {
+    const libEx = EXERCISE_LIBRARY.find(e => e.id === exerciseId);
+    progressionModel = libEx?.progressionModel ?? null;
+  }
+  if (!progressionModel) progressionModel = 'LOAD';
+
+  // ─── Rama no-LOAD: retorno anticipado con estructura paralela ─────────────
+  // No toca ningún cálculo de kg ni los campos del objeto LOAD.
+  if (progressionModel !== 'LOAD') {
+    return _suggestNonLoad({
+      progressionModel,
+      exerciseId,
+      exerciseName,
+      sessionLogs: Array.isArray(sessionLogs) ? sessionLogs : [],
+    });
+  }
 
   // PASO 1 — 1RM actual
-  const exercisePRs = prs.filter(
-    pr => pr.exerciseId === exerciseId
+  const safePRs = Array.isArray(prs) ? prs : [];
+  let exercisePRs = safePRs.filter(
+    pr => pr && pr.exerciseId === exerciseId
   );
-  if (exercisePRs.length === 0) return null;
-  
-  const bestPR = exercisePRs.reduce(
-    (max, pr) => pr.valor > max.valor ? pr : max
-  );
-  const oneRM = bestPR.valor;
+
+  // Fallback por nombre normalizado si no hay coincidencia por ID exacto
+  if (exercisePRs.length === 0 && exerciseName) {
+    const targetNorm = normalize(exerciseName);
+    if (targetNorm) {
+      exercisePRs = safePRs.filter(
+        pr => pr && normalize(pr.exerciseName || pr.nombre || '') === targetNorm
+      );
+    }
+  }
+
+  let oneRM = 0;
+  if (exercisePRs.length > 0) {
+    const bestPR = exercisePRs.reduce(
+      (max, pr) => pr.valor > max.valor ? pr : max
+    );
+    oneRM = bestPR.valor;
+  } else if (Array.isArray(sessionLogs) && sessionLogs.length > 0) {
+    // Fallback dinámico: calcular mejor 1RM desde sessionLogs si prs aún no tiene entrada para este ejercicio
+    let maxEst = 0;
+    const targetNorm = exerciseName ? normalize(exerciseName) : '';
+
+    sessionLogs.forEach(log => {
+      if (!log || !Array.isArray(log.ejercicios)) return;
+      log.ejercicios.forEach(ex => {
+        if (!ex || !Array.isArray(ex.seriesLog)) return;
+        const isMatch = ex.id === exerciseId || (targetNorm && normalize(ex.nombre || ex.name || '') === targetNorm);
+        if (!isMatch) return;
+
+        // 1. Criterio de validez: s && parseFloat(s.carga) > 0 && parseFloat(s.reps) > 0
+        const validSets = ex.seriesLog.filter(
+          s => s && parseFloat(s.carga) > 0 && parseFloat(s.reps) > 0
+        );
+        validSets.forEach(s => {
+          const c = parseFloat(s.carga);
+          const r = parseFloat(s.reps);
+          const est = estimate1RM(c, r, 'epley');
+          if (est > maxEst) maxEst = est;
+        });
+      });
+    });
+    if (maxEst > 0) {
+      oneRM = Math.round(maxEst * 10) / 10;
+    }
+  }
+
+  if (oneRM <= 0) return null;
 
   // PASO 2 — Parsear reps
   const reps = parseReps(targetReps);
@@ -170,10 +409,11 @@ export function suggestLoad({
 
   // PASO 5 — Recoger historial RPE y velocidad
   const recentLogs = [];
+  const targetNorm = exerciseName ? normalize(exerciseName) : '';
   for (const log of sessionLogs) {
     if (recentLogs.length >= 3) break;
     const ex = log.ejercicios?.find(
-      e => e.id === exerciseId
+      e => e && (e.id === exerciseId || (targetNorm && normalize(e.nombre || e.name || '') === targetNorm))
     );
     if (ex?.seriesLog?.length > 0) {
       recentLogs.push(ex);

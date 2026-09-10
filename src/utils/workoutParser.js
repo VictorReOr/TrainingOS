@@ -1,5 +1,6 @@
-import { EXERCISE_LIBRARY } from '../data/exerciseLibrary';
-import { matchExerciseId } from './exerciseMatcher';
+import { EXERCISE_LIBRARY } from '../data/exerciseLibrary.js';
+import { matchExerciseId } from './exerciseMatcher.js';
+import { normalizeCategory, CATEGORY_DEFAULTS } from '../data/exerciseMetadata.js';
 
 /**
  * Parsea un array de filas planas procedentes del Excel (workouts) 
@@ -26,9 +27,9 @@ export function parseWorkouts(rows) {
     // Nombre de sesión manual proveniente de la hoja de cálculo
     const sessionNameFromSheet = (row.sessionName || row.nombre_sesion || '').toString().trim();
 
-    // Captura de superserie
-    const rawSuperSerie = (row.superSerie || '').toString().trim();
-    const supersetCode = (rawSuperSerie && rawSuperSerie !== '-') ? rawSuperSerie : null;
+    // Captura de superserie (soporta superSerie, super_serie, superserie, SS, ss, SuperSerie)
+    const rawSuperSerie = (row.superSerie || row.super_serie || row.superserie || row.SS || row.ss || row.SuperSerie || '').toString().trim();
+    let supersetCode = (rawSuperSerie && rawSuperSerie !== '-') ? rawSuperSerie : null;
 
     // Auto-detect: if rutina_id looks like a day name and dia is empty,
     // the user put the day in the rutina_id column
@@ -42,6 +43,12 @@ export function parseWorkouts(rows) {
 
     let blockLabel = (row.bloque || '').toString().trim();
     if (!blockLabel) blockLabel = lastBlock;
+
+    // Si el bloque está denominado explícitamente SS1, SS2, SS3... y no se indicó columna de superserie,
+    // se infiere que todo el bloque es una superserie con dicho código
+    if (!supersetCode && /^SS\d+/i.test(blockLabel)) {
+      supersetCode = blockLabel.toUpperCase();
+    }
 
     // Update memory
     lastRId = rId;
@@ -105,6 +112,10 @@ export function parseWorkouts(rows) {
     const reps = (row.repeticiones || '1').toString();
     const rawExerciseName = row.ejercicio || 'Ejercicio Desconocido';
     
+    // Resolución de categoría normalizada desde row.tipo
+    const normalizedCategory = normalizeCategory(row.tipo);
+    const categoryDefaults = CATEGORY_DEFAULTS[normalizedCategory] || CATEGORY_DEFAULTS.Fuerza;
+
     // Resolución de ID estable
     const matchedId = matchExerciseId(rawExerciseName, EXERCISE_LIBRARY);
     let finalId;
@@ -124,20 +135,30 @@ export function parseWorkouts(rows) {
         .replace(/^-+|-+$/g, '');
       finalId = `custom-${normalizedName}`;
       fallbackFields = {
-        pattern: null,
-        systemicCost: 5,
-        sportTransfer: 5,
-        priority: 'accessory',
+        pattern: categoryDefaults.pattern,
+        systemicCost: categoryDefaults.systemicCost,
+        sportTransfer: categoryDefaults.sportTransfer,
+        priority: categoryDefaults.priority,
+        exerciseType: categoryDefaults.exerciseType,
+        progressionModel: categoryDefaults.progressionModel,
+        category: normalizedCategory,
         _needsReview: true
       };
-      console.log(`[EXERCISE_MATCH] "${rawExerciseName}" → ${finalId} (FALLBACK)`);
+      console.log(`[EXERCISE_MATCH] "${rawExerciseName}" → ${finalId} (FALLBACK - ${normalizedCategory})`);
     }
+
+    // Detección de carga o peso indicado en la fila del Excel
+    const rawLoad = row.carga ?? row.peso ?? row.load ?? row.prescribedLoad ?? row.loadRef ?? null;
+    const parsedLoad = (rawLoad !== null && rawLoad !== '' && !isNaN(parseFloat(String(rawLoad).replace(',', '.'))))
+      ? parseFloat(String(rawLoad).replace(',', '.'))
+      : null;
 
     const exercise = {
       id: finalId,
       name: rawExerciseName,
       muscleGroup: row.grupo_muscular || '',
       orderNumber: row.grupo_muscular || '',
+      category: normalizedCategory,
       type: row.tipo || 'fuerza',
       series: sets,
       reps: reps,
@@ -146,6 +167,9 @@ export function parseWorkouts(rows) {
       targetExecutionTime: parseInt(row.tiempo_ejecucion, 10) || 0,
       targetRestTime: parseInt(row.tiempo_descanso, 10) || 0,
       restSeconds: parseInt(row.tiempo_descanso, 10) || 0,
+      loadRef: parsedLoad,
+      prescribedLoad: parsedLoad,
+      carga: parsedLoad,
       _rawSuperSerie: supersetCode,
       supersetId: null,
       log: [],
@@ -259,6 +283,14 @@ function calculateExerciseSeconds(ex, isIntermediateInSuperset = false) {
           id,
           exerciseIds,
         }));
+        // Sincronizar también con block.execution si el bloque contiene superseries
+        if (block.supersets.length > 0 && (!block.execution || block.execution.type === 'STRAIGHT_SET')) {
+          block.execution = {
+            type: 'SUPERSET',
+            exerciseRoles: {},
+            restProfile: { mode: 'PRESET', presetId: 'SUPERSET_DEFAULT' }
+          };
+        }
       });
 
       // ── 3. CÁLCULO DE DURACIÓN Y EJERCICIOS ──

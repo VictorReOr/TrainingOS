@@ -13,6 +13,10 @@ import { CoachProvider } from './context/CoachContext'
 import { FeedbackProvider } from './context/FeedbackContext'
 import { AuthProvider } from './context/AuthContext'
 import { ReadinessProvider } from './context/ReadinessContext'
+import { registerServiceWorker } from './utils/notifications'
+
+// Inicializar Service Worker para PWA y alertas con pantalla bloqueada
+registerServiceWorker();
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

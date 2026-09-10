@@ -57,13 +57,14 @@ export function useProgressiveOverload(exerciseId, exerciseName, targetReps, ses
   const suggestion = useMemo(() => {
     return suggestLoad({
       exerciseId,
+      exerciseName,
       targetReps,
       prs,
       sessionLogs,
       mesoType: activeMesocycle?.type || null,
       mesoWeek
     });
-  }, [exerciseId, targetReps, prs, sessionLogs, activeMesocycle, mesoWeek]);
+  }, [exerciseId, exerciseName, targetReps, prs, sessionLogs, activeMesocycle, mesoWeek]);
 
   // Map to a compatible return shape for ExerciseRow and other consumers
   const hasHistory = suggestion !== null;

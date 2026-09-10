@@ -19,7 +19,7 @@ const LS_SESSION_LOGS = 'trainingos_session_logs';
  */
 export function usePerformanceEngine() {
   const { athlete }                               = useAthlete();
-  const { activeMesocycle }                       = usePlanner();
+  const { activeMesocycle, weekSessions }          = usePlanner();
   const { prs, getPRHistory }                     = usePR();
   const { todayCheckIn, wellnessLogs, latestWeight } = useReadiness();
 
@@ -64,6 +64,11 @@ export function usePerformanceEngine() {
   const input = useMemo(() => {
     if (!isEnabled || !athlete) return null;
 
+    // Sesión planificada para hoy (mismo patrón que Home.jsx)
+    const DAYS_ES = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+    const todayKey = DAYS_ES[new Date().getDay()];
+    const todaySession = weekSessions?.[todayKey] ?? null;
+
     return buildPerformanceInput({
       athlete,
       activeMesocycle,
@@ -72,11 +77,13 @@ export function usePerformanceEngine() {
       sessionLogs,
       todayCheckIn,
       wellnessLogs,
-      latestWeight
+      latestWeight,
+      todaySession,
     });
   }, [
     isEnabled, athlete, activeMesocycle,
-    prs, sessionLogs, todayCheckIn, wellnessLogs, latestWeight
+    prs, sessionLogs, todayCheckIn, wellnessLogs, latestWeight,
+    weekSessions,
   ]);
 
   // ── Run engine ───────────────────────────────────────────────────

@@ -76,6 +76,7 @@ export default function AthleteDetail() {
 
       const sugg = suggestLoad({
         exerciseId: ex.id,
+        exerciseName: ex.name || ex.nombre,
         targetReps: 8,
         prs,
         sessionLogs,

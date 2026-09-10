@@ -1,5 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Trophy, TrendingUp, ClipboardList, ChevronRight, X, ChevronDown, Search, Share2, RotateCcw, Activity, Heart } from 'lucide-react';
+import { 
+  Trophy, TrendingUp, ClipboardList, ChevronRight, X, ChevronDown, 
+  Search, Share2, RotateCcw, Activity, Heart,
+  Zap, Scale, Dumbbell, Award, AlertTriangle, CheckCircle2, Flame, Calendar
+} from 'lucide-react';
 import { usePR } from '../context/PRContext';
 import { useAthlete } from '../context/AthleteContext';
 import { useSession } from '../context/SessionContext';
@@ -313,13 +317,33 @@ export default function Evolution() {
   const navigate = useNavigate();
   const { prs, getPRForExercise, getPRHistory } = usePR();
   const { activeSport } = useAthlete();
-  const { loadSession } = useSession();
-  const { exercisesWithPRs, sessionLogs, getMesocycleComparison, getExerciseChartData, hasData, isDemoMode } = useEvolutionData();
+  const { 
+    exercisesWithPRs, 
+    sessionLogs, 
+    getMesocycleComparison, 
+    getExerciseChartData, 
+    hasData, 
+    isDemoMode,
+    patternBalanceData,
+    tkdTransferData,
+    powerEvolutionData,
+    mesocycleComparisonExtended
+  } = useEvolutionData();
 
   const [activeTab, setActiveTab]                     = useState('prs');
   const [activeCategory, setActiveCategory]           = useState('Todos');
+  const [activeChartSubTab, setActiveChartSubTab]     = useState('fuerza');
   const [selectedHistoryExercise, setSelectedHistoryExercise] = useState(null);
   const [selectedChartExId, setSelectedChartExId]     = useState('');
+  
+  const chartSubTabs = [
+    { id: 'fuerza',     label: 'Fuerza',       icon: '🏋️' },
+    { id: 'potencia',   label: 'Potencia',     icon: '⚡' },
+    { id: 'transfer',   label: 'Transfer TKD', icon: '🥋' },
+    { id: 'equilibrio', label: 'Equilibrio',   icon: '⚖️' },
+    { id: 'mesociclos', label: 'Mesociclos',   icon: '📅' },
+    { id: 'general',    label: 'General',      icon: '📦' }
+  ];
   
   // History State
   const [historySearch, setHistorySearch]             = useState('');
@@ -568,6 +592,26 @@ export default function Evolution() {
                 }`}
               >
                 {cat}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Sub-tabs Gráficas (Fase 7) */}
+        {activeTab === 'graficas' && (
+          <div className="flex overflow-x-auto gap-2 hide-scrollbar pt-3 -mx-5 px-5 pb-0.5">
+            {chartSubTabs.map(sub => (
+              <button
+                key={sub.id}
+                onClick={() => setActiveChartSubTab(sub.id)}
+                className={`whitespace-nowrap px-3.5 py-1.5 rounded-full text-xs font-bold transition-all border flex items-center gap-1.5 ${
+                  activeChartSubTab === sub.id
+                    ? 'border-[#FF6B00] text-signal-orange bg-signal-orange/10'
+                    : 'border-border text-muted bg-card'
+                }`}
+              >
+                <span>{sub.icon}</span>
+                <span>{sub.label}</span>
               </button>
             ))}
           </div>
@@ -894,92 +938,444 @@ export default function Evolution() {
           </div>
         )}
 
-        {/* ── GRÁFICAS ── */}
+        {/* ── GRÁFICAS (FASE 7) ── */}
         {activeTab === 'graficas' && hasData && (
           <div className="space-y-4 animate-fade-in-up">
 
-            {/* Card wrapper */}
-            {[
-              {
-                title: 'Progresión de Fuerza',
-                sub: 'Estimado de 1 Repetición Máxima (Epley)',
-                content: (
-                  <>
-                    <div className="relative mb-4 bg-bg border border-border rounded-xl">
-                      <select
-                        value={selectedChartExId}
-                        onChange={e => setSelectedChartExId(e.target.value)}
-                        className="w-full appearance-none bg-transparent py-3 pl-4 pr-10 text-ink font-bold outline-none"
+            {/* 1. SUB-TAB: FUERZA */}
+            {activeChartSubTab === 'fuerza' && (
+              <>
+                <div className="bg-card border border-border rounded-2xl p-5 shadow-none relative">
+                  <SectionHeader title="Progresión de Fuerza" sub="Estimado de 1 Repetición Máxima (Epley)" />
+                  <div className="relative mb-4 bg-bg border border-border rounded-xl">
+                    <select
+                      value={selectedChartExId}
+                      onChange={e => setSelectedChartExId(e.target.value)}
+                      className="w-full appearance-none bg-transparent py-3 pl-4 pr-10 text-ink font-bold outline-none cursor-pointer"
+                    >
+                      {exercisesWithPRs.map(ex => (
+                        <option key={ex.exerciseId} value={ex.exerciseId}>{ex.exerciseName}</option>
+                      ))}
+                    </select>
+                    <div className="absolute right-3 top-0 bottom-0 flex items-center pointer-events-none text-muted">
+                      <ChevronDown size={16} />
+                    </div>
+                  </div>
+                  {chart1Data.length > 1 ? (
+                    <div style={{ width: '100%', height: 210 }}>
+                      <ResponsiveContainer>
+                        <LineChart data={chart1Data} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                          <XAxis dataKey="fecha" tickFormatter={formatShortDate} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="var(--color-border)" tickMargin={8} />
+                          <YAxis domain={['auto','auto']} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="var(--color-border)" />
+                          <Tooltip content={<ChartTooltip mode="1rm" />} cursor={{ stroke: '#FF6B00', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                          <Line type="monotone" dataKey="valor" stroke="var(--color-signal-orange)" strokeWidth={2.5} dot={{ r: 4, fill: '#FF6B00', stroke: 'white', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#FF6B00' }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="h-[180px] flex items-center justify-center border-2 border-dashed border-border rounded-2xl text-muted text-sm text-center px-4">
+                      Completa más sesiones para ver la progresión de 1RM.
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-card border border-border rounded-2xl p-5 shadow-none relative">
+                  <SectionHeader title="Progresión de Sobrecarga" sub="Historial de cargas de entreno reales vs. prescripción científica del motor" />
+                  <div className="flex gap-3 mb-4">
+                    <div className="bg-signal-orange/10 border border-[#FF6B00]/20 rounded-xl p-3 flex-1 flex flex-col items-center">
+                      <span className="text-[10px] text-muted font-bold uppercase tracking-wider mb-0.5">Potencial Realizado</span>
+                      <span className="font-condensed font-black text-2xl text-signal-orange">{potentialPct}%</span>
+                    </div>
+                    <div className="bg-bg border border-border rounded-xl p-3 flex-1 flex flex-col items-center">
+                      <span className="text-[10px] text-muted font-bold uppercase tracking-wider mb-0.5">Historial</span>
+                      <span className="font-condensed font-black text-2xl text-ink">{overloadChartData.length} registros</span>
+                    </div>
+                  </div>
+                  {overloadChartData.length > 1 ? (
+                    <div style={{ width: '100%', height: 200 }}>
+                      <ResponsiveContainer>
+                        <LineChart data={overloadChartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                          <XAxis dataKey="fecha" tickFormatter={formatShortDate} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="var(--color-border)" tickMargin={8} />
+                          <YAxis domain={['auto','auto']} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="var(--color-border)" />
+                          <Tooltip cursor={{ stroke: '#FF6B00', strokeWidth: 1, strokeDasharray: '4 4' }} />
+                          <Line type="monotone" name="Carga Real" dataKey="cargaReal" stroke="var(--color-signal-orange)" strokeWidth={2.5} dot={{ r: 4, fill: '#FF6B00', stroke: 'white', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#FF6B00' }} />
+                          <Line type="monotone" name="Prescrita" dataKey="prescribedLoad" stroke="#3d7dd4" strokeDasharray="5 5" strokeWidth={2} dot={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="h-[180px] flex items-center justify-center border-2 border-dashed border-border rounded-2xl text-muted text-sm text-center px-4">
+                      Completa al menos 2 sesiones con este ejercicio para ver la comparativa de sobrecarga.
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* 2. SUB-TAB: POTENCIA */}
+            {activeChartSubTab === 'potencia' && (
+              <>
+                {/* KPI VELOCIDAD */}
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div className="bg-card border border-border rounded-2xl p-3 text-center">
+                    <p className="text-[10px] text-muted font-bold uppercase tracking-wider mb-1">🚀 Rápidas</p>
+                    <p className="font-condensed font-black text-2xl text-success-green">{powerEvolutionData.fastSets}</p>
+                    <span className="text-[10px] text-muted font-mono">{powerEvolutionData.fastPct}% del total</span>
+                  </div>
+                  <div className="bg-card border border-border rounded-2xl p-3 text-center">
+                    <p className="text-[10px] text-muted font-bold uppercase tracking-wider mb-1">⚡ Medias</p>
+                    <p className="font-condensed font-black text-2xl text-signal-orange">{powerEvolutionData.mediumSets}</p>
+                    <span className="text-[10px] text-muted font-mono">Control</span>
+                  </div>
+                  <div className="bg-card border border-border rounded-2xl p-3 text-center">
+                    <p className="text-[10px] text-muted font-bold uppercase tracking-wider mb-1">🐢 Lentas</p>
+                    <p className="font-condensed font-black text-2xl text-corner-red">{powerEvolutionData.slowSets}</p>
+                    <span className="text-[10px] text-muted font-mono">Fatiga / Carga</span>
+                  </div>
+                </div>
+
+                {/* CMJ JUMP CHART */}
+                <div className="bg-card border border-border rounded-2xl p-5 shadow-none">
+                  <SectionHeader title="Salto Vertical CMJ" sub="Indicador neuromuscular de potencia y fatiga central" />
+                  {powerEvolutionData.cmjHistory.length > 1 ? (
+                    <div style={{ width: '100%', height: 200 }}>
+                      <ResponsiveContainer>
+                        <LineChart data={powerEvolutionData.cmjHistory} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                          <XAxis dataKey="fecha" tickFormatter={formatShortDate} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="var(--color-border)" tickMargin={8} />
+                          <YAxis domain={['auto','auto']} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="var(--color-border)" />
+                          <Tooltip content={({ active, payload }) => {
+                            if (!active || !payload?.length) return null;
+                            const d = payload[0].payload;
+                            return (
+                              <div className="bg-card border border-border p-2.5 rounded-xl shadow-md text-xs">
+                                <p className="text-muted text-[10px] font-bold uppercase">{formatDate(d.fecha)}</p>
+                                <p className="font-condensed font-black text-xl text-signal-orange">{d.altura} <span className="text-xs font-sans text-muted">cm</span></p>
+                              </div>
+                            );
+                          }} />
+                          <Line type="monotone" dataKey="altura" stroke="#FF6B00" strokeWidth={2.5} dot={{ r: 4, fill: '#FF6B00', stroke: 'white', strokeWidth: 2 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-border rounded-2xl text-center px-4">
+                      <p className="text-muted text-xs mb-2">Registra tests CMJ en la pestaña Tests para ver la curva de potencia.</p>
+                      <button 
+                        onClick={() => { setActiveTab('tests'); setActiveTestSubTab('cmj'); }}
+                        className="text-xs font-bold text-signal-orange underline cursor-pointer"
                       >
-                        {exercisesWithPRs.map(ex => (
-                          <option key={ex.exerciseId} value={ex.exerciseId}>{ex.exerciseName}</option>
-                        ))}
-                      </select>
-                      <div className="absolute right-3 top-0 bottom-0 flex items-center pointer-events-none text-muted">
-                        <ChevronDown size={16} />
-                      </div>
+                        Ir a Test CMJ →
+                      </button>
                     </div>
-                    {chart1Data.length > 1 ? (
-                      <div style={{ width: '100%', height: 200 }}>
-                        <ResponsiveContainer>
-                          <LineChart data={chart1Data} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                            <XAxis dataKey="fecha" tickFormatter={formatShortDate} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="var(--color-border)" tickMargin={8} />
-                            <YAxis domain={['auto','auto']} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="var(--color-border)" />
-                            <Tooltip content={<ChartTooltip mode="1rm" />} cursor={{ stroke: '#FF6B00', strokeWidth: 1, strokeDasharray: '4 4' }} />
-                            <Line type="monotone" dataKey="valor" stroke="var(--color-signal-orange)" strokeWidth={2.5} dot={{ r: 4, fill: '#FF6B00', stroke: 'white', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#FF6B00' }} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      </div>
-                    ) : (
-                      <div className="h-[200px] flex items-center justify-center border-2 border-dashed border-border rounded-2xl text-muted text-sm text-center px-4">
-                        Completa más sesiones para ver la progresión.
-                      </div>
-                    )}
-                  </>
-                ),
-              },
-              {
-                title: 'Progresión de Sobrecarga',
-                sub: 'Historial de cargas de entreno reales vs. prescripción científica del motor',
-                content: (
-                  <>
-                    <div className="flex gap-3 mb-4">
-                      <div className="bg-signal-orange/10 border border-[#FF6B00]/20 rounded-xl p-3 flex-1 flex flex-col items-center">
-                        <span className="text-[10px] text-muted font-bold uppercase tracking-wider mb-0.5">Potencial Realizado</span>
-                        <span className="font-condensed font-black text-2xl text-signal-orange">{potentialPct}%</span>
-                      </div>
-                      <div className="bg-bg border border-border rounded-xl p-3 flex-1 flex flex-col items-center">
-                        <span className="text-[10px] text-muted font-bold uppercase tracking-wider mb-0.5">Historial</span>
-                        <span className="font-condensed font-black text-2xl text-ink">{overloadChartData.length} registros</span>
-                      </div>
+                  )}
+                </div>
+
+                {/* POWER SESSIONS VOLUME */}
+                <div className="bg-card border border-border rounded-2xl p-5 shadow-none">
+                  <SectionHeader title="Series de Potencia y Pliometría" sub="Series efectivas balísticas por sesión reciente" />
+                  {powerEvolutionData.powerSessions.length > 0 ? (
+                    <div style={{ width: '100%', height: 180 }}>
+                      <ResponsiveContainer>
+                        <BarChart data={powerEvolutionData.powerSessions} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                          <XAxis dataKey="fecha" tickFormatter={formatShortDate} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="var(--color-border)" tickMargin={8} />
+                          <YAxis allowDecimals={false} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="var(--color-border)" />
+                          <Tooltip content={({ active, payload }) => {
+                            if (!active || !payload?.length) return null;
+                            const d = payload[0].payload;
+                            return (
+                              <div className="bg-card border border-border p-2.5 rounded-xl text-xs">
+                                <p className="text-ink font-bold">{d.sessionName}</p>
+                                <p className="text-signal-orange font-bold font-mono">{d.series} series de potencia</p>
+                              </div>
+                            );
+                          }} />
+                          <Bar dataKey="series" fill="#FF6B00" radius={[6, 6, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
                     </div>
-                    {overloadChartData.length > 1 ? (
-                      <div style={{ width: '100%', height: 200 }}>
-                        <ResponsiveContainer>
-                          <LineChart data={overloadChartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
-                            <XAxis dataKey="fecha" tickFormatter={formatShortDate} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="var(--color-border)" tickMargin={8} />
-                            <YAxis domain={['auto','auto']} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="var(--color-border)" />
-                            <Tooltip cursor={{ stroke: '#FF6B00', strokeWidth: 1, strokeDasharray: '4 4' }} />
-                            <Line type="monotone" name="Carga Real" dataKey="cargaReal" stroke="var(--color-signal-orange)" strokeWidth={2.5} dot={{ r: 4, fill: '#FF6B00', stroke: 'white', strokeWidth: 2 }} activeDot={{ r: 6, fill: '#FF6B00' }} />
-                            <Line type="monotone" name="Prescrita" dataKey="prescribedLoad" stroke="#3d7dd4" strokeDasharray="5 5" strokeWidth={2} dot={false} />
-                          </LineChart>
-                        </ResponsiveContainer>
+                  ) : (
+                    <div className="h-28 flex items-center justify-center border-2 border-dashed border-border rounded-2xl text-muted text-xs text-center px-4">
+                      No hay series de ejercicios de potencia/pliometría registradas recientemente.
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* 3. SUB-TAB: TRANSFERENCIA TKD */}
+            {activeChartSubTab === 'transfer' && (
+              <>
+                {/* ITD SCORE CARD */}
+                <div className="bg-card border border-border rounded-2xl p-5 shadow-none flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-condensed font-bold text-signal-orange uppercase tracking-widest block mb-0.5">ÍNDICE ITD</span>
+                    <h3 className="font-condensed font-black text-2xl text-ink uppercase tracking-wide">Transferencia TKD</h3>
+                    <p className="text-xs text-muted mt-1">
+                      {tkdTransferData.totalEffectiveSets} series acumuladas en pilares clave (4 semanas)
+                    </p>
+                  </div>
+                  <div className="text-right bg-signal-orange/10 border border-[#FF6B00]/20 px-4 py-2.5 rounded-2xl">
+                    <span className="font-display font-black text-3.5xl text-signal-orange leading-none block">
+                      {tkdTransferData.itdScore}
+                    </span>
+                    <span className="text-[9px] font-mono text-muted uppercase tracking-widest font-bold">/ 100 PUNTOS</span>
+                  </div>
+                </div>
+
+                {/* 4 PILARES PROGRESS BARS */}
+                <div className="bg-card border border-border rounded-2xl p-5 shadow-none space-y-4">
+                  <SectionHeader title="Los 4 Pilares de Transferencia" sub="Cumplimiento frente a los objetivos semanales óptimos" />
+                  
+                  <div className="space-y-3.5">
+                    {tkdTransferData.pillars.map(p => (
+                      <div key={p.pilar} className="space-y-1.5">
+                        <div className="flex justify-between items-center text-xs">
+                          <span className="font-bold text-ink flex items-center gap-1.5">
+                            <span>{p.icon}</span> {p.pilar}
+                          </span>
+                          <span className="font-mono text-muted font-bold">
+                            <span className="text-signal-orange font-black text-sm">{p.actual}</span> / {p.target} series/sem ({p.pct}%)
+                          </span>
+                        </div>
+                        <div className="w-full bg-bg border border-border h-2.5 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-signal-orange rounded-full transition-all duration-500"
+                            style={{ width: `${p.pct}%` }}
+                          />
+                        </div>
                       </div>
-                    ) : (
-                      <div className="h-[200px] flex items-center justify-center border-2 border-dashed border-border rounded-2xl text-muted text-sm text-center px-4">
-                        Completa al menos 2 sesiones con este ejercicio para ver la comparativa de sobrecarga.
+                    ))}
+                  </div>
+                </div>
+
+                {/* HORIZONTAL BARCHART */}
+                <div className="bg-card border border-border rounded-2xl p-5 shadow-none">
+                  <SectionHeader title="Balance de Pilares" sub="Comparativa visual de series efectivas semanales" />
+                  <div style={{ width: '100%', height: 160 }}>
+                    <ResponsiveContainer>
+                      <BarChart data={tkdTransferData.pillars} layout="vertical" margin={{ top: 0, right: 20, left: 10, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
+                        <XAxis type="number" tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="var(--color-border)" />
+                        <YAxis dataKey="pilar" type="category" width={85} tick={{ fill: '#111827', fontSize: 11, fontWeight: 'bold' }} stroke="none" />
+                        <Tooltip content={({ active, payload }) => {
+                          if (!active || !payload?.length) return null;
+                          const d = payload[0].payload;
+                          return (
+                            <div className="bg-card border border-border p-2 rounded-xl text-xs">
+                              <p className="font-bold text-ink">{d.pilar}</p>
+                              <p className="text-signal-orange font-mono font-bold">{d.actual} de {d.target} series ({d.pct}%)</p>
+                            </div>
+                          );
+                        }} />
+                        <Bar dataKey="actual" fill="#FF6B00" radius={[0, 6, 6, 0]} barSize={16} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* 4. SUB-TAB: EQUILIBRIO DE PATRONES */}
+            {activeChartSubTab === 'equilibrio' && (
+              <>
+                {/* 3 RATIOS CARDS */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* Push vs Pull */}
+                  <div className="bg-card border border-border rounded-2xl p-4 shadow-none">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-[10px] font-condensed font-bold text-muted uppercase tracking-widest">EMPUJE / TRACCIÓN</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${patternBalanceData.isPushPullBalanced ? 'bg-success-green/10 text-success-green' : 'bg-signal-orange/10 text-signal-orange'}`}>
+                        {patternBalanceData.isPushPullBalanced ? 'Equilibrado ✓' : 'Desviado ⚠️'}
+                      </span>
+                    </div>
+                    <div className="font-display font-black text-3xl text-ink leading-none mb-1">
+                      {patternBalanceData.pushToPull} <span className="text-sm font-sans font-normal text-muted">: 1.0</span>
+                    </div>
+                    <p className="text-[11px] text-muted">
+                      {patternBalanceData.totalPush} push / {patternBalanceData.totalPull} pull (Ideal: 0.8 - 1.25)
+                    </p>
+                  </div>
+
+                  {/* Knee vs Hip */}
+                  <div className="bg-card border border-border rounded-2xl p-4 shadow-none">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-[10px] font-condensed font-bold text-muted uppercase tracking-widest">RODILLA / CADERA</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${patternBalanceData.isKneeHipBalanced ? 'bg-success-green/10 text-success-green' : 'bg-signal-orange/10 text-signal-orange'}`}>
+                        {patternBalanceData.isKneeHipBalanced ? 'Equilibrado ✓' : 'Desviado ⚠️'}
+                      </span>
+                    </div>
+                    <div className="font-display font-black text-3xl text-ink leading-none mb-1">
+                      {patternBalanceData.kneeToHip} <span className="text-sm font-sans font-normal text-muted">: 1.0</span>
+                    </div>
+                    <p className="text-[11px] text-muted">
+                      {patternBalanceData.counts.knee_dominant} rodilla / {patternBalanceData.counts.hip_dominant} cadera (Ideal: 0.8 - 1.3)
+                    </p>
+                  </div>
+
+                  {/* Bilateral vs Unilateral */}
+                  <div className="bg-card border border-border rounded-2xl p-4 shadow-none">
+                    <div className="flex justify-between items-start mb-2">
+                      <span className="text-[10px] font-condensed font-bold text-muted uppercase tracking-widest">BILATERAL / UNILATERAL</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${patternBalanceData.isUniBilateralBalanced ? 'bg-success-green/10 text-success-green' : 'bg-signal-orange/10 text-signal-orange'}`}>
+                        {patternBalanceData.isUniBilateralBalanced ? 'Equilibrado ✓' : 'Predominio Bilateral'}
+                      </span>
+                    </div>
+                    <div className="font-display font-black text-3xl text-ink leading-none mb-1">
+                      {patternBalanceData.bilateralToUnilateral} <span className="text-sm font-sans font-normal text-muted">: 1.0</span>
+                    </div>
+                    <p className="text-[11px] text-muted">
+                      {patternBalanceData.counts.unilateral} series unilaterales (Ideal: ≤ 4.0)
+                    </p>
+                  </div>
+                </div>
+
+                {/* PATTERNS BAR CHART */}
+                <div className="bg-card border border-border rounded-2xl p-5 shadow-none">
+                  <SectionHeader title="Series por Patrón Motor" sub="Distribución de volumen en las últimas 4 semanas de entrenamiento" />
+                  {patternBalanceData.hasSets ? (
+                    <div style={{ width: '100%', height: 210 }}>
+                      <ResponsiveContainer>
+                        <BarChart data={patternBalanceData.patternsBreakdown} margin={{ top: 5, right: 10, left: -20, bottom: 20 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                          <XAxis dataKey="name" angle={-25} textAnchor="end" interval={0} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="var(--color-border)" />
+                          <YAxis allowDecimals={false} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="var(--color-border)" />
+                          <Tooltip content={({ active, payload }) => {
+                            if (!active || !payload?.length) return null;
+                            const d = payload[0].payload;
+                            return (
+                              <div className="bg-card border border-border p-2 rounded-xl text-xs">
+                                <p className="text-muted uppercase text-[9px] font-bold">{d.grupo}</p>
+                                <p className="font-bold text-ink">{d.name}</p>
+                                <p className="text-signal-orange font-mono font-black">{d.series} series completadas</p>
+                              </div>
+                            );
+                          }} />
+                          <Bar dataKey="series" fill="#FF6B00" radius={[6, 6, 0, 0]}>
+                            {patternBalanceData.patternsBreakdown.map((entry, idx) => (
+                              <Cell 
+                                key={`cell-${idx}`} 
+                                fill={entry.grupo === 'Empuje' ? '#FF6B00' : entry.grupo === 'Tracción' ? '#3d7dd4' : entry.grupo === 'Pierna' ? '#27ae60' : '#8B5CF6'} 
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="h-32 flex items-center justify-center border-2 border-dashed border-border rounded-2xl text-muted text-xs text-center px-4">
+                      Completa más entrenamientos para mapear el equilibrio biomecánico de patrones.
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* 5. SUB-TAB: MESOCICLOS */}
+            {activeChartSubTab === 'mesociclos' && (
+              <>
+                <div className="bg-card border border-border rounded-2xl p-5 shadow-none">
+                  <SectionHeader title="Volumen Acumulado por Mesociclo" sub="Comparativa de carga de trabajo total (kg) entre mesociclos planificados" />
+                  {mesocycleComparisonExtended.length > 0 ? (
+                    <div style={{ width: '100%', height: 200 }}>
+                      <ResponsiveContainer>
+                        <BarChart data={mesocycleComparisonExtended} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
+                          <XAxis dataKey="name" tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="var(--color-border)" tickMargin={8} />
+                          <YAxis tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="var(--color-border)" />
+                          <Tooltip content={({ active, payload }) => {
+                            if (!active || !payload?.length) return null;
+                            const d = payload[0].payload;
+                            return (
+                              <div className="bg-card border border-border p-3 rounded-xl text-xs space-y-1">
+                                <p className="font-bold text-ink text-sm">{d.name}</p>
+                                <p className="text-signal-orange font-bold">Volumen: {d.totalVol?.toLocaleString()} kg</p>
+                                <p className="text-muted">RPE Medio: {d.avgRPE} · {d.sessionCount} sesiones</p>
+                                <p className="text-success-green font-bold">🏆 {d.prsCount} PRs logrados</p>
+                              </div>
+                            );
+                          }} />
+                          <Bar dataKey="totalVol" radius={[6, 6, 0, 0]}>
+                            {mesocycleComparisonExtended.map((entry, idx) => (
+                              <Cell key={`c-${idx}`} fill={entry.color || '#FF6B00'} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed border-border rounded-2xl text-center px-4">
+                      <p className="text-muted text-xs mb-2">No hay mesociclos creados en tu planificación actual.</p>
+                      <button 
+                        onClick={() => navigate('/plan')}
+                        className="text-xs font-bold text-signal-orange underline cursor-pointer"
+                      >
+                        Ir al Planificador →
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* MESOCYCLES SUMMARY GRID */}
+                {mesocycleComparisonExtended.length > 0 && (
+                  <div className="space-y-2.5">
+                    {mesocycleComparisonExtended.map(meso => (
+                      <div key={meso.id} className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between border-l-4" style={{ borderLeftColor: meso.color }}>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-condensed font-black text-lg text-ink">{meso.name}</span>
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-bg text-muted">{meso.type}</span>
+                          </div>
+                          <p className="text-xs text-muted">
+                            {meso.sessionCount} sesiones completadas · RPE medio {meso.avgRPE}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-condensed font-black text-xl text-ink">
+                            {meso.totalVol.toLocaleString()}<span className="text-xs font-sans text-muted font-normal ml-0.5">kg</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-signal-orange">🏆 {meso.prsCount} PRs</span>
+                        </div>
                       </div>
-                    )}
-                  </>
-                ),
-              },
-              {
-                title: 'Volumen Por Sesión',
-                sub: 'Carga total desplazada (Carga × Reps)',
-                content: (
-                  <div style={{ width: '100%', height: 180 }}>
+                    ))}
+                  </div>
+                )}
+
+                {/* LEGACY PR COMPARISON */}
+                <div className="bg-card border border-border rounded-2xl p-5 shadow-none">
+                  <SectionHeader title="Récord Máximo Histórico por Mesociclo" sub="Evolución de la mejor marca en el ejercicio seleccionado" />
+                  {chart4Data.length >= 2 ? (
+                    <div style={{ width: '100%', height: 140 }}>
+                      <ResponsiveContainer>
+                        <BarChart data={chart4Data} layout="vertical" margin={{ top: 0, right: 10, left: 10, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
+                          <XAxis type="number" hide domain={[0, 'dataMax']} />
+                          <YAxis dataKey="mesoName" type="category" width={90} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="none" />
+                          <Tooltip content={<ChartTooltip mode="meso" />} cursor={{ fill: '#F5F5F0', opacity: 0.6 }} />
+                          <Bar dataKey="maxPR" radius={[0, 6, 6, 0]} barSize={20}>
+                            {chart4Data.map((entry, idx) => <Cell key={`c-${idx}`} fill={entry.mesoColor} />)}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  ) : (
+                    <div className="h-24 flex items-center justify-center border-2 border-dashed border-border rounded-2xl text-muted text-xs text-center px-4">
+                      Completa al menos 2 mesociclos para ver la comparativa de 1RM.
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* 6. SUB-TAB: GENERAL */}
+            {activeChartSubTab === 'general' && (
+              <>
+                <div className="bg-card border border-border rounded-2xl p-5 shadow-none">
+                  <SectionHeader title="Volumen Por Sesión" sub="Carga total desplazada (Carga × Reps)" />
+                  <div style={{ width: '100%', height: 190 }}>
                     <ResponsiveContainer>
                       <BarChart data={sessionLogs} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
                         <XAxis dataKey="fecha" tickFormatter={formatShortDate} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="var(--color-border)" tickMargin={8} />
@@ -988,13 +1384,11 @@ export default function Evolution() {
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                ),
-              },
-              {
-                title: 'Fatiga (RPE Medio)',
-                sub: 'Percepción de esfuerzo promedio en sesiones recientes',
-                content: (
-                  <div style={{ width: '100%', height: 180 }}>
+                </div>
+
+                <div className="bg-card border border-border rounded-2xl p-5 shadow-none">
+                  <SectionHeader title="Fatiga (RPE Medio)" sub="Percepción de esfuerzo promedio en sesiones recientes" />
+                  <div style={{ width: '100%', height: 190 }}>
                     <ResponsiveContainer>
                       <LineChart data={sessionLogs} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" vertical={false} />
@@ -1006,40 +1400,10 @@ export default function Evolution() {
                       </LineChart>
                     </ResponsiveContainer>
                   </div>
-                ),
-              },
-              {
-                title: 'Comparativa Mesociclos',
-                sub: 'Mejor marca histórica (1RM) por mesociclo',
-                content: chart4Data.length >= 2 ? (
-                  <div style={{ width: '100%', height: 140 }}>
-                    <ResponsiveContainer>
-                      <BarChart data={chart4Data} layout="vertical" margin={{ top: 0, right: 10, left: 10, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" horizontal={false} />
-                        <XAxis type="number" hide domain={[0, 'dataMax']} />
-                        <YAxis dataKey="mesoName" type="category" width={90} tick={{ fill: '#6E6E73', fontSize: 10 }} stroke="none" />
-                        <Tooltip content={<ChartTooltip mode="meso" />} cursor={{ fill: '#F5F5F0', opacity: 0.6 }} />
-                        <Bar dataKey="maxPR" radius={[0, 6, 6, 0]} barSize={20}>
-                          {chart4Data.map((entry, idx) => <Cell key={`c-${idx}`} fill={entry.mesoColor} />)}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                ) : (
-                  <div className="h-24 flex items-center justify-center border-2 border-dashed border-border rounded-2xl text-muted text-sm text-center px-4">
-                    Completa al menos 2 mesociclos para ver la comparativa.
-                  </div>
-                ),
-              },
-            ].map(({ title, sub, content }) => (
-              <div key={title} className="bg-card border border-border rounded-2xl p-5 shadow-none relative">
-                {isDemoMode && (
-                  <div className="absolute top-4 right-4 text-[10px] border border-[#FCA5A5] text-[#EF4444] px-2 py-0.5 rounded-lg font-bold bg-[#FEF2F2]">DEMO</div>
-                )}
-                <SectionHeader title={title} sub={sub} />
-                {content}
-              </div>
-            ))}
+                </div>
+              </>
+            )}
+
           </div>
         )}
 

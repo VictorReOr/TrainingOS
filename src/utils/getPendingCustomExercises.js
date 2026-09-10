@@ -1,4 +1,5 @@
 import { getCoachOverrides } from '../data/exerciseMetadata';
+import { humanizeExerciseSlug } from './exerciseNaming';
 
 /**
  * Scans localStorage for custom-* exercise IDs (from session templates and
@@ -23,13 +24,20 @@ export function getPendingCustomExercises() {
       const sessions = JSON.parse(raw);
       if (!Array.isArray(sessions)) return;
       sessions.forEach(session => {
-        (session.ejercicios || []).forEach(ex => {
+        // 1. Sesiones de log (plano en session.ejercicios)
+        const flatExercises = session.ejercicios || [];
+        // 2. Sesiones de plantilla (agrupadas en session.blocks[].exercises)
+        const blockExercises = (session.blocks || []).flatMap(b => b.exercises || []);
+        
+        const allExercises = [...flatExercises, ...blockExercises];
+
+        allExercises.forEach(ex => {
           if (ex.id && ex.id.startsWith('custom-')) {
             if (!candidates.has(ex.id)) {
               candidates.set(ex.id, { id: ex.id, occurrences: [] });
             }
             candidates.get(ex.id).occurrences.push({
-              name: ex.name || ex.nombre || ex.id,
+              name: ex.name || ex.nombre || humanizeExerciseSlug(ex.id),
               source: sourceLabel,
               date: session.fecha || session.startDate || null,
             });

@@ -1,12 +1,21 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, ClipboardList } from 'lucide-react';
+import { ChevronLeft, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2, ClipboardList, Sparkles } from 'lucide-react';
 import { getPendingCustomExercises } from '../../utils/getPendingCustomExercises';
 import {
   saveCoachOverride,
+  getCoachOverrides,
   VALID_PATTERNS,
   VALID_PRIORITIES,
 } from '../../data/exerciseMetadata';
+import { EXERCISE_LIBRARY } from '../../data/exerciseLibrary';
+import { findBestMatch } from '../../utils/exerciseSimilarity';
+import {
+  saveExerciseAlias,
+  markNameAsReviewed,
+  wasNameReviewed,
+} from '../../utils/exerciseAliases';
+
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
@@ -34,7 +43,46 @@ const PATTERN_LABELS = {
   unilateral:       'Unilateral',
   core:             'Core',
   cardio:           'Cardio',
+  unspecified:      'Sin especificar',
 };
+
+/** ExerciseType options for the coach override form */
+const EXERCISE_TYPE_OPTIONS = [
+  { value: 'STRENGTH',     label: 'Fuerza' },
+  { value: 'HYPERTROPHY',  label: 'Hipertrofia' },
+  { value: 'POWER',        label: 'Potencia' },
+  { value: 'PLYOMETRIC',   label: 'Pliometría' },
+  { value: 'BALLISTIC',    label: 'Balístico' },
+  { value: 'OLYMPIC_LIFT', label: 'Olímpico' },
+  { value: 'CORE',         label: 'Core' },
+  { value: 'PREHAB',       label: 'Prehab' },
+  { value: 'MOBILITY',     label: 'Movilidad' },
+  { value: 'CONDITIONING', label: 'Acondicionamiento' },
+  { value: 'STABILITY',    label: 'Estabilidad' },
+  { value: 'TECHNICAL',    label: 'Técnica' },
+  { value: 'AGILITY',      label: 'Agilidad' },
+];
+
+/**
+ * Auto-derives progressionModel from exerciseType.
+ * STABILITY, TECHNICAL, AGILITY → QUALITY (progress via execution quality, not load).
+ */
+const PROGRESSION_MODEL_FOR_TYPE = {
+  STRENGTH:     'LOAD',
+  HYPERTROPHY:  'VOLUME',
+  POWER:        'QUALITY',
+  PLYOMETRIC:   'QUALITY',
+  BALLISTIC:    'VELOCITY',
+  OLYMPIC_LIFT: 'VELOCITY',
+  CORE:         'VOLUME',
+  PREHAB:       'VOLUME',
+  MOBILITY:     'NONE',
+  CONDITIONING: 'DENSITY',
+  STABILITY:    'QUALITY',
+  TECHNICAL:    'QUALITY',
+  AGILITY:      'QUALITY',
+};
+
 
 const PRIORITY_LABELS = {
   main:      'Principal',
@@ -92,16 +140,20 @@ function NameConflictBadge({ occurrences, expanded, onToggle }) {
 // ─── ReviewForm — inline expandable form ─────────────────────────────────────
 function ReviewForm({ exercise, onSaved }) {
   const [form, setForm] = useState({
-    displayName:    exercise.suggestedName,
-    pattern:        VALID_PATTERNS[0],
-    systemicCost:   5,
-    sportTransfer:  5,
-    priority:       VALID_PRIORITIES[1], // 'accessory' as sensible default
+    displayName:      exercise.suggestedName,
+    pattern:          'unspecified',               // default: coach selects explicitly
+    exerciseType:     EXERCISE_TYPE_OPTIONS[0].value, // 'STRENGTH'
+    systemicCost:     5,
+    sportTransfer:    5,
+    priority:         VALID_PRIORITIES[1],         // 'accessory'
   });
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saved,  setSaved]  = useState(false);
 
-  const isValid = form.displayName.trim() && form.pattern && form.priority;
+  // Auto-derive progressionModel from exerciseType
+  const derivedProgressionModel = PROGRESSION_MODEL_FOR_TYPE[form.exerciseType] ?? null;
+
+  const isValid = form.displayName.trim() && form.pattern && form.priority && form.exerciseType;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -109,11 +161,13 @@ function ReviewForm({ exercise, onSaved }) {
 
     setSaving(true);
     saveCoachOverride(exercise.id, {
-      displayName:   form.displayName.trim(),
-      pattern:       form.pattern,
-      systemicCost:  Number(form.systemicCost),
-      sportTransfer: Number(form.sportTransfer),
-      priority:      form.priority,
+      displayName:      form.displayName.trim(),
+      pattern:          form.pattern,
+      exerciseType:     form.exerciseType,
+      progressionModel: derivedProgressionModel,
+      systemicCost:     Number(form.systemicCost),
+      sportTransfer:    Number(form.sportTransfer),
+      priority:         form.priority,
     });
     setSaved(true);
 
@@ -145,6 +199,32 @@ function ReviewForm({ exercise, onSaved }) {
         />
       </div>
 
+      {/* exerciseType + progressionModel (auto-derived) */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className={labelClass}>Tipo de ejercicio</label>
+          <select
+            value={form.exerciseType}
+            onChange={e => setForm(f => ({ ...f, exerciseType: e.target.value }))}
+            required
+            className={fieldClass}
+          >
+            {EXERCISE_TYPE_OPTIONS.map(({ value, label }) => (
+              <option key={value} value={value}>{label}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className={labelClass}>Modelo de progresión</label>
+          <div
+            className={fieldClass + ' flex items-center opacity-60 cursor-default select-none'}
+            title="Se deriva automáticamente del tipo de ejercicio"
+          >
+            {derivedProgressionModel ?? '—'}
+          </div>
+        </div>
+      </div>
+
       {/* pattern + priority — side by side on wider viewports */}
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -155,7 +235,9 @@ function ReviewForm({ exercise, onSaved }) {
             required
             className={fieldClass}
           >
-            {VALID_PATTERNS.map(p => (
+            {/* 'unspecified' first so it's visually prominent as the default */}
+            <option value="unspecified">{PATTERN_LABELS.unspecified}</option>
+            {VALID_PATTERNS.filter(p => p !== 'unspecified').map(p => (
               <option key={p} value={p}>{PATTERN_LABELS[p] ?? p}</option>
             ))}
           </select>
@@ -224,10 +306,95 @@ function ReviewForm({ exercise, onSaved }) {
   );
 }
 
+// ─── normalize helper (same logic as exerciseMatcher / exerciseSimilarity) ────
+function normalizeStr(name) {
+  if (!name || typeof name !== 'string') return '';
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, ' ');
+}
+
+// ─── SimilaritySuggestionCard ─────────────────────────────────────────────────
+function SimilaritySuggestionCard({ exercise, candidate, score, onConfirm, onReject }) {
+  const pct = Math.round(score * 100);
+  return (
+    <div
+      className="mx-4 mt-3 mb-1 rounded-xl border p-4"
+      style={{ backgroundColor: '#FFF8F0', borderColor: '#F5A623' }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <Sparkles size={14} style={{ color: '#F5A623', flexShrink: 0 }} />
+        <span className="text-eyebrow" style={{ color: '#B87008', fontSize: 10 }}>
+          SUGERENCIA AUTOMÁTICA · {pct}% similar
+        </span>
+      </div>
+      <p className="text-sm text-[#1C1C1E] mb-3">
+        ¿Es lo mismo que{' '}
+        <span className="font-bold">'{candidate.name}'</span>?
+      </p>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={onConfirm}
+          className="flex-1 py-2 rounded-lg text-sm font-bold text-white transition-all active:scale-[0.97]"
+          style={{ backgroundColor: '#10B981' }}
+        >
+          Sí, es el mismo
+        </button>
+        <button
+          type="button"
+          onClick={onReject}
+          className="flex-1 py-2 rounded-lg text-sm font-bold transition-all active:scale-[0.97]"
+          style={{ backgroundColor: '#F5F5F0', color: '#6E6E73' }}
+        >
+          No, es distinto
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ─── ExerciseCard — single pending item ──────────────────────────────────────
 function ExerciseCard({ exercise, onSaved }) {
   const [formOpen, setFormOpen]         = useState(false);
   const [conflictOpen, setConflictOpen] = useState(false);
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false);
+
+  // ── Compute similarity suggestion once on mount ───────────────────────────
+  const suggestion = (() => {
+    const normalizedName = normalizeStr(exercise.suggestedName);
+
+    // If already reviewed, skip suggestion
+    if (wasNameReviewed(normalizedName)) return null;
+
+    // Candidates: all EXERCISE_LIBRARY entries + custom-* that already have a coach override
+    const overrides = getCoachOverrides();
+    const libCandidates = EXERCISE_LIBRARY.map(e => ({ id: e.id, name: e.name }));
+    const overrideCandidates = Object.entries(overrides)
+      .filter(([id]) => id.startsWith('custom-') && id !== exercise.id)
+      .map(([id, meta]) => ({ id, name: meta.displayName }))
+      .filter(c => c.name);
+
+    const candidates = [...libCandidates, ...overrideCandidates];
+    const result = findBestMatch(exercise.suggestedName, candidates);
+    if (!result || result.score < 0.65) return null;
+    return result; // { candidate: { id, name }, score }
+  })();
+
+  const showSuggestion = suggestion !== null && !suggestionDismissed;
+
+  const handleConfirmAlias = () => {
+    saveExerciseAlias(normalizeStr(exercise.suggestedName), suggestion.candidate.id);
+    onSaved(exercise.id); // treat as resolved — no manual override needed
+  };
+
+  const handleRejectAlias = () => {
+    markNameAsReviewed(normalizeStr(exercise.suggestedName));
+    setSuggestionDismissed(true);
+  };
 
   const toggleForm = () => {
     setFormOpen(v => !v);
@@ -273,6 +440,17 @@ function ExerciseCard({ exercise, onSaved }) {
         </div>
       </button>
 
+      {/* Similarity suggestion card — shown before the form when score >= 0.65 */}
+      {showSuggestion && (
+        <SimilaritySuggestionCard
+          exercise={exercise}
+          candidate={suggestion.candidate}
+          score={suggestion.score}
+          onConfirm={handleConfirmAlias}
+          onReject={handleRejectAlias}
+        />
+      )}
+
       {/* Conflict badge (always rendered when hasNameConflict, outside the form toggle area) */}
       {exercise.hasNameConflict && (
         <div className="px-4 pb-3 -mt-1">
@@ -291,6 +469,7 @@ function ExerciseCard({ exercise, onSaved }) {
         </div>
       )}
     </div>
+
   );
 }
 
