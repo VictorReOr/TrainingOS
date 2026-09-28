@@ -107,8 +107,23 @@ function computeRestScore(history, cfg) {
 
   if (!lastSessionDate) return 0.8; // no history → assume well rested
 
-  const daysSince = Math.floor(
-    (Date.now() - lastSessionDate.getTime()) / (1000 * 60 * 60 * 24)
+  // Comparación por fecha de calendario local (no por horas continuas de reloj).
+  // Cruzar la medianoche local equivale a un día nuevo, independientemente de
+  // cuántas horas exactas hayan transcurrido desde el último set.
+  const pad = n => n.toString().padStart(2, '0');
+  const formatLocalISO = d =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+  const todayISO = formatLocalISO(new Date());
+  const lastISO  = formatLocalISO(lastSessionDate);
+
+  // Diferencia en días de calendario: parse YYYY-MM-DD → Date a medianoche local
+  const parseLocalISO = s => {
+    const [y, m, d] = s.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  };
+  const daysSince = Math.round(
+    (parseLocalISO(todayISO) - parseLocalISO(lastISO)) / (1000 * 60 * 60 * 24)
   );
 
   if (daysSince === 0) return 0.5; // trained today, not fully recovered

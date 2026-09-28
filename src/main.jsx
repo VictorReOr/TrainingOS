@@ -14,9 +14,16 @@ import { FeedbackProvider } from './context/FeedbackContext'
 import { AuthProvider } from './context/AuthContext'
 import { ReadinessProvider } from './context/ReadinessContext'
 import { registerServiceWorker } from './utils/notifications'
+import { repairCorruptExerciseNames } from './utils/mergeSessionLogs.js'
 
 // Inicializar Service Worker para PWA y alertas con pantalla bloqueada
 registerServiceWorker();
+
+// Reparar nombres de ejercicio corruptos (nombre === id) en localStorage, una
+// sola vez al arrancar. No bloquea el render: se ejecuta tras la primera tarea
+// del event loop, cuando React ya ha pintado la UI inicial.
+setTimeout(repairCorruptExerciseNames, 0);
+
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

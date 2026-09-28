@@ -352,6 +352,9 @@ export function suggestLoad({
     // Fallback dinámico: calcular mejor 1RM desde sessionLogs si prs aún no tiene entrada para este ejercicio
     let maxEst = 0;
     const targetNorm = exerciseName ? normalize(exerciseName) : '';
+    // Tope de cordura: series con carga > 500 kg son casi con certeza datos corruptos
+    // (ej. año/serial de fecha de Google Sheets autoconvertido a número) — mismo umbral que PRContext.jsx
+    const MAX_REASONABLE_LOAD_KG = 500;
 
     sessionLogs.forEach(log => {
       if (!log || !Array.isArray(log.ejercicios)) return;
@@ -362,7 +365,7 @@ export function suggestLoad({
 
         // 1. Criterio de validez: s && parseFloat(s.carga) > 0 && parseFloat(s.reps) > 0
         const validSets = ex.seriesLog.filter(
-          s => s && parseFloat(s.carga) > 0 && parseFloat(s.reps) > 0
+          s => s && parseFloat(s.carga) > 0 && parseFloat(s.carga) <= MAX_REASONABLE_LOAD_KG && parseFloat(s.reps) > 0
         );
         validSets.forEach(s => {
           const c = parseFloat(s.carga);

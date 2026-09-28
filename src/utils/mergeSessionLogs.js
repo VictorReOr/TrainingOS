@@ -134,82 +134,86 @@ export function mergeSessionLogs(localLogs = [], remoteRows = []) {
 }
 
 // ---------------------------------------------------------------------------
-// window.repairCorruptExerciseNames — Utilidad DevTools (NO se auto-ejecuta)
-//
-// Repara nombres corruptos (nombre === id) ya contaminados en localStorage:
+// repairCorruptExerciseNames — Repara nombres corruptos (nombre === id) en
+// localStorage:
 //   trainingos_session_logs  → ejercicios[].nombre
 //   trainingos_prs           → entries[].nombre (si existe el campo)
 //
-// Uso:
-//   window.repairCorruptExerciseNames()
+// Se auto-ejecuta una vez al arrancar la app (ver main.jsx).
+// También disponible manualmente:  window.repairCorruptExerciseNames()
 // ---------------------------------------------------------------------------
-if (typeof window !== 'undefined') {
-  window.repairCorruptExerciseNames = function () {
-    let sessionsFixed = 0;
-    let prsFixed = 0;
+export function repairCorruptExerciseNames() {
+  let sessionsFixed = 0;
+  let prsFixed = 0;
 
-    // --- 1. Reparar trainingos_session_logs ---
-    try {
-      const raw = localStorage.getItem('trainingos_session_logs');
-      if (raw) {
-        const logs = JSON.parse(raw);
-        let dirty = false;
-        logs.forEach(session => {
-          if (!Array.isArray(session.ejercicios)) return;
-          session.ejercicios.forEach(ex => {
-            if (ex.nombre === ex.id) {
-              const resolved = resolveExerciseName(ex.id);
-              if (resolved !== ex.id) {
-                ex.nombre = resolved;
-                dirty = true;
-                sessionsFixed++;
-              }
-            }
-          });
-        });
-        if (dirty) {
-          localStorage.setItem('trainingos_session_logs', JSON.stringify(logs));
-        }
-      }
-    } catch (e) {
-      console.error('[repairCorruptExerciseNames] Error en session_logs:', e);
-    }
-
-    // --- 2. Reparar trainingos_prs ---
-    try {
-      const raw = localStorage.getItem('trainingos_prs');
-      if (raw) {
-        const prs = JSON.parse(raw);
-        let dirty = false;
-        // prs puede ser { [exId]: { exerciseName, ... } } o Array — manejar ambos
-        const entries = Array.isArray(prs) ? prs : Object.values(prs);
-        entries.forEach(entry => {
-          if (entry.exerciseName && entry.exerciseId && entry.exerciseName === entry.exerciseId) {
-            const resolved = resolveExerciseName(entry.exerciseId);
-            if (resolved !== entry.exerciseId) {
-              entry.exerciseName = resolved;
+  // --- 1. Reparar trainingos_session_logs ---
+  try {
+    const raw = localStorage.getItem('trainingos_session_logs');
+    if (raw) {
+      const logs = JSON.parse(raw);
+      let dirty = false;
+      logs.forEach(session => {
+        if (!Array.isArray(session.ejercicios)) return;
+        session.ejercicios.forEach(ex => {
+          if (ex.nombre === ex.id) {
+            const resolved = resolveExerciseName(ex.id);
+            if (resolved !== ex.id) {
+              ex.nombre = resolved;
               dirty = true;
-              prsFixed++;
+              sessionsFixed++;
             }
           }
         });
-        if (dirty) {
-          localStorage.setItem('trainingos_prs', JSON.stringify(prs));
-        }
+      });
+      if (dirty) {
+        localStorage.setItem('trainingos_session_logs', JSON.stringify(logs));
       }
-    } catch (e) {
-      console.error('[repairCorruptExerciseNames] Error en prs:', e);
     }
+  } catch (e) {
+    console.error('[repairCorruptExerciseNames] Error en session_logs:', e);
+  }
 
-    // --- 3. Notificar a los listeners de sesión ---
+  // --- 2. Reparar trainingos_prs ---
+  try {
+    const raw = localStorage.getItem('trainingos_prs');
+    if (raw) {
+      const prs = JSON.parse(raw);
+      let dirty = false;
+      // prs puede ser { [exId]: { exerciseName, ... } } o Array — manejar ambos
+      const entries = Array.isArray(prs) ? prs : Object.values(prs);
+      entries.forEach(entry => {
+        if (entry.exerciseName && entry.exerciseId && entry.exerciseName === entry.exerciseId) {
+          const resolved = resolveExerciseName(entry.exerciseId);
+          if (resolved !== entry.exerciseId) {
+            entry.exerciseName = resolved;
+            dirty = true;
+            prsFixed++;
+          }
+        }
+      });
+      if (dirty) {
+        localStorage.setItem('trainingos_prs', JSON.stringify(prs));
+      }
+    }
+  } catch (e) {
+    console.error('[repairCorruptExerciseNames] Error en prs:', e);
+  }
+
+  // --- 3. Notificar a los listeners de sesión ---
+  if (typeof window !== 'undefined') {
     window.dispatchEvent(new Event('session_logs_updated'));
+  }
 
-    console.log(
-      `[repairCorruptExerciseNames] ✅ Completado — ` +
-      `${sessionsFixed} ejercicios en session_logs reparados, ` +
-      `${prsFixed} entradas en prs reparadas.`
-    );
+  console.log(
+    `[repairCorruptExerciseNames] ✅ Completado — ` +
+    `${sessionsFixed} ejercicios en session_logs reparados, ` +
+    `${prsFixed} entradas en prs reparadas.`
+  );
 
-    return { sessionsFixed, prsFixed };
-  };
+  return { sessionsFixed, prsFixed };
+}
+
+// Exponer en window para uso manual desde DevTools
+if (typeof window !== 'undefined') {
+  window.repairCorruptExerciseNames = repairCorruptExerciseNames;
 }

@@ -129,6 +129,18 @@ export function PRProvider({ children }) {
     // 2.b: Listener del evento 'session_logs_updated'
     const handleLogsUpdated = () => {
       extractAndSyncPRsFromLogs();
+      // Relectura incondicional: si repairCorruptExerciseNames() ya reparó nombres
+      // en localStorage sin insertar PRs nuevos (newCount === 0, setPrs no se llama
+      // dentro de extractAndSyncPRsFromLogs), esta relectura garantiza que el estado
+      // React refleje los nombres reparados en la sesión actual.
+      try {
+        const rawPRs = localStorage.getItem(LS_KEY);
+        if (rawPRs) {
+          setPrs(JSON.parse(rawPRs));
+        }
+      } catch (e) {
+        console.warn('[PRContext] handleLogsUpdated: error leyendo PRs tras reparación:', e);
+      }
     };
 
     window.addEventListener('session_logs_updated', handleLogsUpdated);

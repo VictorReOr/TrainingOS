@@ -228,6 +228,13 @@ export default function SessionEditor() {
   };
 
   const handleSaveTemplate = () => {
+    const hasUnnamed = draft.blocks.some(b =>
+      (b.exercises || []).some(ex => !(ex.name || '').trim())
+    );
+    if (hasUnnamed) {
+      showToast('Todos los ejercicios necesitan un nombre');
+      return;
+    }
     _persistDraft();
     setSaveSheetOpen(false);
     showToast('Sesión guardada ✓');
@@ -236,6 +243,13 @@ export default function SessionEditor() {
 
   // ── Guardar y asignar a día — NO llama handleSaveTemplate (evita navigate prematuro)
   const handleSaveAndAssign = () => {
+    const hasUnnamed = draft.blocks.some(b =>
+      (b.exercises || []).some(ex => !(ex.name || '').trim())
+    );
+    if (hasUnnamed) {
+      showToast('Todos los ejercicios necesitan un nombre');
+      return;
+    }
     _persistDraft();
     setSaveSheetOpen(false);
     setTimeout(() => setDayPickerOpen(true), 200);

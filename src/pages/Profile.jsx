@@ -334,7 +334,6 @@ export default function Profile() {
                   </button>
                 );
               })()}
-
               <button
                 onClick={() => navigate('/coach')}
                 className="flex items-center justify-between p-3.5 bg-bg/40 border border-border hover:border-signal-orange rounded-xl text-left transition-all active:scale-[0.98] cursor-pointer group"
@@ -353,6 +352,30 @@ export default function Profile() {
                   </div>
                 </div>
                 <span className="text-muted group-hover:text-signal-orange transition-colors">→</span>
+              </button>
+              <button
+                onClick={() => {
+                  const confirmed = window.confirm('¿Borrar todo el historial de sesiones y PRs de este dispositivo? No se puede deshacer.');
+                  if (!confirmed) return;
+                  localStorage.removeItem('trainingos_session_logs');
+                  localStorage.removeItem('trainingos_prs');
+                  localStorage.removeItem('trainingos_last_log_sync');
+                  window.dispatchEvent(new Event('session_logs_updated'));
+                  window.alert('Datos borrados. Recarga la app para aplicar los cambios.');
+                }}
+                className="sm:col-span-2 flex items-center justify-between p-3.5 bg-bg/40 border border-corner-red/50 hover:border-corner-red rounded-xl text-left transition-all active:scale-[0.98] cursor-pointer group"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="min-w-0">
+                    <p className="font-condensed font-black text-sm text-corner-red uppercase tracking-wide">
+                      ⚠️ Reset de datos (temporal)
+                    </p>
+                    <p className="font-mono text-[9px] text-muted uppercase tracking-wider">
+                      Borra sesiones y PRs de este dispositivo
+                    </p>
+                  </div>
+                </div>
+                <span className="text-corner-red/50 group-hover:text-corner-red transition-colors shrink-0">→</span>
               </button>
             </div>
           </div>

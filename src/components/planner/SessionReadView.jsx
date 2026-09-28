@@ -95,8 +95,15 @@ const formatFullDate = (date) => {
 function hasLogForDate(sessionId, dayDate) {
   try {
     const logs = JSON.parse(localStorage.getItem(LS_SESSION_LOGS) || '[]');
-    const datePrefix = new Date(dayDate).toISOString().slice(0, 10);
-    return logs.some(l => l.sessionId === sessionId && l.fecha?.startsWith(datePrefix));
+    // Ambos lados se normalizan a fecha de calendario local (YYYY-MM-DD)
+    // con toLocaleDateString('sv') — mismo patrón que ReadinessContext.jsx —
+    // para evitar el desplazamiento de día en zonas UTC+N (ej. madrugada local).
+    const targetDateLocal = new Date(dayDate).toLocaleDateString('sv');
+    return logs.some(
+      l => l.sessionId === sessionId &&
+           l.fecha != null &&
+           new Date(l.fecha).toLocaleDateString('sv') === targetDateLocal
+    );
   } catch {
     return false;
   }
@@ -550,12 +557,12 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
               <span className="text-[11px] font-condensed font-black px-3 py-1 rounded-full bg-bg text-muted border border-border tracking-wider uppercase">
                 {dayLabel ? dayLabel.toUpperCase() : ''} · {formatFullDate(dayDate)}
               </span>
-              {isToday && (
+              {isToday && !hasLog && (
                 <span className="text-[10px] font-condensed font-black px-2.5 py-1 rounded-full bg-signal-orange/10 text-signal-orange border border-signal-orange/30 tracking-wider flex items-center gap-1.5 uppercase">
                   <span className="w-1.5 h-1.5 bg-signal-orange rounded-full animate-pulse inline-block" /> HOY
                 </span>
               )}
-              {isPast && !isToday && (
+              {((isToday && hasLog) || (isPast && !isToday)) && (
                 <span className={`text-[10px] font-condensed font-black px-2.5 py-1 rounded-full border tracking-wider uppercase ${
                   hasLog
                     ? 'bg-success-green/10 text-success-green border-success-green/30'
@@ -843,8 +850,13 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
               </button>
             )}
 
-            {/* Ejecutar — future days or today */}
-            {(isToday || !isPast) && (
+            {/* Ejecutar — future days or today (not if already completed today) */}
+            {(isToday && hasLog) ? (
+              <div className="flex-1 py-3 px-5 rounded-xl bg-success-green/10 border border-success-green/30 text-success-green font-condensed font-black text-base uppercase tracking-wider flex items-center justify-center gap-2">
+                <Check size={16} />
+                <span>Sesión completada</span>
+              </div>
+            ) : (isToday || !isPast) ? (
               <button
                 onClick={handleExecute}
                 className="flex-1 py-3 px-5 rounded-xl bg-signal-orange hover:bg-signal-orange/95 text-white font-condensed font-black text-base uppercase tracking-wider flex items-center justify-center gap-2 shadow-md shadow-signal-orange/25 active:scale-[0.98] transition-all cursor-pointer"
@@ -852,7 +864,7 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
                 <Play size={16} fill="white" />
                 <span>{isToday ? 'Ejecutar HOY' : 'Ejecutar'}</span>
               </button>
-            )}
+            ) : null}
           </div>
         )}
       </div>

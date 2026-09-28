@@ -63,6 +63,11 @@ export default function Home() {
   const now = new Date();
   const todayISO = `${now.getFullYear()}-${padISO(now.getMonth() + 1)}-${padISO(now.getDate())}`;
 
+  // streakDays[6] es siempre el día de hoy (ver computeTrainingStreak).
+  // Su tipo 'completed' ya usa el matching instanceId-first / sessionId-fallback
+  // de streak.js — no hay que reimplementar el criterio aquí.
+  const todayAlreadyCompleted = streakDays.length > 0 && streakDays[streakDays.length - 1].type === 'completed';
+
   const quickActions = [
     { label: 'Plan',      sub: 'Semanal', icon: <CalendarDays size={18} />, to: '/plan',      color: 'var(--color-signal-orange)' },
     { label: 'Evolución', sub: 'Historial', icon: <TrendingUp  size={18} />, to: '/evolution', color: 'var(--color-ink)' },
@@ -162,29 +167,38 @@ export default function Home() {
             <div className="h-px bg-border mx-5"></div>
 
             <div className="px-5 py-4 bg-card">
-              <button
-                onClick={() => {
-                  loadSession({
-                    id: todaySession.sessionId || todaySession.id || 'session-today',
-                    instanceId: todaySession?.instanceId || `${todaySession.sessionId || todaySession.id}_${todayISO}`,
-                    name: todaySession.name || 'Sesión',
-                    dayBadge: getDayOfWeek(),
-                    type: todaySession.type || 'gym',
-                    blocks: todaySession.blocks || [{
-                      id: 'block-default',
-                      name: todaySession.name || 'Bloque Principal',
-                      type: 'fuerza',
-                      icon: '🏋️',
-                      duration: `${todaySession.duration || 45}m`,
-                      exercises: []
-                    }],
-                  });
-                  navigate('/session');
-                }}
-                className="w-full py-3.5 bg-signal-orange text-ink font-display font-black text-xl rounded-xl active:scale-[0.98] transition-transform tracking-wider flex items-center justify-center gap-2 uppercase hover:bg-signal-orange/95 cursor-pointer"
-              >
-                <Play size={18} fill="#111827" stroke="none" /> INICIAR ENTRENAMIENTO
-              </button>
+              {todayAlreadyCompleted ? (
+                <button
+                  onClick={() => navigate('/evolution')}
+                  className="w-full py-3.5 bg-success-green/10 border border-success-green/30 text-success-green font-display font-black text-xl rounded-xl transition-transform tracking-wider flex items-center justify-center gap-2 uppercase cursor-pointer"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg> SESIÓN COMPLETADA
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    loadSession({
+                      id: todaySession.sessionId || todaySession.id || 'session-today',
+                      instanceId: todaySession?.instanceId || `${todaySession.sessionId || todaySession.id}_${todayISO}`,
+                      name: todaySession.name || 'Sesión',
+                      dayBadge: getDayOfWeek(),
+                      type: todaySession.type || 'gym',
+                      blocks: todaySession.blocks || [{
+                        id: 'block-default',
+                        name: todaySession.name || 'Bloque Principal',
+                        type: 'fuerza',
+                        icon: '🏋️',
+                        duration: `${todaySession.duration || 45}m`,
+                        exercises: []
+                      }],
+                    });
+                    navigate('/session');
+                  }}
+                  className="w-full py-3.5 bg-signal-orange text-ink font-display font-black text-xl rounded-xl active:scale-[0.98] transition-transform tracking-wider flex items-center justify-center gap-2 uppercase hover:bg-signal-orange/95 cursor-pointer"
+                >
+                  <Play size={18} fill="#111827" stroke="none" /> INICIAR ENTRENAMIENTO
+                </button>
+              )}
             </div>
           </div>
         ) : (
