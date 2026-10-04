@@ -9,7 +9,7 @@ export function matchExerciseId(excelExerciseName, exerciseLibrary) {
 
   // 1. Normaliza el nombre: minúsculas, sin tildes, trim, espacios colapsados
   const normalize = (name) => {
-    return name
+    return String(name)
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Quitar tildes
       .toLowerCase()
       .trim()

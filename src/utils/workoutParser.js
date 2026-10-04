@@ -110,7 +110,7 @@ export function parseWorkouts(rows) {
     // 4. Crear y añadir ejercicio
     const sets = parseInt(row.series, 10) || 1;
     const reps = (row.repeticiones || '1').toString();
-    const rawExerciseName = row.ejercicio || 'Ejercicio Desconocido';
+    const rawExerciseName = row.ejercicio ? String(row.ejercicio) : 'Ejercicio Desconocido';
     
     // Resolución de categoría normalizada desde row.tipo
     const normalizedCategory = normalizeCategory(row.tipo);
