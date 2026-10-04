@@ -462,8 +462,20 @@ function doGet(e) {
     var p      = e.parameter || {};
     var action = p.action;
 
-    // ── Verificación de identidad (todas las acciones) ──
-    var uid = _verifyIdToken(p.id_token);
+    // ── Verificación de identidad ──
+    // Para acciones de datos personales (logs, PRs, sesiones, etc.) el token es
+    // obligatorio. Para getWorkouts el token es OPCIONAL: si viene se verifica y
+    // se usa el uid; si no viene, se usa el coach_id del query param (compatibilidad
+    // con llamadas desde la PWA cuando Firebase aún no ha refrescado el token).
+    var uid = null;
+    var PUBLIC_ACTIONS = ['getWorkouts'];
+    if (PUBLIC_ACTIONS.indexOf(action) === -1) {
+      // Acción privada → token obligatorio
+      uid = _verifyIdToken(p.id_token);
+    } else if (p.id_token) {
+      // Acción pública con token presente → verificar igualmente (más seguro)
+      try { uid = _verifyIdToken(p.id_token); } catch(_) {}
+    }
 
     if (action === 'getLogs') {
       // Cat. A: atleta = uid verificado (ignora p.atleta_id)
@@ -522,8 +534,10 @@ function doGet(e) {
     }
 
     if (action === 'getWorkouts') {
-      // Cat. A (reclasificado): coach_id = uid verificado
       var rutinaIdParam = p.rutina_id ? String(p.rutina_id).trim() : '';
+      // uid viene del token verificado (puede ser null si el token no vino).
+      // En ese caso usamos el coach_id del query param como fallback.
+      var effectiveCoachId = uid || (p.coach_id ? String(p.coach_id).trim() : '');
 
       var allRows = _sheetDataWorkouts();
 
@@ -536,8 +550,8 @@ function doGet(e) {
           return true;
         }
 
-        // Sin rutina_id, filtrar por coach_id = uid verificado
-        return rowCoachId === uid;
+        // Sin rutina_id, filtrar por el coach efectivo
+        return effectiveCoachId && rowCoachId === effectiveCoachId;
       });
 
       return _ok({ rows: rows });

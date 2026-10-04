@@ -372,7 +372,13 @@ export default function Plan() {
     try {
       const res = await fetchWorkouts();
       const parsed = parseWorkouts(res.rows || []);
-      setImportedRoutines(parsed.length > 0 ? parsed : PRESET_ROUTINES);
+      if (parsed.length > 0) {
+        // Datos reales obtenidos: limpiar caché local para evitar rutinas obsoletas
+        try { localStorage.removeItem('trainingos_local_workouts'); } catch (_) {}
+        setImportedRoutines(parsed);
+      } else {
+        setImportedRoutines(PRESET_ROUTINES);
+      }
     } catch (err) {
       console.warn('Google Sheets getWorkouts no activo, usando rutinas predefinidas:', err);
       setImportedRoutines(PRESET_ROUTINES);
