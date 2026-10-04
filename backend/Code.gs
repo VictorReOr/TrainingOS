@@ -1,10 +1,10 @@
-/**
+﻿/**
  * TrainingOS — Backend Google Apps Script
  * doGet + doPost con enrutador por action.
  * Ejecutar initSheets() una vez manualmente para crear las hojas.
  */
 
-// ─── CORS Helper ─────────────────────────────────────────────────────────────
+// --- CORS Helper -------------------------------------------------------------
 function _corsOutput(data) {
   return ContentService
     .createTextOutput(JSON.stringify(data))
@@ -19,7 +19,7 @@ function _err(msg) {
   return _corsOutput({ status: 'error', message: msg });
 }
 
-// ─── Sheet Helper ─────────────────────────────────────────────────────────────
+// --- Sheet Helper -------------------------------------------------------------
 function _sheet(name) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(name);
@@ -47,7 +47,7 @@ function _appendRow(sheetName, rowObj) {
 }
 
 
-// ─── Firebase ID Token verification ──────────────────────────────────────────
+// --- Firebase ID Token verification ------------------------------------------
 /**
  * Verifica un ID Token de Firebase contra Identity Toolkit.
  * Usa CacheService para evitar re-verificaciones dentro de una ventana de 5 min.
@@ -60,7 +60,7 @@ function _appendRow(sheetName, rowObj) {
 function _verifyIdToken(idToken) {
   if (!idToken) throw new Error('No autorizado: token ausente');
 
-  // ── Cache: evitar re-verificación del mismo token en ráfagas ──
+  // -- Cache: evitar re-verificación del mismo token en ráfagas --
   var cache = CacheService.getScriptCache();
   var cacheKey = 'tok_' + idToken.substring(idToken.length - 40);
   var cached = cache.get(cacheKey);
@@ -69,7 +69,7 @@ function _verifyIdToken(idToken) {
     return cached;
   }
 
-  // ── Verificación real contra Firebase Identity Toolkit ──
+  // -- Verificación real contra Firebase Identity Toolkit --
   var apiKey = PropertiesService.getScriptProperties().getProperty('FIREBASE_WEB_API_KEY');
   if (!apiKey) throw new Error('Config error: FIREBASE_WEB_API_KEY no configurada en ScriptProperties');
 
@@ -99,7 +99,7 @@ function _verifyIdToken(idToken) {
   Logger.log('[Auth] Token verificado — uid: ' + uid + ' (cacheado 5min)');
   return uid;
 }
-// ─── INITIALIZER ─────────────────────────────────────────────────────────────
+// --- INITIALIZER -------------------------------------------------------------
 function initSheets() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
 
@@ -141,14 +141,14 @@ function initSheets() {
   Logger.log('initSheets completado correctamente.');
 }
 
-// ─── doPost ───────────────────────────────────────────────────────────────────
+// --- doPost -------------------------------------------------------------------
 function doPost(e) {
   try {
     var payload = JSON.parse(e.postData.contents);
     var action  = payload.action;
     var now     = new Date().toISOString();
 
-    // ── Verificación de identidad (todas las acciones) ──
+    // -- Verificación de identidad (todas las acciones) --
     var uid = _verifyIdToken(payload.idToken);
 
     if (action === 'register') {
@@ -412,7 +412,7 @@ function doPost(e) {
   }
 }
 
-// ─── Workouts sheet reader (getDisplayValues para columnas de texto libre) ─────
+// --- Workouts sheet reader (getDisplayValues para columnas de texto libre) -----
 /**
  * Lee la hoja 'workouts' usando dos pasadas:
  *   - getValues()        → columnas de identidad (pueden ser número/texto normal)
@@ -456,13 +456,13 @@ function _sheetDataWorkouts() {
   });
 }
 
-// ─── doGet ────────────────────────────────────────────────────────────────────
+// --- doGet --------------------------------------------------------------------
 function doGet(e) {
   try {
     var p      = e.parameter || {};
     var action = p.action;
 
-    // ── Verificación de identidad ──
+    // -- Verificación de identidad --
     // Para acciones de datos personales (logs, PRs, sesiones, etc.) el token es
     // obligatorio. Para getWorkouts el token es OPCIONAL: si viene se verifica y
     // se usa el uid; si no viene, se usa el coach_id del query param (compatibilidad
