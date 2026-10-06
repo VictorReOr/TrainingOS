@@ -1,3 +1,5 @@
+import { isSessionCompleted } from './sessionCompletion.js';
+
 /**
  * @typedef {Object} DayStreakInfo
  * @property {Date} date
@@ -32,14 +34,13 @@ export function computeTrainingStreak(scheduledSessions, sessionLogs, referenceD
     const sId = session.id || session.sessionId;
     const instanceId = session.instanceId;
     
-    // Prioridad de matching: usar instanceId si ambos (asignación y log) lo tienen, 
-    // para diferenciar repeticiones de la misma plantilla en días distintos.
-    // Fallback: si el log es antiguo (null/undefined), usar sessionId para retrocompatibilidad.
-    const hasLog = sessionLogs.some(log => {
-      if (instanceId && log.instanceId) {
-        return log.instanceId === instanceId;
-      }
-      return log.sessionId === sId;
+    // Prioridad de matching: instanceId si ambos lados lo tienen (rama a);
+    // fallback sessionId + fecha local si el log es antiguo (rama b).
+    // Sin fallback sessionId solo: evita falsos positivos de semanas anteriores (caso f).
+    const hasLog = isSessionCompleted(sessionLogs, {
+      instanceId,
+      sessionId: sId,
+      dateISO,
     });
     
     if (hasLog) {

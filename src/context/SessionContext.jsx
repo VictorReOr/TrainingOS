@@ -19,6 +19,10 @@ export function SessionProvider({ children }) {
   const [startTime, setStartTime] = useState(null);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
+  // isSaved: true tras saveSession() correcto; resetea en loadSession/clearSession.
+  // resetSession() llama internamente a loadSession → también resetea isSaved (efecto esperado).
+  const [isSaved, setIsSaved] = useState(false);
+
 
   // Timer tick for active session
   useEffect(() => {
@@ -33,9 +37,11 @@ export function SessionProvider({ children }) {
    * Carga una sesión planificada para ejecutarla.
    */
   const loadSession = (sessionData) => {
+    setIsSaved(false);          // resetear estado guardado al cargar nueva sesión
     setActiveSession(sessionData);
     setStartTime(Date.now());
     setElapsedSeconds(0);
+
 
     // Inicializar estructuras de logs por ejercicio
     const initialLogs = {};
@@ -119,12 +125,14 @@ export function SessionProvider({ children }) {
    * Limpia la sesión activa.
    */
   const clearSession = () => {
+    setIsSaved(false);          // resetear estado guardado al limpiar sesión
     setActiveSession(null);
     setExerciseLogs({});
     setStartTime(null);
     setElapsedSeconds(0);
     localStorage.removeItem(LS_DRAFT);
   };
+
 
   // ── Draft recovery ────────────────────────────────────────────
   const getDraft = () => {
@@ -142,6 +150,7 @@ export function SessionProvider({ children }) {
 
   const restoreFromDraft = (draft) => {
     if (!draft) return;
+    setIsSaved(false);          // resetear estado guardado al restaurar desde draft
     setActiveSession(draft.activeSession);
     setExerciseLogs(draft.exerciseLogs || {});
     setStartTime(draft.startTime || Date.now());
@@ -195,8 +204,21 @@ export function SessionProvider({ children }) {
    */
   const saveSession = async () => {
     if (!activeSession) return;
+    // Guard de idempotencia — no duplicar si ya se guardó en este ciclo de sesión
+    if (isSaved) return;
+    // Guard por instanceId — si ya existe un log con este instanceId en localStorage, no duplicar
+    if (activeSession.instanceId) {
+      try {
+        const existingLogs = JSON.parse(localStorage.getItem(LS_SESSION_LOGS) || '[]');
+        if (existingLogs.some(l => l.instanceId === activeSession.instanceId)) {
+          setIsSaved(true);
+          return;
+        }
+      } catch (_) {}
+    }
     setIsSaving(true);
     try {
+
       const now = new Date().toISOString();
 
       // Mapear ejercicios con logs completados
@@ -291,6 +313,7 @@ export function SessionProvider({ children }) {
       const existing = existingRaw ? JSON.parse(existingRaw) : [];
       const updated = [logEntry, ...existing];
       localStorage.setItem(LS_SESSION_LOGS, JSON.stringify(updated));
+      setIsSaved(true);          // marcar como guardada (guard idempotencia)
       localStorage.removeItem(LS_DRAFT);
 
       // Notificar evento global de actualización de logs
@@ -322,7 +345,9 @@ export function SessionProvider({ children }) {
       tiempoFormateado,
       isFinished,
       isSaving,
+      isSaved,
       loadSession,
+
       clearSession,
       resetSession,
       updateLogSet,

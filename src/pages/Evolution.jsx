@@ -540,6 +540,7 @@ export default function Evolution() {
 
     loadSession({
       id: log.sessionId,
+      instanceId: `repeat_${log.sessionId}_${Date.now()}`,
       name: log.sessionName,
       type: log.sessionType,
       dayBadge: 'REPETICIÓN',

@@ -7,6 +7,8 @@ import { useRole } from '../../hooks/useRole';
 import { saveLog as _saveLog, getAtletaId } from '../../services/sheets';
 import { MOCK_SESSION_DETAILS } from '../../data/mockPlanner';
 import { MOCK_SESSION } from '../../data/mockSession';
+import { isSessionCompleted, getLocalISO } from '../../utils/sessionCompletion.js';
+
 import {
   X,
   Play,
@@ -91,25 +93,9 @@ const formatFullDate = (date) => {
   return `${days[d.getDay()]} ${d.getDate()} ${months[d.getMonth()]}`;
 };
 
-/** Check if a session already has a log for a given date (YYYY-MM-DD prefix) */
-function hasLogForDate(sessionId, dayDate) {
-  try {
-    const logs = JSON.parse(localStorage.getItem(LS_SESSION_LOGS) || '[]');
-    // Ambos lados se normalizan a fecha de calendario local (YYYY-MM-DD)
-    // con toLocaleDateString('sv') — mismo patrón que ReadinessContext.jsx —
-    // para evitar el desplazamiento de día en zonas UTC+N (ej. madrugada local).
-    const targetDateLocal = new Date(dayDate).toLocaleDateString('sv');
-    return logs.some(
-      l => l.sessionId === sessionId &&
-           l.fecha != null &&
-           new Date(l.fecha).toLocaleDateString('sv') === targetDateLocal
-    );
-  } catch {
-    return false;
-  }
-}
 
 /** Build initial per-exercise log state from blocks */
+
 function buildInitialLogs(blocks) {
   const result = {};
   (blocks || []).forEach(block => {
@@ -130,7 +116,7 @@ function buildInitialLogs(blocks) {
 }
 
 // ─── Retroactive Logger ─────────────────────────────────────────────────────
-function RetroactiveLogger({ blocks, sessionId, sessionName, dayDate, onSaved, onCancel }) {
+function RetroactiveLogger({ blocks, sessionId, sessionName, dayDate, onSaved, onCancel, instanceId }) {
   // Flatten all exercises across blocks for wizard navigation
   const allExercises = (blocks || []).flatMap(block =>
     (block.exercises || []).map(ex => ({ ...ex, _blockName: block.name || block.type || '' }))
@@ -206,6 +192,7 @@ function RetroactiveLogger({ blocks, sessionId, sessionName, dayDate, onSaved, o
         id: `session-log-retro-${Date.now()}`,
         fecha,                          // ← real session date (critical for PE)
         sessionId,
+        instanceId: instanceId || null, // ← para que isSessionCompleted pueda matchear por id exacto
         sessionName: sessionName || 'Sesión',
         durationMinutes: 45,            // retroactive: no timer, use default
         rpe: rpeMedio,
@@ -407,13 +394,36 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
   const [isVisible, setIsVisible] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [showRetroLogger, setShowRetroLogger] = useState(false);
-  const [hasLog, setHasLog] = useState(() => hasLogForDate(session?.sessionId || session?.id, dayDate));
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState('');
 
-  const formatISO = (d) => { const pad = n => n.toString().padStart(2, '0'); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
-  const dateISO = formatISO(new Date(dayDate));
+  // Calcular dateISO e sId antes de usarlos como deps primitivas en useEffect
+  const sId = session?.sessionId || session?.id;
+  const dateISO = getLocalISO(new Date(dayDate));
   const currentSession = weekAssignments[dateISO] || session;
+  const instanceId = currentSession?.instanceId || `${sId}_${dateISO}`;
+
+  // hasLog reactivo — inicializa en false; el efecto lo calcula enseguida y
+  // se re-ejecuta si cambia sId/dateISO/instanceId o llegan eventos de logs.
+  const [hasLog, setHasLog] = useState(false);
+
+  useEffect(() => {
+    const recalc = () => {
+      try {
+        const logs = JSON.parse(localStorage.getItem(LS_SESSION_LOGS) || '[]');
+        setHasLog(isSessionCompleted(logs, { instanceId, sessionId: sId, dateISO }));
+      } catch {
+        setHasLog(false);
+      }
+    };
+    recalc();
+    window.addEventListener('session_logs_updated', recalc);
+    window.addEventListener('new_session_saved', recalc);
+    return () => {
+      window.removeEventListener('session_logs_updated', recalc);
+      window.removeEventListener('new_session_saved', recalc);
+    };
+  }, [sId, dateISO, instanceId]);
 
   const handleSaveName = () => {
     if (editedName.trim() && editedName !== currentSession.name) {
@@ -438,9 +448,9 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
     setTimeout(onClose, 300);
   };
 
-  const sId = session?.sessionId || session?.id;
   const template = sessionTemplates.find(t => t.id === sId);
   let finalBlocks = [];
+
 
   if (Array.isArray(session?.blocks) && session.blocks.length > 0) {
     finalBlocks = session.blocks;
@@ -656,12 +666,14 @@ export default function SessionReadView({ session, dayDate, dayLabel, onClose })
                 sessionId={sId}
                 sessionName={currentSession.name}
                 dayDate={dayDate}
+                instanceId={instanceId}
                 onSaved={() => {
                   setHasLog(true);
                   setShowRetroLogger(false);
                 }}
                 onCancel={() => setShowRetroLogger(false)}
               />
+
             </div>
           ) : (
             <>

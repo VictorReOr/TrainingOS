@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSession } from '../context/SessionContext';
 import { useAthlete } from '../context/AthleteContext';
 import { useReadiness } from '../context/ReadinessContext';
@@ -35,6 +36,7 @@ export default function Session() {
     tiempoFormateado,
     isFinished,
     isSaving,
+    isSaved,
     updateLogSet,
     toggleLogSet,
     saveSession,
@@ -44,7 +46,9 @@ export default function Session() {
     restoreFromDraft,
   } = useSession();
 
+  const navigate = useNavigate();
   const { activeMesocycle } = usePlanner();
+
   const { athlete } = useAthlete();
   const { startRest } = useTimer();
   const { todayCheckIn } = useReadiness();
@@ -114,7 +118,21 @@ export default function Session() {
     return () => window.removeEventListener('new-pr', handlePR);
   }, []);
 
+  // Detectar si esta instancia ya fue guardada en un ciclo anterior.
+  // false cuando isSaved===true para que el ticket post-guardado siga visible (no bloquear).
+  const alreadyCompleted = useMemo(() => {
+    if (isSaved) return false;
+    if (!sessionData?.instanceId) return false;
+    try {
+      const logs = JSON.parse(localStorage.getItem('trainingos_session_logs') || '[]');
+      return logs.some(l => l.instanceId === sessionData.instanceId);
+    } catch {
+      return false;
+    }
+  }, [sessionData, isSaved]);
+
   if (!sessionData) {
+
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-6 bg-bg text-ink min-h-screen">
         <p className="font-mono text-xs text-muted uppercase tracking-wider mb-4">No hay ninguna sesión activa</p>
@@ -124,6 +142,55 @@ export default function Session() {
         >
           Ir al Plan Semanal
         </button>
+      </div>
+    );
+  }
+
+  // Pantalla de bloqueo: instancia ya registrada en un ciclo anterior
+  if (alreadyCompleted) {
+    const logs = (() => {
+      try { return JSON.parse(localStorage.getItem('trainingos_session_logs') || '[]'); }
+      catch { return []; }
+    })();
+    const matchLog = logs.find(l => l.instanceId === sessionData.instanceId);
+    const fechaStr = matchLog?.fecha
+      ? new Date(matchLog.fecha).toLocaleDateString('es-ES', {
+          weekday: 'long', day: 'numeric', month: 'long',
+        })
+      : '';
+
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-bg text-ink min-h-screen gap-6">
+        <div className="w-16 h-16 rounded-full bg-success-green/10 border border-success-green/30 flex items-center justify-center">
+          <CheckCircle2 size={32} className="text-success-green" />
+        </div>
+        <div className="text-center">
+          <p className="font-display font-black text-xl uppercase tracking-wider text-ink mb-1">
+            Sesión ya completada
+          </p>
+          <p className="font-mono text-xs text-muted uppercase tracking-wider">
+            {sessionData.name}
+          </p>
+          {fechaStr && (
+            <p className="font-mono text-xs text-muted uppercase tracking-wider mt-1">
+              {fechaStr}
+            </p>
+          )}
+        </div>
+        <div className="flex flex-col gap-3 w-full max-w-xs">
+          <button
+            onClick={() => navigate('/plan')}
+            className="py-3.5 px-4 bg-signal-orange rounded-xl font-display font-black text-base text-ink tracking-wider flex items-center justify-center gap-2 cursor-pointer uppercase"
+          >
+            Volver al plan
+          </button>
+          <button
+            onClick={() => navigate('/evolution')}
+            className="py-3.5 px-4 border-2 border-border rounded-xl font-display font-black text-base text-ink tracking-wider flex items-center justify-center gap-2 cursor-pointer uppercase"
+          >
+            Ver evolución
+          </button>
+        </div>
       </div>
     );
   }
@@ -364,6 +431,9 @@ export default function Session() {
   };
 
   const handleSaveSession = async () => {
+    // Si ya estaba guardada antes de llamar → saveSession retorna sin hacer nada,
+    // no mostramos toast de éxito (el botón ya muestra "GUARDADA ✓").
+    if (isSaved) return;
     try {
       await saveSession();
       setToastMsg('Sesión guardada en Excel');
@@ -374,6 +444,7 @@ export default function Session() {
       setTimeout(() => setToastMsg(''), 3000);
     }
   };
+
 
   const handleShare = () => {
     const dateStr = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
@@ -538,14 +609,17 @@ export default function Session() {
               </button>
               <button
                 onClick={handleSaveSession}
-                disabled={isSaving}
+                disabled={isSaving || isSaved}
                 className="py-3.5 px-4 bg-signal-orange rounded-xl font-display font-black text-base text-ink tracking-wider flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] transition-transform cursor-pointer uppercase"
               >
                 {isSaving
                   ? <span className="w-5 h-5 border-2 border-ink border-t-transparent rounded-full animate-spin" />
-                  : <><CloudUpload size={16} /> GUARDAR</>
+                  : isSaved
+                    ? <><CheckCircle2 size={16} /> GUARDADA ✓</>
+                    : <><CloudUpload size={16} /> GUARDAR</>
                 }
               </button>
+
             </div>
 
             {/* Feedback Section */}
